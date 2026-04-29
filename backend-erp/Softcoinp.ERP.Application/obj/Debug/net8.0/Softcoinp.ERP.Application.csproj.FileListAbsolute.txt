@@ -1,0 +1,15 @@
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\bin\Debug\net8.0\Softcoinp.ERP.Application.deps.json
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\bin\Debug\net8.0\Softcoinp.ERP.Application.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\bin\Debug\net8.0\Softcoinp.ERP.Application.pdb
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\bin\Debug\net8.0\Softcoinp.ERP.Domain.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\bin\Debug\net8.0\Softcoinp.ERP.Domain.pdb
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.csproj.AssemblyReference.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.AssemblyInfoInputs.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.AssemblyInfo.cs
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.csproj.CoreCompileInputs.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoin.FFD8076A.Up2Date
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\refint\Softcoinp.ERP.Application.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.pdb
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\ref\Softcoinp.ERP.Application.dll

@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Softcoinp.ERP.Domain", "Softcoinp.ERP.Domain\Softcoinp.ERP.Domain.csproj", "{5301DF10-6A61-448E-B261-100EE2683C80}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Softcoinp.ERP.Application", "Softcoinp.ERP.Application\Softcoinp.ERP.Application.csproj", "{F190B3B0-0F05-4BB1-8264-A9507221F995}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Softcoinp.ERP.Infrastructure", "Softcoinp.ERP.Infrastructure\Softcoinp.ERP.Infrastructure.csproj", "{CF335E59-C591-4599-A7F1-F2A031314EBF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Softcoinp.ERP.WebAPI", "Softcoinp.ERP.WebAPI\Softcoinp.ERP.WebAPI.csproj", "{28927C04-3CAE-49DE-9785-EAF3E8ACD129}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5301DF10-6A61-448E-B261-100EE2683C80}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5301DF10-6A61-448E-B261-100EE2683C80}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5301DF10-6A61-448E-B261-100EE2683C80}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5301DF10-6A61-448E-B261-100EE2683C80}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F190B3B0-0F05-4BB1-8264-A9507221F995}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F190B3B0-0F05-4BB1-8264-A9507221F995}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F190B3B0-0F05-4BB1-8264-A9507221F995}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F190B3B0-0F05-4BB1-8264-A9507221F995}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF335E59-C591-4599-A7F1-F2A031314EBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF335E59-C591-4599-A7F1-F2A031314EBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF335E59-C591-4599-A7F1-F2A031314EBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF335E59-C591-4599-A7F1-F2A031314EBF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28927C04-3CAE-49DE-9785-EAF3E8ACD129}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28927C04-3CAE-49DE-9785-EAF3E8ACD129}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28927C04-3CAE-49DE-9785-EAF3E8ACD129}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28927C04-3CAE-49DE-9785-EAF3E8ACD129}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

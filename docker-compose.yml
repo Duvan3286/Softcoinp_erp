@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  erp-backend:
+    build:
+      context: ./backend-erp
+      dockerfile: Dockerfile
+    container_name: erp-backend
+    restart: unless-stopped
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__MasterConnection=Server=host.docker.internal;Database=erp_master;User=root;Password=1234;
+      - AUTO_MIGRATE=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - erp-network
+
+  erp-frontend:
+    build:
+      context: ./frontend-erp
+      dockerfile: Dockerfile
+    container_name: erp-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+    depends_on:
+      - erp-backend
+    networks:
+      - erp-network
+
+networks:
+  erp-network:
+    driver: bridge

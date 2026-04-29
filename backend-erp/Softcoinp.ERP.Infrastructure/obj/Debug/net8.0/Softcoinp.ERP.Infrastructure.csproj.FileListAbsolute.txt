@@ -1,0 +1,17 @@
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\bin\Debug\net8.0\Softcoinp.ERP.Infrastructure.deps.json
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\bin\Debug\net8.0\Softcoinp.ERP.Infrastructure.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\bin\Debug\net8.0\Softcoinp.ERP.Infrastructure.pdb
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\bin\Debug\net8.0\Softcoinp.ERP.Domain.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\bin\Debug\net8.0\Softcoinp.ERP.Domain.pdb
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.csproj.AssemblyReference.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.AssemblyInfoInputs.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.AssemblyInfo.cs
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoin.2EFCECD8.Up2Date
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\refint\Softcoinp.ERP.Infrastructure.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.pdb
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\ref\Softcoinp.ERP.Infrastructure.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\bin\Debug\net8.0\Softcoinp.ERP.Infrastructure.runtimeconfig.json
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.genruntimeconfig.cache

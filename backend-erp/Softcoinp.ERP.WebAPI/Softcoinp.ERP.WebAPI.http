@@ -1,0 +1,6 @@
+@Softcoinp.ERP.WebAPI_HostAddress = http://localhost:5031
+
+GET {{Softcoinp.ERP.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
