@@ -105,6 +105,15 @@ export const Sidebar = () => {
             router={router}
           />
 
+          <NavItem
+            icon={<Database className="w-5 h-5" />}
+            text="Unidades"
+            path="/units"
+            currentPath={pathname}
+            isExpanded={isExpanded}
+            router={router}
+          />
+
           <NavGroup
             icon={<Briefcase className="w-5 h-5" />}
             text="Finanzas"
@@ -242,3 +251,5 @@ function NavItem({ icon, text, path, currentPath, isExpanded, router, isSubItem 
     </button>
   );
 }
+
+// Trigger refresh

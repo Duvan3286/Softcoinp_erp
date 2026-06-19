@@ -43,6 +43,12 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<LegalRepresentativeHistory> LegalRepresentativeHistories => Set<LegalRepresentativeHistory>();
     public DbSet<TenantDocument> TenantDocuments => Set<TenantDocument>();
 
+    // ── Módulo de Unidades (nuevo) ───────────────────────────────────
+    public DbSet<UnitType> UnitTypes => Set<UnitType>();
+    public DbSet<Unit> Units => Set<Unit>();
+    public DbSet<UnitStateHistory> UnitStateHistories => Set<UnitStateHistory>();
+    public DbSet<UnitComplement> UnitComplements => Set<UnitComplement>();
+    public DbSet<BulkImportLog> BulkImportLogs => Set<BulkImportLog>();
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
@@ -243,6 +249,89 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.FilePath).HasMaxLength(500);
             entity.Property(e => e.ContentType).HasMaxLength(100);
             entity.Property(e => e.UploadedByUserId).HasMaxLength(450);
+        });
+
+        // ── Módulo de Unidades ───────────────────────────────────────────
+        modelBuilder.Entity<UnitType>(entity =>
+        {
+            entity.ToTable("erp_unit_types");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+        });
+
+        modelBuilder.Entity<Unit>(entity =>
+        {
+            entity.ToTable("erp_units");
+            entity.HasKey(e => e.Id);
+            
+            // Unique index for identifier per tenant
+            entity.HasIndex(e => new { e.TenantId, e.Identifier }).IsUnique();
+
+            entity.Property(e => e.Identifier).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.TowerOrBlock).HasMaxLength(50);
+            entity.Property(e => e.PrivateArea).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.BalconyArea).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CoproprietyCoefficient).HasColumnType("decimal(18,4)");
+            
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.ParkingIdentifier).HasMaxLength(50);
+            entity.Property(e => e.StorageIdentifier).HasMaxLength(50);
+            entity.Property(e => e.InternalObservations).HasMaxLength(1000);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+
+            // Add Check Constraint for Coefficient
+            entity.HasCheckConstraint("CK_Unit_CoproprietyCoefficient_Positive", "`CoproprietyCoefficient` > 0");
+
+            entity.HasOne(e => e.UnitType)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitTypeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<UnitStateHistory>(entity =>
+        {
+            entity.ToTable("erp_unit_state_history");
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.PreviousStatus).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.NewStatus).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.ChangedByUserId).HasMaxLength(450);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UnitComplement>(entity =>
+        {
+            entity.ToTable("erp_unit_complements");
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.ComplementType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.ParentUnit)
+                  .WithMany()
+                  .HasForeignKey(e => e.ParentUnitId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.ComplementUnit)
+                  .WithMany()
+                  .HasForeignKey(e => e.ComplementUnitId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BulkImportLog>(entity =>
+        {
+            entity.ToTable("erp_bulk_import_logs");
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.ExecutedByUserId).HasMaxLength(450);
+            entity.Property(e => e.ErrorReport).HasColumnType("longtext");
         });
     }
 

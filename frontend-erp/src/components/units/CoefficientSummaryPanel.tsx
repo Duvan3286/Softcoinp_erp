@@ -1,0 +1,100 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { UnitsService, UnitCoefficientSummary } from "@/lib/units-service";
+
+export default function CoefficientSummaryPanel() {
+  const [summary, setSummary] = useState<UnitCoefficientSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSummary();
+  }, []);
+
+  const fetchSummary = async () => {
+    try {
+      const data = await UnitsService.getCoefficientSummary();
+      setSummary(data);
+    } catch (error) {
+      console.error("Error fetching summary:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-center items-center h-32">
+        <div className="animate-pulse flex space-x-2">
+          <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+          <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+          <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return null;
+  }
+
+  const { totalCoefficient, pendingCoefficient, excessCoefficient, isExactlyOneHundred } = summary;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+        <h3 className="text-lg font-semibold text-gray-800">Resumen de Coeficientes</h3>
+        {(() => {
+          if (isExactlyOneHundred) {
+            return (
+              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                Perfectamente Balanceado
+              </span>
+            );
+          }
+          return (
+            <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
+              Requiere Atención
+            </span>
+          );
+        })()}
+      </div>
+
+      <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-blue-50/50 rounded-xl p-5 border border-blue-100 flex flex-col justify-center items-center text-center">
+          <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-1">Total Activo</p>
+          <p className="text-4xl font-bold text-gray-900">{totalCoefficient.toFixed(4)}%</p>
+        </div>
+
+        {(() => {
+          if (pendingCoefficient > 0) {
+            return (
+              <div className="bg-amber-50/50 rounded-xl p-5 border border-amber-100 flex flex-col justify-center items-center text-center">
+                <p className="text-sm font-semibold text-amber-600 uppercase tracking-wide mb-1">Faltante</p>
+                <p className="text-4xl font-bold text-gray-900">{pendingCoefficient.toFixed(4)}%</p>
+                <p className="text-xs text-amber-700 mt-2">Deben crearse unidades para llegar al 100%</p>
+              </div>
+            );
+          }
+          
+          if (excessCoefficient > 0) {
+            return (
+              <div className="bg-red-50/50 rounded-xl p-5 border border-red-100 flex flex-col justify-center items-center text-center">
+                <p className="text-sm font-semibold text-red-600 uppercase tracking-wide mb-1">Exceso</p>
+                <p className="text-4xl font-bold text-gray-900">{excessCoefficient.toFixed(4)}%</p>
+                <p className="text-xs text-red-700 mt-2">Por favor corrige la distribución de coeficientes</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="bg-green-50/50 rounded-xl p-5 border border-green-100 flex flex-col justify-center items-center text-center col-span-2">
+              <p className="text-sm font-semibold text-green-600 uppercase tracking-wide mb-1">Invariante Cumplido</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">Todas las unidades están sincronizadas matemáticamente.</p>
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
