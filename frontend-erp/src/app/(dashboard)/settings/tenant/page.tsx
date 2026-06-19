@@ -32,6 +32,33 @@ export default function TenantConfigPage() {
   const [reps, setReps] = useState<LegalRepresentativeHistory[]>([]);
   const [docs, setDocs] = useState<TenantDocument[]>([]);
 
+  const [uploadRole, setUploadRole] = useState<number>(1);
+  const [uploadSelection, setUploadSelection] = useState<string>('Reglamento (RPH)');
+  const [uploadCustomTitle, setUploadCustomTitle] = useState<string>('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+
+  const documentOptions: Record<number, { label: string, type: number, value: string }[]> = {
+    1: [
+      { label: 'Reglamento (RPH)', type: 0, value: 'Reglamento (RPH)' },
+      { label: 'Certificado Representación', type: 1, value: 'Certificado Representación' },
+      { label: 'RUT', type: 2, value: 'RUT' },
+      { label: 'Otro Documento...', type: 3, value: 'OTRO' }
+    ],
+    2: [
+      { label: 'Acta de Nombramiento del Consejo', type: 3, value: 'Acta de Nombramiento del Consejo' },
+      { label: 'Reglamento Interno del Consejo', type: 3, value: 'Reglamento Interno del Consejo' },
+      { label: 'Documento de Identidad', type: 3, value: 'Documento de Identidad' },
+      { label: 'Otro Documento...', type: 3, value: 'OTRO' }
+    ],
+    4: [
+      { label: 'Acta de Nombramiento de Revisor Fiscal', type: 3, value: 'Acta de Nombramiento de Revisor Fiscal' },
+      { label: 'Tarjeta Profesional', type: 3, value: 'Tarjeta Profesional' },
+      { label: 'Certificado de Antecedentes', type: 3, value: 'Certificado de Antecedentes' },
+      { label: 'Documento de Identidad', type: 3, value: 'Documento de Identidad' },
+      { label: 'Otro Documento...', type: 3, value: 'OTRO' }
+    ]
+  };
+
   // Permissions
   const canEdit = user?.role === 'SuperAdmin' || user?.role === 'Admin';
 
@@ -74,6 +101,8 @@ export default function TenantConfigPage() {
     constitutionDate: new Date().toISOString().split('T')[0],
     legalRepresentativeName: '',
     legalRepresentativeId: '',
+    legalRepresentativeDocumentType: 'CC',
+    legalRepresentativeDv: '',
     billingCycleDay: 1,
     gracePeriodDays: 10,
     latePaymentInterestRate: 0,
@@ -95,7 +124,71 @@ export default function TenantConfigPage() {
 
   const handleChange = (field: keyof TenantConfiguration, value: any) => {
     if (!config || !canEdit) return;
+    
+    // Auto-capitalize first letter of each word for specific text fields
+    const titleCaseFields = ['officialName', 'address', 'municipality', 'department', 'legalRepresentativeName'];
+    if (typeof value === 'string' && titleCaseFields.includes(field)) {
+      value = value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+    }
+    
     setConfig({ ...config, [field]: value });
+  };
+
+  const handleNitChange = (val: string) => {
+    if (!config || !canEdit) return;
+    const nit = val.replace(/\D/g, '').slice(0, 10);
+    
+    // Calculate DV
+    let dv = '';
+    if (nit.length > 0) {
+      const vpri = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+      let x = 0;
+      let y = 0;
+      let z = nit.length;
+      for (let i = 0; i < z; i++) {
+        y = parseInt(nit.charAt(i));
+        x += (y * vpri[z - 1 - i]);
+      }
+      y = x % 11;
+      dv = (y > 1) ? (11 - y).toString() : y.toString();
+    }
+    
+    setConfig({ ...config, nit, verificationDigit: dv });
+  };
+
+  const handlePhoneChange = (val: string) => {
+    if (!config || !canEdit) return;
+    const phone = val.replace(/[^0-9\-\+\s]/g, '').slice(0, 20);
+    setConfig({ ...config, phone });
+  };
+
+  const calculateDV = (nit: string): string => {
+    if (nit.length === 0) return '';
+    const vpri = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+    let x = 0;
+    let y = 0;
+    const z = nit.length;
+    for (let i = 0; i < z; i++) {
+      y = parseInt(nit.charAt(i));
+      x += (y * vpri[z - 1 - i]);
+    }
+    y = x % 11;
+    return (y > 1) ? (11 - y).toString() : y.toString();
+  };
+
+  const handleLegalDocTypeChange = (docType: string) => {
+    if (!config || !canEdit) return;
+    setConfig({ ...config, legalRepresentativeDocumentType: docType, legalRepresentativeId: '', legalRepresentativeDv: '' });
+  };
+
+  const handleLegalDocChange = (val: string) => {
+    if (!config || !canEdit) return;
+    const docType = config.legalRepresentativeDocumentType;
+    const isNumericOnly = docType === 'CC' || docType === 'NIT';
+    const maxLen = (docType === 'CC' || docType === 'NIT') ? 10 : 50;
+    const doc = isNumericOnly ? val.replace(/\D/g, '').slice(0, maxLen) : val.replace(/[^a-zA-Z0-9]/g, '').slice(0, maxLen);
+    const dv = docType === 'NIT' ? calculateDV(doc) : '';
+    setConfig({ ...config, legalRepresentativeId: doc, legalRepresentativeDv: dv });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -132,7 +225,26 @@ export default function TenantConfigPage() {
       setReps(repHist);
 
     } catch (err: any) {
-      setError(err.response?.data || err.message || 'Error al guardar la configuración');
+      console.error("Save error:", err);
+      let errorMessage = 'Error al guardar la configuración';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.title) {
+          errorMessage = err.response.data.title;
+          if (err.response.data.errors) {
+            const firstError = Object.values(err.response.data.errors)[0] as string[];
+            if (firstError && firstError.length > 0) {
+              errorMessage = firstError[0];
+            }
+          }
+        } else {
+          errorMessage = JSON.stringify(err.response.data);
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -153,7 +265,18 @@ export default function TenantConfigPage() {
       if (config) setConfig({ ...config, logoUrl: res.logoUrl });
       setSuccess('Logo actualizado.');
     } catch (err: any) {
-      setError(err.response?.data || 'Error al subir el logo. Asegúrate de guardar primero la configuración básica.');
+      console.error("Logo upload error:", err);
+      let errorMessage = 'Error al subir el logo. Asegúrate de guardar primero la configuración básica.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.title) {
+          errorMessage = err.response.data.title;
+        } else {
+          errorMessage = JSON.stringify(err.response.data);
+        }
+      }
+      setError(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -245,54 +368,54 @@ export default function TenantConfigPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre Oficial</label>
-                      <input disabled={!canEdit} value={config.officialName} onChange={e => handleChange('officialName', e.target.value)} required
+                      <input disabled={!canEdit} value={config.officialName} onChange={e => handleChange('officialName', e.target.value)} required maxLength={200}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">NIT</label>
-                        <input disabled={!canEdit} value={config.nit} onChange={e => handleChange('nit', e.target.value)} required
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">NIT (Sin DV)</label>
+                        <input type="text" inputMode="numeric" disabled={!canEdit} value={config.nit} onChange={e => handleNitChange(e.target.value)} required maxLength={10}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                       <div className="w-16">
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">DV</label>
-                        <input disabled={!canEdit} value={config.verificationDigit} onChange={e => handleChange('verificationDigit', e.target.value)} required maxLength={1}
-                          className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none text-center disabled:opacity-50" />
+                        <input disabled value={config.verificationDigit} required readOnly
+                          className="w-full bg-slate-100 dark:bg-slate-800 border-b border-slate-300 text-slate-500 text-sm font-bold py-2 outline-none text-center cursor-not-allowed" />
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dirección</label>
-                      <input disabled={!canEdit} value={config.address} onChange={e => handleChange('address', e.target.value)} required
+                      <input disabled={!canEdit} value={config.address} onChange={e => handleChange('address', e.target.value)} required maxLength={200}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Municipio</label>
-                        <input disabled={!canEdit} value={config.municipality} onChange={e => handleChange('municipality', e.target.value)} required
+                        <input disabled={!canEdit} value={config.municipality} onChange={e => handleChange('municipality', e.target.value)} required maxLength={100}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Depto.</label>
-                        <input disabled={!canEdit} value={config.department} onChange={e => handleChange('department', e.target.value)} required
+                        <input disabled={!canEdit} value={config.department} onChange={e => handleChange('department', e.target.value)} required maxLength={100}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono Admin</label>
-                      <input disabled={!canEdit} value={config.phone} onChange={e => handleChange('phone', e.target.value)} required
+                      <input type="tel" disabled={!canEdit} value={config.phone} onChange={e => handlePhoneChange(e.target.value)} required maxLength={20}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Oficial</label>
-                      <input type="email" disabled={!canEdit} value={config.email} onChange={e => handleChange('email', e.target.value)} required
+                      <input type="email" disabled={!canEdit} value={config.email} onChange={e => handleChange('email', e.target.value)} required maxLength={256}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Matrícula Inmobiliaria</label>
-                      <input disabled={!canEdit} value={config.realEstateRegistration} onChange={e => handleChange('realEstateRegistration', e.target.value)} required
+                      <input disabled={!canEdit} value={config.realEstateRegistration} onChange={e => handleChange('realEstateRegistration', e.target.value)} required maxLength={50}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
@@ -303,13 +426,38 @@ export default function TenantConfigPage() {
 
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rep. Legal (Nombre)</label>
-                      <input disabled={!canEdit} value={config.legalRepresentativeName} onChange={e => handleChange('legalRepresentativeName', e.target.value)} required
+                      <input disabled={!canEdit} value={config.legalRepresentativeName} onChange={e => handleChange('legalRepresentativeName', e.target.value)} required maxLength={200}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rep. Legal (Doc)</label>
-                      <input disabled={!canEdit} value={config.legalRepresentativeId} onChange={e => handleChange('legalRepresentativeId', e.target.value)} required
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tipo de Documento</label>
+                      <select disabled={!canEdit} value={config.legalRepresentativeDocumentType} onChange={e => handleLegalDocTypeChange(e.target.value)} required
+                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50">
+                        <option value="CC">Cédula de Ciudadanía (CC)</option>
+                        <option value="CE">Cédula de Extranjería (CE)</option>
+                        <option value="NIT">NIT</option>
+                        <option value="PASAPORTE">Pasaporte</option>
+                        <option value="PEP">Persona Expuesta Políticamente (PEP)</option>
+                        <option value="PPT">Pasaporte Temporal (PPT)</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                          {config.legalRepresentativeDocumentType === 'NIT' ? 'NIT Rep. Legal' : 'Número de Documento'}
+                        </label>
+                        <input type="text" inputMode={['CC', 'NIT'].includes(config.legalRepresentativeDocumentType) ? 'numeric' : 'text'}
+                          disabled={!canEdit} value={config.legalRepresentativeId} onChange={e => handleLegalDocChange(e.target.value)} required
+                          maxLength={['CC', 'NIT'].includes(config.legalRepresentativeDocumentType) ? 10 : 50}
+                          className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
+                      </div>
+                      {config.legalRepresentativeDocumentType === 'NIT' && (
+                        <div className="w-16">
+                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">DV</label>
+                          <input disabled value={config.legalRepresentativeDv} readOnly
+                            className="w-full bg-slate-100 dark:bg-slate-800 border-b border-slate-300 text-slate-500 text-sm font-bold py-2 outline-none text-center cursor-not-allowed" />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -451,13 +599,13 @@ export default function TenantConfigPage() {
                   <div className="grid grid-cols-1 gap-6">
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Remitente Oficial</label>
-                      <input type="email" disabled={!canEdit} value={config.senderEmail} onChange={e => handleChange('senderEmail', e.target.value)} required
+                      <input type="email" disabled={!canEdit} value={config.senderEmail} onChange={e => handleChange('senderEmail', e.target.value)} required maxLength={256}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Plantilla de Pie de Firma</label>
-                      <textarea disabled={!canEdit} value={config.signatureFooterTemplate} onChange={e => handleChange('signatureFooterTemplate', e.target.value)} rows={4}
+                      <textarea disabled={!canEdit} value={config.signatureFooterTemplate} onChange={e => handleChange('signatureFooterTemplate', e.target.value)} rows={4} maxLength={1000}
                         className="w-full bg-slate-50 dark:bg-slate-900 border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none disabled:opacity-50" />
                     </div>
 
@@ -469,7 +617,7 @@ export default function TenantConfigPage() {
                     {config.autoSendLatePaymentNotifications && (
                        <div>
                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Frecuencia de Notificación (Días)</label>
-                         <input type="number" min={1} disabled={!canEdit} value={config.latePaymentNotificationFrequencyDays} onChange={e => handleChange('latePaymentNotificationFrequencyDays', Number(e.target.value))} required
+                         <input type="number" min={1} max={365} disabled={!canEdit} value={config.latePaymentNotificationFrequencyDays} onChange={e => handleChange('latePaymentNotificationFrequencyDays', Number(e.target.value))} required
                            className="w-64 bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                        </div>
                     )}
@@ -582,9 +730,13 @@ export default function TenantConfigPage() {
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-right">
-                                <a href={tenantConfigService.getDownloadDocumentUrl(doc.id)} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center p-2 text-emerald-600 hover:bg-emerald-50 rounded">
+                                <button 
+                                  onClick={() => tenantConfigService.downloadDocument(doc.id, `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`).catch(() => setError('Error al descargar el documento.'))}
+                                  className="inline-flex items-center justify-center p-2 text-emerald-600 hover:bg-emerald-50 rounded"
+                                  title="Descargar"
+                                >
                                   <Download className="w-4 h-4" />
-                                </a>
+                                </button>
                               </td>
                             </tr>
                           ))
@@ -597,46 +749,101 @@ export default function TenantConfigPage() {
                   {canEdit && (
                     <div className="bg-slate-50 dark:bg-slate-900/30 p-6 rounded-lg border border-dashed border-slate-300 mt-6">
                       <h3 className="text-sm font-bold text-foreground mb-4">Subir Nuevo Documento (PDF)</h3>
-                      <form onSubmit={async (e) => {
-                        e.preventDefault();
-                        const form = e.currentTarget as HTMLFormElement;
-                        const file = (form.elements.namedItem('file') as HTMLInputElement).files?.[0];
-                        const title = (form.elements.namedItem('title') as HTMLInputElement).value;
-                        const type = parseInt((form.elements.namedItem('type') as HTMLSelectElement).value);
-                        const role = parseInt((form.elements.namedItem('role') as HTMLSelectElement).value);
-                        if (!file) return;
-                        setIsSaving(true);
-                        try {
-                          await tenantConfigService.uploadDocument(file, type, title, role);
-                          setSuccess('Documento subido correctamente.');
-                          const dcs = await tenantConfigService.getDocuments();
-                          setDocs(dcs);
-                          form.reset();
-                        } catch (err) {
-                          setError('Error al subir el documento.');
-                        } finally {
-                          setIsSaving(false);
-                        }
-                      }}>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                          <input type="text" name="title" required placeholder="Título del Documento" className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600" />
-                          <select name="type" className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600">
-                            <option value={0}>Reglamento (RPH)</option>
-                            <option value={1}>Certificado Representación</option>
-                            <option value={2}>RUT</option>
-                            <option value={3}>Otro</option>
-                          </select>
-                          <select name="role" className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600">
-                            <option value={1}>Admin</option>
-                            <option value={2}>Consejo (Council)</option>
-                            <option value={4}>Auditor</option>
-                          </select>
-                          <input type="file" name="file" accept=".pdf" required className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+                      <div className="mt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 items-end">
+                          <div className="md:col-span-3 flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Perfil / Rol</label>
+                            <select 
+                              value={uploadRole} 
+                              onChange={(e) => {
+                                const newRole = parseInt(e.target.value);
+                                setUploadRole(newRole);
+                                setUploadSelection(documentOptions[newRole][0].value);
+                              }}
+                              className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
+                            >
+                              <option value={1}>Administración</option>
+                              <option value={2}>Consejo (Council)</option>
+                              <option value={4}>Revisoría Fiscal / Auditor</option>
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-4 flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Tipo de Documento</label>
+                            <select 
+                              value={uploadSelection}
+                              onChange={(e) => setUploadSelection(e.target.value)}
+                              className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
+                            >
+                              {documentOptions[uploadRole].map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {uploadSelection === 'OTRO' && (
+                            <div className="md:col-span-5 flex flex-col gap-2">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase">Título del Documento</label>
+                              <input type="text" value={uploadCustomTitle} onChange={e => setUploadCustomTitle(e.target.value)} placeholder="Escriba un título..." className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600" />
+                            </div>
+                          )}
+
+                          <div className={`flex flex-col gap-2 ${uploadSelection === 'OTRO' ? 'md:col-span-12' : 'md:col-span-5'}`}>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Archivo (PDF)</label>
+                            <input 
+                              id="doc-file-input"
+                              type="file" 
+                              accept=".pdf" 
+                              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                              className="w-full text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer" 
+                            />
+                          </div>
                         </div>
-                        <Button type="submit" disabled={isSaving} className="bg-emerald-600 text-xs py-2 h-auto px-4">
+                        <Button 
+                          type="button" 
+                          disabled={isSaving} 
+                          onClick={async () => {
+                            const title = uploadSelection === 'OTRO' ? uploadCustomTitle : uploadSelection;
+                            
+                            const selectedOption = documentOptions[uploadRole].find(o => o.value === uploadSelection) || documentOptions[uploadRole][0];
+                            const type = selectedOption.type;
+                            const role = uploadRole;
+
+                            if (!uploadFile || !title) {
+                              setError('El título y el archivo son obligatorios para subir un documento.');
+                              return;
+                            }
+
+                            if (uploadFile.size > 10 * 1024 * 1024) {
+                              setError('El archivo excede el tamaño máximo permitido de 10MB.');
+                              return;
+                            }
+
+                            setIsSaving(true);
+                            try {
+                              await tenantConfigService.uploadDocument(uploadFile, type, title, role);
+                              setSuccess('Documento subido correctamente.');
+                              const dcs = await tenantConfigService.getDocuments();
+                              setDocs(dcs);
+                              
+                              // Limpiar formulario
+                              setUploadCustomTitle('');
+                              setUploadFile(null);
+                              // Reset the file input visually
+                              const fileInput = document.getElementById('doc-file-input') as HTMLInputElement;
+                              if (fileInput) fileInput.value = '';
+                              
+                            } catch (err) {
+                              setError('Error al subir el documento.');
+                            } finally {
+                              setIsSaving(false);
+                            }
+                          }}
+                          className="bg-emerald-600 text-xs py-2 h-auto px-4 mt-2"
+                        >
                           <UploadCloud className="w-4 h-4 mr-2" /> Subir Documento
                         </Button>
-                      </form>
+                      </div>
                     </div>
                   )}
                 </div>

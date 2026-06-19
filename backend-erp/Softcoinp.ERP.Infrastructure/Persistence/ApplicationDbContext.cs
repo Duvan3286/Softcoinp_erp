@@ -206,6 +206,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.OfficialName).HasMaxLength(200);
             entity.Property(e => e.Nit).HasMaxLength(20).IsRequired();
             entity.Property(e => e.VerificationDigit).HasMaxLength(1);
+            entity.Property(e => e.LegalRepresentativeDocumentType).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.LegalRepresentativeDv).HasMaxLength(1);
             
             entity.Property(e => e.LatePaymentInterestRate).HasColumnType("decimal(5,2)");
             entity.Property(e => e.MaxLegalInterestRate).HasColumnType("decimal(5,2)");

@@ -12,7 +12,9 @@ export interface TenantConfiguration {
   realEstateRegistration: string;
   constitutionDate: string;
   legalRepresentativeName: string;
+  legalRepresentativeDocumentType: string;
   legalRepresentativeId: string;
+  legalRepresentativeDv: string;
   
   billingCycleDay: number;
   gracePeriodDays: number;
@@ -114,8 +116,29 @@ const tenantConfigService = {
     return response.data;
   },
   
-  getDownloadDocumentUrl(id: string): string {
-    return `${apiClient.defaults.baseURL}/tenant-config/documents/${id}/download`;
+  async downloadDocument(id: string, defaultFileName: string): Promise<void> {
+    const response = await apiClient.get(`/tenant-config/documents/${id}/download`, {
+      responseType: 'blob'
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    
+    let fileName = defaultFileName;
+    const contentDisposition = response.headers['content-disposition'];
+    if (contentDisposition) {
+      const fileNameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (fileNameMatch && fileNameMatch.length === 2) {
+        fileName = fileNameMatch[1];
+      }
+    }
+    
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   }
 };
 

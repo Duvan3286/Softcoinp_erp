@@ -34,9 +34,14 @@ public class TenantConfiguration : BaseEntity
     /// <summary>Nombre del Representante Legal actual</summary>
     public string LegalRepresentativeName { get; set; } = string.Empty;
 
+    /// <summary>Tipo de Documento del Representante Legal actual</summary>
+    public IdentityDocumentType LegalRepresentativeDocumentType { get; set; } = IdentityDocumentType.CC;
+
     /// <summary>Documento del Representante Legal actual</summary>
     public string LegalRepresentativeId { get; set; } = string.Empty;
 
+    /// <summary>Dígito de verificación del Representante Legal actual (solo si el tipo es NIT)</summary>
+    public string LegalRepresentativeDv { get; set; } = string.Empty;
 
     // ── 2. PARÁMETROS FINANCIEROS ──────────────────────────────────────
     /// <summary>Día del mes (1-28) para generar la liquidación mensual</summary>

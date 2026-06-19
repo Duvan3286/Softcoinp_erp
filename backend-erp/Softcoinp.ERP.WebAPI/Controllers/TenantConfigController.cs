@@ -111,7 +111,9 @@ public class TenantConfigController : ControllerBase
         config.RealEstateRegistration = dto.RealEstateRegistration;
         config.ConstitutionDate = dto.ConstitutionDate;
         config.LegalRepresentativeName = dto.LegalRepresentativeName;
+        config.LegalRepresentativeDocumentType = dto.LegalRepresentativeDocumentType;
         config.LegalRepresentativeId = dto.LegalRepresentativeId;
+        config.LegalRepresentativeDv = dto.LegalRepresentativeDv ?? string.Empty;
 
         config.BillingCycleDay = dto.BillingCycleDay;
         config.GracePeriodDays = dto.GracePeriodDays;
@@ -208,6 +210,10 @@ public class TenantConfigController : ControllerBase
 
         if (file.ContentType != "application/pdf")
             return BadRequest("Solo se permiten archivos PDF.");
+
+        // Límite de seguridad de 10 MB
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest("El archivo excede el tamaño máximo permitido de 10MB.");
 
         var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "documents");
         Directory.CreateDirectory(uploadsPath);
@@ -321,7 +327,9 @@ public class TenantConfigController : ControllerBase
             RealEstateRegistration = config.RealEstateRegistration,
             ConstitutionDate = config.ConstitutionDate,
             LegalRepresentativeName = config.LegalRepresentativeName,
+            LegalRepresentativeDocumentType = config.LegalRepresentativeDocumentType,
             LegalRepresentativeId = config.LegalRepresentativeId,
+            LegalRepresentativeDv = config.LegalRepresentativeDv,
             BillingCycleDay = config.BillingCycleDay,
             GracePeriodDays = config.GracePeriodDays,
             LatePaymentInterestRate = config.LatePaymentInterestRate,
@@ -346,18 +354,63 @@ public class TenantConfigController : ControllerBase
 
 public class UpdateTenantConfigDto
 {
-    [Required] public string OfficialName { get; set; } = string.Empty;
-    [Required] public string Nit { get; set; } = string.Empty;
-    [Required] public string VerificationDigit { get; set; } = string.Empty;
-    [Required] public string Address { get; set; } = string.Empty;
-    [Required] public string Municipality { get; set; } = string.Empty;
-    [Required] public string Department { get; set; } = string.Empty;
-    [Required] public string Phone { get; set; } = string.Empty;
-    [Required] public string Email { get; set; } = string.Empty;
-    [Required] public string RealEstateRegistration { get; set; } = string.Empty;
-    [Required] public DateTime ConstitutionDate { get; set; }
-    [Required] public string LegalRepresentativeName { get; set; } = string.Empty;
-    [Required] public string LegalRepresentativeId { get; set; } = string.Empty;
+    [Required(ErrorMessage = "El Nombre Oficial es obligatorio.")] 
+    [StringLength(200, ErrorMessage = "El Nombre Oficial no puede superar los 200 caracteres.")]
+    public string OfficialName { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "El NIT es obligatorio.")] 
+    [StringLength(10, ErrorMessage = "El NIT no puede tener más de 10 dígitos.")]
+    [RegularExpression(@"^\d+$", ErrorMessage = "El NIT solo debe contener números.")]
+    public string Nit { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "El Dígito de Verificación es obligatorio.")] 
+    [RegularExpression(@"^\d$", ErrorMessage = "El DV debe ser un solo dígito numérico.")]
+    public string VerificationDigit { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "La Dirección es obligatoria.")] 
+    [StringLength(200, ErrorMessage = "La Dirección no puede superar los 200 caracteres.")]
+    public string Address { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "El Municipio es obligatorio.")] 
+    [StringLength(100, ErrorMessage = "El Municipio no puede superar los 100 caracteres.")]
+    public string Municipality { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "El Departamento es obligatorio.")] 
+    [StringLength(100, ErrorMessage = "El Departamento no puede superar los 100 caracteres.")]
+    public string Department { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "El Teléfono es obligatorio.")] 
+    [StringLength(20, ErrorMessage = "El Teléfono no puede superar los 20 caracteres.")]
+    [RegularExpression(@"^[0-9\-\+\s]+$", ErrorMessage = "El Teléfono contiene caracteres no permitidos.")]
+    public string Phone { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "El Correo Oficial es obligatorio.")] 
+    [EmailAddress(ErrorMessage = "El formato del correo oficial es inválido.")]
+    [StringLength(256, ErrorMessage = "El Correo no puede superar los 256 caracteres.")]
+    public string Email { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "La Matrícula Inmobiliaria es obligatoria.")] 
+    [StringLength(50, ErrorMessage = "La Matrícula Inmobiliaria no puede superar los 50 caracteres.")]
+    public string RealEstateRegistration { get; set; } = string.Empty;
+    
+    [Required(ErrorMessage = "La Fecha de Constitución es obligatoria.")] 
+    public DateTime ConstitutionDate { get; set; }
+    
+    [Required(ErrorMessage = "El Nombre del Representante Legal es obligatorio.")] 
+    [StringLength(200, ErrorMessage = "El Nombre del Representante no puede superar los 200 caracteres.")]
+    public string LegalRepresentativeName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "El Tipo de Documento del Representante Legal es obligatorio.")]
+    public IdentityDocumentType LegalRepresentativeDocumentType { get; set; } = IdentityDocumentType.CC;
+    
+    [Required(ErrorMessage = "El Documento del Representante Legal es obligatorio.")] 
+    [StringLength(50, ErrorMessage = "El Documento del Representante no puede superar los 50 caracteres.")]
+    [RegularExpression(@"^[a-zA-Z0-9]+$", ErrorMessage = "El Documento solo puede contener números y letras.")]
+    public string LegalRepresentativeId { get; set; } = string.Empty;
+
+    [StringLength(1, ErrorMessage = "El DV del Representante Legal debe ser un solo dígito.")]
+    [RegularExpression(@"^\d?$", ErrorMessage = "El DV debe ser un dígito numérico.")]
+    public string? LegalRepresentativeDv { get; set; } = string.Empty;
 
     public int BillingCycleDay { get; set; }
     public int GracePeriodDays { get; set; }
@@ -374,7 +427,12 @@ public class UpdateTenantConfigDto
     public bool HasContingencyFund { get; set; }
     public decimal ContingencyFundPercentage { get; set; }
 
-    [Required] public string SenderEmail { get; set; } = string.Empty;
+    [Required(ErrorMessage = "El Correo de Remitente es obligatorio.")] 
+    [EmailAddress(ErrorMessage = "El formato del correo de remitente es inválido.")]
+    [StringLength(256, ErrorMessage = "El Correo no puede superar los 256 caracteres.")]
+    public string SenderEmail { get; set; } = string.Empty;
+    
+    [StringLength(1000, ErrorMessage = "La Plantilla de Firma no puede superar los 1000 caracteres.")]
     public string SignatureFooterTemplate { get; set; } = string.Empty;
     public bool AutoSendLatePaymentNotifications { get; set; }
     public int LatePaymentNotificationFrequencyDays { get; set; }

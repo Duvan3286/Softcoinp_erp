@@ -1,0 +1,27 @@
+# Excluir código fuente y herramientas de desarrollo de la imagen Docker.
+# El Dockerfile copia SOLO el artefacto pre-compilado (.next) y public/.
+# Por eso .next NO está en esta lista.
+
+node_modules
+src
+*.ts
+*.tsx
+*.mjs
+*.mts
+tsconfig.json
+postcss.config.mjs
+eslint.config.mjs
+Dockerfile*
+.gitignore
+.env*
+AGENTS.md
+CLAUDE.md
+README.md
+coverage
+.pnp
+.pnp.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+next-env.d.ts

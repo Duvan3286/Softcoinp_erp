@@ -68,6 +68,7 @@ apiClient.interceptors.response.use(
         localStorage.removeItem('auth_token');
         localStorage.removeItem('refresh_token');
         if (typeof window !== 'undefined') {
+          document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax';
           window.location.href = '/login';
         }
       }

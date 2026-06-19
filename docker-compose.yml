@@ -49,6 +49,8 @@ services:
       - JWT__Key=YourSuperSecretKeyForDevelopmentOnly123!
       - JWT__Issuer=SoftcoinpERP
       - JWT__Audience=SoftcoinpERP
+    volumes:
+      - erp-uploads:/app/wwwroot/uploads
     depends_on:
       erp-db:
         condition: service_healthy
@@ -59,12 +61,18 @@ services:
     build:
       context: ./frontend-erp
       dockerfile: Dockerfile
+      # Next.js 16 + Turbopack requiere más /dev/shm durante la compilación.
+      # Sin esto ocurre "Bus error (core dumped)" – exit code 135.
+      shm_size: '256mb'
     container_name: erp-frontend
     restart: unless-stopped
+    # Memoria compartida también necesaria en runtime para Turbopack dev server
+    shm_size: '256mb'
     ports:
       - "3001:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:5005/api
+      - NEXT_TELEMETRY_DISABLED=1
     depends_on:
       - erp-backend
     networks:
@@ -76,3 +84,4 @@ networks:
 
 volumes:
   erp-db-data:
+  erp-uploads:

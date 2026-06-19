@@ -15,6 +15,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function clearAllAuthData() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('refresh_token');
+  document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax';
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,9 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const currentUser = await authService.getCurrentUser();
           setUser(currentUser);
         } catch (error) {
-          console.error('Failed to fetch user', error);
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('refresh_token');
+          console.error('Failed to fetch user, clearing session', error);
+          clearAllAuthData();
         }
       }
       setIsLoading(false);
@@ -53,9 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await authService.logout();
-    setUser(null);
-    router.push('/login');
+    try {
+      await authService.logout();
+    } catch {
+      // ignore logout errors
+    } finally {
+      clearAllAuthData();
+      setUser(null);
+      router.push('/login');
+    }
   };
 
   return (

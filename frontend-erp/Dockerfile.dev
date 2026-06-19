@@ -1,0 +1,22 @@
+FROM node:20-slim AS dev
+WORKDIR /app
+
+# Install OS-level build tools required by native Node addons (lightningcss, etc.)
+# These must be present BEFORE npm install so native modules compile correctly.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy only the dependency manifests first (layer-cache optimization)
+COPY package*.json ./
+
+# Install all dependencies (including devDependencies) inside the image.
+# The resulting node_modules stay in the image layer; they are NOT overwritten
+# by the source-code volume mount because we declare a separate named volume
+# for node_modules in docker-compose.dev.yml (see anonymous-volume trick below).
+RUN npm install
+
+EXPOSE 3000
+
+# Use next dev for Fast Refresh / hot-reload
+CMD ["npm", "run", "dev"]

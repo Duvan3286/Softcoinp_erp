@@ -87,7 +87,11 @@ builder.Services.AddCors(options => {
     });
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -142,6 +146,7 @@ else
     app.UseHttpsRedirection();
 }
 
+app.UseStaticFiles(); // Habilitar archivos estáticos (wwwroot)
 app.UseCors("AllowFrontend");
 app.UseMiddleware<TenantDetectionMiddleware>();
 app.UseAuthentication();
