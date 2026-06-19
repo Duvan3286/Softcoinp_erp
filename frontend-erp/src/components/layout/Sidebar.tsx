@@ -130,7 +130,7 @@ export const Sidebar = () => {
           <NavItem
             icon={<Settings className="w-5 h-5" />}
             text="Configuración"
-            path="/settings"
+            path="/settings/tenant"
             currentPath={pathname}
             isExpanded={isExpanded}
             router={router}

@@ -96,7 +96,7 @@ export default function InvitePage() {
               </div>
             </div>
             <Button
-              variant="outline"
+              variant="ghost"
               className="mt-4 w-full"
               onClick={() => router.push('/login')}
             >

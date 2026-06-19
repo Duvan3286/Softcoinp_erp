@@ -31,11 +31,17 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<AccountingAccount> AccountingAccounts => Set<AccountingAccount>();
     public DbSet<FinancialTransaction> FinancialTransactions => Set<FinancialTransaction>();
 
-    // ── Módulo Auth & Roles (nuevo) ──────────────────────────────────
+    // ── Módulo Auth & Roles (existente) ──────────────────────────────
     public DbSet<UserTenantRole> UserTenantRoles => Set<UserTenantRole>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<AccessAuditLog> AccessAuditLogs => Set<AccessAuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    // ── Módulo Configuración de Conjunto (nuevo) ─────────────────────
+    public DbSet<TenantConfiguration> TenantConfigurations => Set<TenantConfiguration>();
+    public DbSet<ConfigurationAuditLog> ConfigurationAuditLogs => Set<ConfigurationAuditLog>();
+    public DbSet<LegalRepresentativeHistory> LegalRepresentativeHistories => Set<LegalRepresentativeHistory>();
+    public DbSet<TenantDocument> TenantDocuments => Set<TenantDocument>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -191,6 +197,50 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.FullName).HasMaxLength(200);
             entity.Property(e => e.SuspendedReason).HasMaxLength(500);
             entity.Property(e => e.DailyLockoutResetDate).HasColumnType("date");
+        });
+        // ── TenantConfiguration ──────────────────────────────────────────
+        modelBuilder.Entity<TenantConfiguration>(entity =>
+        {
+            entity.ToTable("erp_tenant_configuration");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OfficialName).HasMaxLength(200);
+            entity.Property(e => e.Nit).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.VerificationDigit).HasMaxLength(1);
+            
+            entity.Property(e => e.LatePaymentInterestRate).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.MaxLegalInterestRate).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.AnnualBudget).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ContingencyFundPercentage).HasColumnType("decimal(5,2)");
+        });
+
+        // ── ConfigurationAuditLog ────────────────────────────────────────
+        modelBuilder.Entity<ConfigurationAuditLog>(entity =>
+        {
+            entity.ToTable("erp_configuration_audit_logs");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ChangedByUserId).HasMaxLength(450);
+            entity.Property(e => e.ParameterName).HasMaxLength(100);
+        });
+
+        // ── LegalRepresentativeHistory ───────────────────────────────────
+        modelBuilder.Entity<LegalRepresentativeHistory>(entity =>
+        {
+            entity.ToTable("erp_legal_representative_history");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FullName).HasMaxLength(200);
+            entity.Property(e => e.IdentificationDocument).HasMaxLength(50);
+            entity.Property(e => e.RecordedByUserId).HasMaxLength(450);
+        });
+
+        // ── TenantDocument ───────────────────────────────────────────────
+        modelBuilder.Entity<TenantDocument>(entity =>
+        {
+            entity.ToTable("erp_tenant_documents");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.FilePath).HasMaxLength(500);
+            entity.Property(e => e.ContentType).HasMaxLength(100);
+            entity.Property(e => e.UploadedByUserId).HasMaxLength(450);
         });
     }
 
