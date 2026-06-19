@@ -1,0 +1,27 @@
+# ── .NET Build Artifacts ──────────────────────
+**/bin/
+**/obj/
+
+# ── Node / Next.js ────────────────────────────
+**/node_modules/
+frontend-erp/.next/
+frontend-erp/out/
+
+# ── IDE / Editor ──────────────────────────────
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln.docstates
+
+# ── OS ────────────────────────────────────────
+Thumbs.db
+.DS_Store
+
+# ── Docker ────────────────────────────────────
+docker-compose.override.yml
+
+# ── Environment ───────────────────────────────
+.env
+.env.local
+.env.*.local

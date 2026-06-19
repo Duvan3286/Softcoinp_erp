@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\buildMultiTargeting\Softcoinp.ERP.WebAPI.props" />
-</Project>
