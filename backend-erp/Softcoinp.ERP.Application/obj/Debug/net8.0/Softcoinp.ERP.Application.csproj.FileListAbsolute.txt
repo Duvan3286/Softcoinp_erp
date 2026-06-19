@@ -13,3 +13,4 @@ C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Soft
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\refint\Softcoinp.ERP.Application.dll
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.pdb
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\ref\Softcoinp.ERP.Application.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Application\obj\Debug\net8.0\Softcoinp.ERP.Application.sourcelink.json

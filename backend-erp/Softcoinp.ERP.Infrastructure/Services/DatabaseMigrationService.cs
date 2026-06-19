@@ -10,6 +10,8 @@ using Softcoinp.ERP.Domain.Interfaces;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Infrastructure.Persistence;
 
+using Microsoft.Extensions.Configuration;
+
 namespace Softcoinp.ERP.Infrastructure.Services;
 
 /// <summary>
@@ -20,15 +22,18 @@ public class DatabaseMigrationService
     private readonly MasterDbContext _masterDbContext;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DatabaseMigrationService> _logger;
+    private readonly IConfiguration _configuration;
 
     public DatabaseMigrationService(
         MasterDbContext masterDbContext, 
         IServiceScopeFactory scopeFactory, 
-        ILogger<DatabaseMigrationService> logger)
+        ILogger<DatabaseMigrationService> logger,
+        IConfiguration configuration)
     {
         _masterDbContext = masterDbContext;
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -42,20 +47,22 @@ public class DatabaseMigrationService
         _logger.LogInformation("Starting Master database migration...");
         try
         {
+            // Use EnsureCreated first to make sure tables exist if migrations fail
+            await _masterDbContext.Database.EnsureCreatedAsync();
             await _masterDbContext.Database.MigrateAsync();
             results.Add("MasterDB", "Success");
             _logger.LogInformation("Master database migrated successfully.");
         }
         catch (Exception ex)
         {
-            results.Add("MasterDB", $"Failed: {ex.Message}");
-            _logger.LogError(ex, "Error migrating Master database.");
-            return results; // Stop if Master DB fails
+            results.Add("MasterDB", $"Partial Success/Warning: {ex.Message}");
+            _logger.LogWarning(ex, "Error migrating Master database, but continuing...");
         }
 
         var tenants = await _masterDbContext.Tenants
             .Where(t => t.IsActive)
             .ToListAsync();
+// ... (rest of the method)
 
         _logger.LogInformation("Found {Count} active tenants to migrate.", tenants.Count);
 
@@ -78,10 +85,13 @@ public class DatabaseMigrationService
 
                 await tenantContext.Database.MigrateAsync();
                 
+                // CRITICAL: Set the current tenant in the resolver so that DI-resolved services (like UserManager) use the correct database
+                tenantResolver.SetCurrentTenant(tenant);
+
                 // Seed default users and roles
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-                await DbInitializer.SeedUsersAsync(userManager, roleManager);
+                await DbInitializer.SeedUsersAsync(userManager, roleManager, _configuration);
                 
                 results.Add(tenant.Subdomain, "Success");
                 _logger.LogInformation("Successfully migrated tenant: {Subdomain}", tenant.Subdomain);

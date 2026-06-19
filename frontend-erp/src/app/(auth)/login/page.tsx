@@ -25,7 +25,7 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      await login({ email, password, acceptHabeasData });
+      await login({ email, password });
     } catch (err: unknown) {
       if (err instanceof Error && 'response' in err) {
         const axiosError = err as { response: { data: { message: string } } };
@@ -105,7 +105,7 @@ export default function LoginPage() {
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="peer w-full bg-transparent border-0 border-b border-emerald-600 focus:border-b-2 text-foreground text-sm font-bold pb-2 px-0 pt-1 outline-none transition-all placeholder-transparent uppercase tracking-widest rounded-none focus:ring-0 [&:-webkit-autofill]:transition-[background-color] [&:-webkit-autofill]:duration-[50000s] [&:-webkit-autofill]:ease-in-out [&:-webkit-autofill]:[-webkit-text-fill-color:inherit]"
+                className="peer normal-case w-full bg-transparent border-0 border-b border-emerald-600 focus:border-b-2 text-foreground text-sm font-bold pb-2 px-0 pt-1 outline-none transition-all placeholder-transparent rounded-none focus:ring-0 [&:-webkit-autofill]:transition-[background-color] [&:-webkit-autofill]:duration-[50000s] [&:-webkit-autofill]:ease-in-out [&:-webkit-autofill]:[-webkit-text-fill-color:inherit]"
                 placeholder="email"
                 required
               />
@@ -128,7 +128,7 @@ export default function LoginPage() {
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="peer w-full bg-transparent border-0 border-b border-emerald-600 focus:border-b-2 text-foreground text-sm font-bold pb-2 px-0 pt-1 outline-none transition-all placeholder-transparent uppercase tracking-widest rounded-none focus:ring-0 [&:-webkit-autofill]:transition-[background-color] [&:-webkit-autofill]:duration-[50000s] [&:-webkit-autofill]:ease-in-out [&:-webkit-autofill]:[-webkit-text-fill-color:inherit]"
+                className="peer normal-case w-full bg-transparent border-0 border-b border-emerald-600 focus:border-b-2 text-foreground text-sm font-bold pb-2 px-0 pt-1 outline-none transition-all placeholder-transparent rounded-none focus:ring-0 [&:-webkit-autofill]:transition-[background-color] [&:-webkit-autofill]:duration-[50000s] [&:-webkit-autofill]:ease-in-out [&:-webkit-autofill]:[-webkit-text-fill-color:inherit]"
                 placeholder="password"
                 required
               />

@@ -15,3 +15,4 @@ C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\S
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\ref\Softcoinp.ERP.Infrastructure.dll
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\bin\Debug\net8.0\Softcoinp.ERP.Infrastructure.runtimeconfig.json
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.genruntimeconfig.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Infrastructure\obj\Debug\net8.0\Softcoinp.ERP.Infrastructure.sourcelink.json

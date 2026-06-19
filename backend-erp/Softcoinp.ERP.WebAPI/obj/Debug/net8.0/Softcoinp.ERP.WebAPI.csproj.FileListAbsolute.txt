@@ -156,3 +156,4 @@ C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.WebAPI\bin\Debug\net8.0\runtimes\
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.WebAPI\bin\Debug\net8.0\Polly.dll
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.WebAPI\bin\Debug\net8.0\Polly.Core.dll
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.WebAPI\bin\Debug\net8.0\Microsoft.AspNetCore.Identity.EntityFrameworkCore.dll
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.WebAPI\obj\Debug\net8.0\Softcoinp.ERP.WebAPI.sourcelink.json

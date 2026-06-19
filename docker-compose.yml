@@ -1,6 +1,39 @@
 version: '3.8'
 
 services:
+  erp-db:
+    image: mysql:8.0
+    container_name: erp-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=1234
+      - MYSQL_DATABASE=erp_master
+    ports:
+      - "3307:3306"
+    volumes:
+      - erp-db-data:/var/lib/mysql
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p1234"]
+      timeout: 20s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: erp-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=erp-db
+      - PMA_USER=root
+      - PMA_PASSWORD=1234
+    depends_on:
+      - erp-db
+    networks:
+      - erp-network
+
   erp-backend:
     build:
       context: ./backend-erp
@@ -8,13 +41,17 @@ services:
     container_name: erp-backend
     restart: unless-stopped
     ports:
-      - "5000:8080"
+      - "5005:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__MasterConnection=Server=host.docker.internal;Database=erp_master;User=root;Password=1234;
+      - ConnectionStrings__MasterConnection=Server=erp-db;Database=erp_master;User=root;Password=1234;
       - AUTO_MIGRATE=true
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - JWT__Key=YourSuperSecretKeyForDevelopmentOnly123!
+      - JWT__Issuer=SoftcoinpERP
+      - JWT__Audience=SoftcoinpERP
+    depends_on:
+      erp-db:
+        condition: service_healthy
     networks:
       - erp-network
 
@@ -27,7 +64,7 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+      - NEXT_PUBLIC_API_URL=http://localhost:5005/api
     depends_on:
       - erp-backend
     networks:
@@ -36,3 +73,6 @@ services:
 networks:
   erp-network:
     driver: bridge
+
+volumes:
+  erp-db-data:

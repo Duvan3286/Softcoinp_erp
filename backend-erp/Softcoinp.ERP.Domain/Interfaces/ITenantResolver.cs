@@ -14,6 +14,16 @@ public class Tenant
     public string ConnectionString { get; set; } = string.Empty;
     public string? CoreApiUrl { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // ── Configuración de sesión por tenant ───────────────────────────
+    /// <summary>Timeout por inactividad para Admin/Consejo/Contador/Auditor (minutos). Default 8h.</summary>
+    public int AdminSessionTimeout { get; set; } = 480;
+
+    /// <summary>Timeout por inactividad para Residentes (minutos). Default 2h.</summary>
+    public int ResidentSessionTimeout { get; set; } = 120;
+
+    /// <summary>Intentos fallidos antes de bloquear la cuenta temporalmente. Default 5.</summary>
+    public int MaxLoginAttempts { get; set; } = 5;
 }
 
 /// <summary>
@@ -30,4 +40,9 @@ public interface ITenantResolver
     /// Gets the current tenant metadata.
     /// </summary>
     Task<Tenant?> GetCurrentTenantAsync();
+
+    /// <summary>
+    /// Manually sets the current tenant (useful for migrations or background tasks).
+    /// </summary>
+    void SetCurrentTenant(Tenant tenant);
 }

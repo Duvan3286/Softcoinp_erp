@@ -31,6 +31,25 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-tenant-id', subdomain);
 
+  // ── Protegemos rutas que requieran Auth ──
+  const path = request.nextUrl.pathname;
+  const isProtectedRoute = path.startsWith('/dashboard') || path.startsWith('/settings');
+  const isAuthRoute = path.startsWith('/login') || path.startsWith('/invite');
+  
+  const token = request.cookies.get('auth_token')?.value;
+
+  if (isProtectedRoute && !token) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  if (isAuthRoute && token) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
   // Return response with modified headers
   return NextResponse.next({
     request: {

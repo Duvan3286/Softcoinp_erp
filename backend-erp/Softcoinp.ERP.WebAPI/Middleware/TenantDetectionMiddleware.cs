@@ -19,9 +19,8 @@ public class TenantDetectionMiddleware
 
     public async Task InvokeAsync(HttpContext context, ITenantResolver tenantResolver)
     {
-        // Skip tenant detection for global admin routes or authentication
-        if (context.Request.Path.StartsWithSegments("/api/v1/admin/tenants") || 
-            context.Request.Path.StartsWithSegments("/api/Auth"))
+        // Skip tenant detection ONLY for global admin routes (management of tenants themselves)
+        if (context.Request.Path.StartsWithSegments("/api/v1/admin/tenants"))
         {
             await _next(context);
             return;

@@ -73,12 +73,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => {
 builder.Services.AddHealthChecks()
     .AddMySql(masterConnectionString!, name: "master-mysql");
 
+builder.Services.AddDataProtection();
+
 builder.Services.AddCors(options => {
     options.AddPolicy("AllowFrontend", policy => {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.SetIsOriginAllowed(origin => {
+            var host = new Uri(origin).Host;
+            return host == "localhost" || host.EndsWith(".localhost");
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 
@@ -88,45 +93,61 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Optional: Automatic migrations on startup
+// Global Logger for debugging requests in Docker
+app.Use(async (context, next) => {
+    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation(">>> Request Received: {Method} {Path} from {Origin}", 
+        context.Request.Method, context.Request.Path, context.Request.Headers["Origin"]);
+    await next();
+});
+
+// Automatic migrations and seeding on startup
 if (app.Configuration.GetValue<bool>("AUTO_MIGRATE") || Environment.GetEnvironmentVariable("AUTO_MIGRATE") == "true")
 {
-    using var scope = app.Services.CreateScope();
-    
-    // Seed Master Tenant if not exists
-    await MasterDbInitializer.SeedTenantAsync(app.Services);
-    
-    // For development, we apply migrations directly to the Master DB context 
-    // to ensure Identity tables are present there and we can seed users.
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await context.Database.MigrateAsync();
+    try 
+    {
+        using var scope = app.Services.CreateScope();
+        var services = scope.ServiceProvider;
+        
+        // 1. Seed Master Tenant
+        await MasterDbInitializer.SeedTenantAsync(services);
+        
+        // 2. Migrate Application DB (Identity tables in Master)
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        await context.Database.MigrateAsync();
 
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    await DbInitializer.SeedUsersAsync(userManager, roleManager);
+        // 3. Seed SuperAdmin
+        var userManager = services.GetRequiredService<UserManager<User>>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        await DbInitializer.SeedUsersAsync(userManager, roleManager, app.Configuration);
 
-    var migrationService = scope.ServiceProvider.GetRequiredService<DatabaseMigrationService>();
-    await migrationService.MigrateAllAsync();
+        // 4. Migrate and Seed all Tenants
+        var migrationService = services.GetRequiredService<DatabaseMigrationService>();
+        await migrationService.MigrateAllAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = app.Services.GetRequiredService<ILogger<Program>>();
+        logger.LogCritical(ex, "A fatal error occurred during startup migration/seeding.");
+    }
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseHttpsRedirection();
+else 
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("AllowFrontend");
-
-// Custom Multi-tenancy Middleware
 app.UseMiddleware<TenantDetectionMiddleware>();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 app.MapHealthChecks("/health");
 
+app.Logger.LogInformation("### SERVER READY - Waiting for requests on port 8080 (Mapped to 5005) ###");
 app.Run();

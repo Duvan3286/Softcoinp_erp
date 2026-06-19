@@ -24,15 +24,15 @@ public static class MasterDbInitializer
             {
                 Name = "Test Tenant",
                 Subdomain = "test",
-                ConnectionString = "Server=localhost;Port=3306;Database=erp_db;User=root;Password=1234;",
+                ConnectionString = "Server=erp-db;Database=erp_test;User=root;Password=1234;",
                 IsActive = true
             });
 
             await context.SaveChangesAsync();
         }
-        else if (testTenant.ConnectionString.Contains("Port=3307") || testTenant.ConnectionString.Contains("erp_user"))
+        else
         {
-            testTenant.ConnectionString = "Server=localhost;Port=3306;Database=erp_db;User=root;Password=1234;";
+            testTenant.ConnectionString = "Server=erp-db;Database=erp_test;User=root;Password=1234;";
             await context.SaveChangesAsync();
         }
     }

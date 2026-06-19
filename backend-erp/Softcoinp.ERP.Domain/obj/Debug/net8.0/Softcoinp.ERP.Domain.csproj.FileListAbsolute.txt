@@ -10,3 +10,4 @@ C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Domain\obj\Debug\net8.0\refint\So
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Domain\obj\Debug\net8.0\Softcoinp.ERP.Domain.pdb
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Domain\obj\Debug\net8.0\ref\Softcoinp.ERP.Domain.dll
 C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Domain\obj\Debug\net8.0\Softcoinp.ERP.Domain.csproj.AssemblyReference.cache
+C:\Dev\softcoinp-erp\backend-erp\Softcoinp.ERP.Domain\obj\Debug\net8.0\Softcoinp.ERP.Domain.sourcelink.json
