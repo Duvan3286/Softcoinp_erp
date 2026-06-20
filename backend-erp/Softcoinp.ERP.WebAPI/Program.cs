@@ -10,6 +10,7 @@ using Softcoinp.ERP.Infrastructure.Persistence.Repositories;
 using Softcoinp.ERP.Infrastructure.Services;
 using Softcoinp.ERP.Infrastructure.External;
 using Softcoinp.ERP.Application.Services;
+using Softcoinp.ERP.WebAPI.Services;
 using Softcoinp.ERP.WebAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,6 +65,10 @@ builder.Services.AddHttpClient<ICoreIntegrationClient, CoreIntegrationClient>();
 
 // Register Application Services
 builder.Services.AddScoped<BillingService>();
+builder.Services.AddScoped<BudgetService>();
+builder.Services.AddScoped<BudgetExecutionService>();
+builder.Services.AddScoped<BudgetMovementService>();
+builder.Services.AddScoped<ContingencyFundService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.

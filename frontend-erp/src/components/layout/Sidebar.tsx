@@ -47,7 +47,7 @@ export const Sidebar = () => {
 
   // Auto-open groups based on current path
   useEffect(() => {
-    if (pathname.includes('billing') || pathname.includes('portfolio')) setOpenGroup('finanzas');
+    if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('accounting-accounts') || pathname.includes('budgets') || pathname.includes('contingency-fund')) setOpenGroup('finanzas');
     else if (pathname.includes('users') || pathname.includes('integrations')) setOpenGroup('admin');
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
     // Close sidebar on mobile when navigating
@@ -134,6 +134,9 @@ export const Sidebar = () => {
           >
             <NavItem text="Cartera" path="/portfolio" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Facturación" path="/billing" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Plan de Cuentas" path="/accounting-accounts" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Presupuesto" path="/budgets" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Fondo Imprevistos" path="/contingency-fund" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup

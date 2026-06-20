@@ -110,6 +110,9 @@ public class DatabaseMigrationService
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
                 await DbInitializer.SeedUsersAsync(userManager, roleManager, _configuration);
                 
+                // Seed Resolution 029 standard chart of accounts
+                await DbInitializer.SeedChartOfAccountsAsync(tenantContext, tenant.Id.ToString());
+                
                 results.Add(tenant.Subdomain, "Success");
                 _logger.LogInformation("Successfully migrated tenant: {Subdomain}", tenant.Subdomain);
             }
