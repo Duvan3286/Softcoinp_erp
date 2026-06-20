@@ -269,6 +269,187 @@ Registro de cada retiro del fondo. El sistema genera automáticamente el asiento
 
 ---
 
+## 5. Módulo de Cuotas y Cartera
+
+> [!IMPORTANT]
+> Este módulo gestiona el ciclo completo de ingresos de la copropiedad: liquidación mensual de cuotas ordinarias, administración y cartera, cobros individuales, imputación de pagos, intereses de mora, acuerdos de pago y certificados de paz y salvo.
+>
+> **Regla de inmutabilidad**: Los registros financieros (cuotas, pagos, intereses capitalizados) **no tienen soft delete**. Una vez creados, solo pueden modificarse mediante asientos de ajuste o compensación para garantizar la integridad contable.
+
+### 5.1 Período de Liquidación (`BillingPeriod`)
+Representa un mes calendario de facturación ordinaria. Se crea en estado `Draft` y se procesa para generar las cuotas individuales por unidad.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Período (`period`)** | `string` max 7 | Sí | Formato `YYYY-MM`. Ej. `2026-06`. Único por tenant (no puede existir dos liquidaciones para el mismo período). |
+| **Total Presupuesto Mensual (`monthlyBudgetTotal`)** | `decimal(18,2)` | Automático | Valor del presupuesto anual dividido en 12 meses tomado al momento de la liquidación. |
+| **Fecha de Corte (`cutoffDate`)** | `datetime` | Sí | Fecha límite para incluir cargos del período. |
+| **Fecha de Vencimiento (`paymentDueDate`)** | `datetime` | Sí | Fecha tope para pago sin intereses de mora. |
+| **Estado (`status`)** | `Enum` | Sí | `Draft` = Borrador · `Executed` = Ejecutado (cuotas generadas) · `Closed` = Cerrado contablemente. |
+| **Ajuste de Redondeo (`roundingAdjustment`)** | `decimal(18,2)` | Automático | Diferencia generada por el redondeo individual de cuotas. Se registra como ajuste en el período. |
+| **Notas (`notes`)** | `string` max 1000 | No | Observaciones sobre la liquidación. |
+
+### 5.2 Cuota Ordinaria (`UnitFee`)
+Cuota de administración individual generada para cada unidad en cada período de liquidación. Es la principal fuente de ingresos de la copropiedad.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Período de Liquidación (`billingPeriodId`)** | `Guid` FK | Sí | Referencia al período que originó la cuota. |
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad propietaria de la cuota. |
+| **Valor de la Cuota (`feeValue`)** | `decimal(18,2)` | Sí | Calculado como `presupuestoMensual × (coeficienteUnidad / 100)`. Redondeado a 2 decimales. |
+| **Fecha de Vencimiento (`dueDate`)** | `datetime` | Sí | Fecha tope para pago oportuno. Heredada del período. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` · `PartiallyPaid` · `FullyPaid` · `Overdue` (automático cuando se pasa la fecha de vencimiento sin pago completo). |
+| **Monto Pagado (`paidAmount`)** | `decimal(18,2)` | Automático | Suma de imputaciones de pago aplicadas a esta cuota. |
+| **Saldo Pendiente (`balanceAmount`)** | `decimal(18,2)` | Automático | `feeValue - paidAmount`. Se actualiza con cada imputación de pago. |
+
+### 5.3 Cuota Extraordinaria (`ExtraordinaryFee`)
+Cuota adicional aprobada en Asamblea General de Copropietarios para cubrir gastos no presupuestados (Ley 675 Art. 46).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Nombre (`name`)** | `string` max 200 | Sí | Nombre descriptivo de la cuota. Ej. "Impermeabilización Fachada 2026". |
+| **Descripción (`description`)** | `string` max 1000 | No | Detalle del propósito de la cuota. |
+| **Número de Acta (`meetingActNumber`)** | `string` max 100 | Sí | Número del acta de la asamblea que aprobó la cuota. |
+| **Monto Total (`totalAmount`)** | `decimal(18,2)` | Sí | Valor total a recaudar aprobado por la asamblea. |
+| **Número de Cuotas (`numberOfInstallments`)** | `int` | Sí | Cantidad de cuotas en que se fracciona el pago (mínimo 1). |
+| **Período de Inicio (`startPeriod`)** | `string` max 7 | Sí | Mes desde el cual se comienza a cobrar. Formato `YYYY-MM`. |
+| **Tipo de Distribución (`distributionType`)** | `Enum` | Sí | `AllByCoefficient` = Se distribuye por coeficiente de copropiedad · `SpecificGroup` = Solo a un grupo específico de unidades. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` · `Active` · `Completed` · `Cancelled`. |
+
+### 5.4 Distribución de Cuota Extraordinaria (`ExtraordinaryFeeDistribution`)
+Registro individual por unidad y por cuota (si aplican múltiples contados) de una cuota extraordinaria.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Cuota Extraordinaria (`extraordinaryFeeId`)** | `Guid` FK | Sí | Referencia a la cuota extraordinaria. |
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad sobre la que recae el cobro. |
+| **Número de Cuota (`installmentNumber`)** | `int` | Sí | Número correlativo del contado (1, 2, 3…). |
+| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor de este contado para esta unidad. |
+| **Fecha de Vencimiento (`dueDate`)** | `datetime` | Sí | Fecha tope para el pago de este contado. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` · `PartiallyPaid` · `FullyPaid` · `Overdue`. |
+| **Monto Pagado (`paidAmount`)** | `decimal(18,2)` | Automático | Actualizado vía imputación de pagos. |
+| **Saldo Pendiente (`balanceAmount`)** | `decimal(18,2)` | Automático | `amount - paidAmount`. |
+
+### 5.5 Cobro Individual (`IndividualCharge`)
+Multas, daños a bienes comunes, servicios adicionales u otros cobros particulares a una unidad (Art. 58 Ley 675).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad responsable del cobro. |
+| **Tipo de Cobro (`chargeType`)** | `Enum` | Sí | `Fine` = Multa · `Damage` = Daño a bien común · `ParkingFee` = Parqueadero visitante · `Other` = Otros. |
+| **Concepto (`concept`)** | `string` max 200 | Sí | Título breve del cobro. Ej. "Multa por ruido excesivo". |
+| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor del cobro. Debe ser mayor a cero. |
+| **Fecha del Cobro (`chargeDate`)** | `datetime` | Sí | Fecha en que se generó el cobro. |
+| **Descripción (`description`)** | `string` max 1000 | No | Detalle de los hechos que motivan el cobro. |
+| **Número de Acta de Referencia (`referenceActNumber`)** | `string` max 100 | No | Acta del consejo o comité que impuso el cobro. |
+| **En Disputa (`isDisputed`)** | `boolean` | No | `true` si el propietario ha impugnado formalmente el cobro. |
+| **Motivo de Disputa (`disputeReason`)** | `string` max 1000 | Cond. | Obligatorio si `isDisputed = true`. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` · `Paid` · `Waived` (condonado) · `Disputed`. |
+| **Monto Pagado (`paidAmount`)** | `decimal(18,2)` | Automático | Actualizado vía imputación de pagos. |
+| **Saldo Pendiente (`balanceAmount`)** | `decimal(18,2)` | Automático | `amount - paidAmount`. |
+
+### 5.6 Pago (`Payment`)
+Registro de un pago recibido de una unidad. Puede cubrir múltiples conceptos (cuotas ordinarias, extraordinarias, intereses, cobros individuales).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad que realiza el pago. |
+| **Fecha de Pago (`paymentDate`)** | `datetime` | Sí | Fecha en que se recibe el pago. |
+| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor total recibido. Debe coincidir con la suma de las imputaciones. |
+| **Medio de Pago (`paymentMethod`)** | `Enum` | Sí | `Cash` · `Transfer` · `Check` · `Online`. |
+| **Número de Referencia (`referenceNumber`)** | `string` max 100 | No | Número de consignación, cheque o transacción. |
+| **Notas (`notes`)** | `string` max 500 | No | Observaciones sobre el pago. |
+| **Recibido Por (`receivedByUserId`)** | `string` FK | Automático | ID del usuario que registró el pago. |
+| **Anticipo (`advanceAmount`)** | `decimal(18,2)` | Automático | Excedente después de imputar todas las obligaciones vencidas. Se aplica a períodos futuros. |
+
+### 5.7 Imputación de Pago (`PaymentAllocation`)
+Línea individual que detalla cómo se aplicó un pago a una obligación específica (cuota, interés, cobro).
+
+> [!IMPORTANT]
+> El orden de imputación es **fijo e inmodificable** por principios contables y jurídicos colombianos:
+> 1. **Intereses de mora capitalizados** más antiguos
+> 2. **Capital vencido** en orden cronológico (primero lo más antiguo)
+> 3. **Período corriente** (cuota del mes vigente)
+> 4. El **excedente** se registra como anticipo del período siguiente
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Pago (`paymentId`)** | `Guid` FK | Sí | Pago al que pertenece esta imputación. |
+| **Tipo de Origen (`sourceType`)** | `string` | Sí | Identifica la tabla origen: `UnitFee`, `ExtraordinaryFeeDistribution`, `IndividualCharge`, `LateInterest`. |
+| **ID de Origen (`sourceId`)** | `Guid` | Cond. | ID del registro en la tabla origen. Opcional para ajustes generales. |
+| **Monto Imputado (`amount`)** | `decimal(18,2)` | Sí | Valor aplicado a esta obligación específica. |
+| **Tipo de Asignación (`allocationType`)** | `Enum` | Sí | `Interest` · `Capital` · `Advance`. |
+
+### 5.8 Interés de Mora (`LateInterest`)
+Registro de intereses de mora calculados sobre obligaciones vencidas. La capitalización ocurre formalmente al momento del pago o cierre del período.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad deudora. |
+| **Tipo de Origen (`sourceType`)** | `string` | Sí | `UnitFee`, `ExtraordinaryFeeDistribution` o `IndividualCharge`. |
+| **ID de Origen (`sourceId`)** | `Guid` | Sí | ID del registro que generó el interés. |
+| **Período (`period`)** | `string` max 7 | Sí | Período en que se calculó el interés. Formato `YYYY-MM`. |
+| **Monto Base (`baseAmount`)** | `decimal(18,2)` | Sí | Saldo de capital sobre el que se calculó el interés. |
+| **Tasa Diaria (`dailyRate`)** | `decimal(18,6)` | Sí | `tasaMensual / 30 / 100`. La tasa mensual se toma de `TenantConfiguration.LatePaymentInterestRate`. |
+| **Días de Mora (`daysOverdue`)** | `int` | Sí | Número de días entre la fecha de vencimiento y la fecha de cálculo. |
+| **Monto Calculado (`calculatedAmount`)** | `decimal(18,2)` | Sí | `baseAmount × dailyRate × daysOverdue`. Redondeado a 2 decimales. |
+| **Está Capitalizado (`isCapitalized`)** | `boolean` | Sí | `true` cuando el interés ha sido formalmente incorporado al capital para efectos de cobro judicial. |
+
+### 5.9 Acuerdo de Pago (`PaymentAgreement`)
+Instrumento formal aprobado por el Consejo de Administración para facilitar el pago de obligaciones vencidas, incluyendo la posibilidad de condonar parcialmente los intereses de mora.
+
+> [!IMPORTANT]
+> **Reglas de negocio:**
+> - Solo puede existir **un acuerdo activo por unidad** a la vez.
+> - La condonación de intereses no puede exceder el porcentaje máximo configurado en el tenant.
+> - El incumplimiento se detecta automáticamente cuando una cuota supera los **5 días de mora**.
+> - Al crearse, las obligaciones incluidas se marcan como cubiertas por el acuerdo.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad que suscribe el acuerdo. |
+| **Deuda Total Incluida (`totalDebtIncluded`)** | `decimal(18,2)` | Sí | Suma del capital e intereses incluidos en el acuerdo. |
+| **Valor de la Cuota (`installmentAmount`)** | `decimal(18,2)` | Automático | `netDebt / numberOfInstallments`. |
+| **Número de Cuotas (`numberOfInstallments`)** | `int` | Sí | Número de contados acordados (mínimo 1). |
+| **% Condonación de Intereses (`interestForgivenessPercentage`)** | `decimal(5,2)` | Sí | Porcentaje de intereses que se condonan. |
+| **Número de Acta del Consejo (`councilActNumber`)** | `string` max 100 | Sí | Acta del Consejo que aprobó el acuerdo. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` · `Active` · `Completed` · `Defaulted` · `Cancelled`. |
+| **Fecha de Inicio (`startedAt`)** | `datetime` | Automático | Fecha de creación del acuerdo. |
+| **Fecha de Incumplimiento (`defaultedAt`)** | `datetime` | Automático | Fecha en que el sistema detectó el incumplimiento. |
+| **Aceptación Digital (`digitalAcceptance`)** | `string` | Sí | Texto, código o hash que evidencia la aceptación del deudor. |
+
+### 5.10 Cuota de Acuerdo de Pago (`AgreementInstallment`)
+Cada una de las cuotas individuales que componen un acuerdo de pago.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Acuerdo de Pago (`paymentAgreementId`)** | `Guid` FK | Sí | Acuerdo al que pertenece la cuota. |
+| **Número de Cuota (`installmentNumber`)** | `int` | Sí | Número correlativo dentro del acuerdo. |
+| **Fecha de Vencimiento (`dueDate`)** | `datetime` | Sí | Fecha tope para el pago de esta cuota. |
+| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor de la cuota. |
+| **Monto Pagado (`paidAmount`)** | `decimal(18,2)` | Automático | Monto imputado a esta cuota. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` · `Paid` · `Overdue` (automático a los 5 días de vencida). |
+| **Fecha de Pago (`paidAt`)** | `datetime` | Cond. | Fecha en que se efectuó el pago. Nulo si está pendiente. |
+
+### 5.11 Certificado de Paz y Salvo (`ClearanceCertificate`)
+Documento oficial que certifica que una unidad no tiene obligaciones pendientes con la copropiedad a una fecha determinada.
+
+> [!WARNING]
+> **Solo se puede expedir si la unidad no tiene deuda pendiente.** Una vez expedido, no puede editarse. Se puede revocar solo si está en estado `Active`.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad a la que se expide el certificado. |
+| **Número de Certificado (`certificateNumber`)** | `string` max 20 | Automático | Formato `PSS-000001`. Secuencia autoincremental por tenant. |
+| **Fecha de Expedición (`issueDate`)** | `datetime` | Automático | Fecha y hora de emisión. |
+| **Fecha de Vencimiento (`expirationDate`)** | `datetime` | Automático | `issueDate + validityDays`. Por defecto 30 días. |
+| **Saldo a la Fecha (`balanceAtDate`)** | `decimal(18,2)` | Automático | Saldo de la unidad al momento de la expedición (debe ser 0). |
+| **Estado (`status`)** | `Enum` | Sí | `Active` · `Revoked`. Se revoca si la unidad vuelve a quedar en mora. |
+| **Expedido Por (`issuedByUserId`)** | `string` FK | Automático | ID del usuario que expidió el certificado. |
+| **Nombre del Administrador (`signedByAdministratorName`)** | `string` max 300 | Automático | Nombre del representante legal registrado en la configuración del conjunto al momento de la expedición. |
+
+---
+
 ## Resumen de Tablas en Base de Datos
 
 | Tabla | Módulo | Descripción |
@@ -293,3 +474,14 @@ Registro de cada retiro del fondo. El sistema genera automáticamente el asiento
 | `erp_contingency_funds` | Presupuesto | Saldo actual del fondo de imprevistos |
 | `erp_contingency_fund_contributions` | Presupuesto | Aportes mensuales al fondo |
 | `erp_contingency_fund_usages` | Presupuesto | Retiros aprobados del fondo |
+| `erp_billing_periods` | Cuotas y Cartera | Períodos de liquidación mensual |
+| `erp_unit_fees` | Cuotas y Cartera | Cuotas ordinarias por unidad |
+| `erp_extraordinary_fees` | Cuotas y Cartera | Cuotas extraordinarias aprobadas en asamblea |
+| `erp_extraordinary_fee_distributions` | Cuotas y Cartera | Distribución de cuotas extra por unidad/cuota |
+| `erp_individual_charges` | Cuotas y Cartera | Multas, daños y cobros individuales |
+| `erp_payments` | Cuotas y Cartera | Pagos recibidos |
+| `erp_payment_allocations` | Cuotas y Cartera | Imputación detallada de pagos |
+| `erp_late_interests` | Cuotas y Cartera | Intereses de mora calculados/capitalizados |
+| `erp_payment_agreements` | Cuotas y Cartera | Acuerdos de pago |
+| `erp_agreement_installments` | Cuotas y Cartera | Cuotas individuales de acuerdos de pago |
+| `erp_clearance_certificates` | Cuotas y Cartera | Paz y salvos expedidos |

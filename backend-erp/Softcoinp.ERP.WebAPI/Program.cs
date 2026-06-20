@@ -69,6 +69,11 @@ builder.Services.AddScoped<BudgetService>();
 builder.Services.AddScoped<BudgetExecutionService>();
 builder.Services.AddScoped<BudgetMovementService>();
 builder.Services.AddScoped<ContingencyFundService>();
+builder.Services.AddScoped<BillingEngineService>();
+builder.Services.AddScoped<LateInterestService>();
+builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<PaymentAgreementService>();
+builder.Services.AddScoped<StatementService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.
