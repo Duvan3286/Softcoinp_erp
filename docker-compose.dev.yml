@@ -23,6 +23,7 @@ services:
     command: npm run dev
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:5005/api
+      - NEXT_PUBLIC_TENANT_ID=test
       - NODE_ENV=development
       - NEXT_TELEMETRY_DISABLED=1
       - WATCHPACK_POLLING=true

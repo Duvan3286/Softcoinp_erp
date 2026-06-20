@@ -7,14 +7,15 @@ const apiClient = axios.create({
   },
 });
 
-// Helper to get subdomain on the client
+// Helper to get subdomain on the client.
+// Priority: (1) subdomain from URL, (2) NEXT_PUBLIC_TENANT_ID env var (local dev fallback).
 const getSubdomain = () => {
-  if (typeof window === 'undefined') return '';
+  if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_TENANT_ID ?? '';
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
   if (parts.length > 2) return parts[0];
   if (parts.length === 2 && parts[1].includes('localhost')) return parts[0];
-  return '';
+  return process.env.NEXT_PUBLIC_TENANT_ID ?? '';
 };
 
 apiClient.interceptors.request.use(
