@@ -12,23 +12,13 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/journal-entries")]
 [Authorize]
-public class JournalEntriesController : ControllerBase
+public class JournalEntriesController : BaseController
 {
     private readonly JournalEntryService _journalEntryService;
 
     public JournalEntriesController(JournalEntryService journalEntryService)
     {
         _journalEntryService = journalEntryService;
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
-    }
-
-    private string GetUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     }
 
     [HttpGet]

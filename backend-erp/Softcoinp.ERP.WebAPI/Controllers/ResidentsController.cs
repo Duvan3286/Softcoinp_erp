@@ -16,7 +16,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/residents")]
 [Authorize]
-public class ResidentsController : ControllerBase
+public class ResidentsController : BaseController
 {
     private readonly ApplicationDbContext _context;
     private readonly IMemoryCache _cache;
@@ -26,9 +26,6 @@ public class ResidentsController : ControllerBase
         _context = context;
         _cache = cache;
     }
-
-    private string GetTenantId() => User.FindFirstValue("tenant_id") ?? string.Empty;
-    private string GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
     // ── PROPIETARIOS — LISTADO Y DETALLE ─────────────────────────────────────
 

@@ -17,7 +17,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/budgets")]
 [Authorize]
-public class BudgetsController : ControllerBase
+public class BudgetsController : BaseController
 {
     private readonly BudgetService _budgetService;
     private readonly BudgetExecutionService _executionService;
@@ -37,16 +37,6 @@ public class BudgetsController : ControllerBase
         _movementService = movementService;
         _contingencyFundService = contingencyFundService;
         _context = context;
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
-    }
-
-    private string GetUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     }
 
     [HttpGet]

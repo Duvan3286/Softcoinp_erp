@@ -16,7 +16,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/fixed-assets")]
 [Authorize]
-public class FixedAssetsController : ControllerBase
+public class FixedAssetsController : BaseController
 {
     private readonly FixedAssetService _fixedAssetService;
     private readonly ApplicationDbContext _context;
@@ -28,9 +28,6 @@ public class FixedAssetsController : ControllerBase
         _context = context;
         _logger = logger;
     }
-
-    private string GetTenantId() => User.FindFirstValue("tenant_id") ?? string.Empty;
-    private string GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant")]

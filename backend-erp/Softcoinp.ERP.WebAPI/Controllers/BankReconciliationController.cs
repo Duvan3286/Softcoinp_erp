@@ -13,7 +13,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/bank-reconciliations")]
 [Authorize]
-public class BankReconciliationController : ControllerBase
+public class BankReconciliationController : BaseController
 {
     private readonly BankReconciliationService _reconciliationService;
     private readonly ILogger<BankReconciliationController> _logger;
@@ -23,9 +23,6 @@ public class BankReconciliationController : ControllerBase
         _reconciliationService = reconciliationService;
         _logger = logger;
     }
-
-    private string GetTenantId() => User.FindFirstValue("tenant_id") ?? string.Empty;
-    private string GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant")]

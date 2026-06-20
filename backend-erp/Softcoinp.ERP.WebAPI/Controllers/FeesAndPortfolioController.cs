@@ -17,7 +17,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/billing")]
 [Authorize]
-public class FeesAndPortfolioController : ControllerBase
+public class FeesAndPortfolioController : BaseController
 {
     private readonly BillingEngineService _billingEngine;
     private readonly LateInterestService _lateInterestService;
@@ -46,16 +46,6 @@ public class FeesAndPortfolioController : ControllerBase
         _accountingIntegration = accountingIntegration;
         _context = context;
         _logger = logger;
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
-    }
-
-    private string GetUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     }
 
     [HttpGet("checklist")]

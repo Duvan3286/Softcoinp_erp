@@ -15,23 +15,13 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/units")]
 [Authorize]
-public class UnitsController : ControllerBase
+public class UnitsController : BaseController
 {
     private readonly ApplicationDbContext _context;
 
     public UnitsController(ApplicationDbContext context)
     {
         _context = context;
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
-    }
-
-    private string GetUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     }
 
     [HttpGet("types")]

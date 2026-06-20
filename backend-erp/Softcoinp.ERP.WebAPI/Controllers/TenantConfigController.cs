@@ -19,7 +19,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/tenant-config")]
 [Authorize]
-public class TenantConfigController : ControllerBase
+public class TenantConfigController : BaseController
 {
     private readonly ApplicationDbContext _context;
 
@@ -66,8 +66,8 @@ public class TenantConfigController : ControllerBase
         if (dto.HasContingencyFund && dto.ContingencyFundPercentage < 1m)
             return BadRequest("Según la Ley 675, el fondo de imprevistos debe ser mínimo el 1% del presupuesto.");
 
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
-        var currentTenantId = User.FindFirstValue("tenant_id") ?? string.Empty;
+        var currentUserId = GetUserId();
+        var currentTenantId = GetTenantId();
 
         // 2. Historial de Cambios Financieros (Auditoría)
         if (!isNew)

@@ -11,23 +11,13 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/accounting-periods")]
 [Authorize]
-public class AccountingPeriodsController : ControllerBase
+public class AccountingPeriodsController : BaseController
 {
     private readonly AccountingPeriodService _periodService;
 
     public AccountingPeriodsController(AccountingPeriodService periodService)
     {
         _periodService = periodService;
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
-    }
-
-    private string GetUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     }
 
     [HttpGet]

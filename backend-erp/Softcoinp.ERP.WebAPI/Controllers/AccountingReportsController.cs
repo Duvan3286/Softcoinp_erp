@@ -10,18 +10,13 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/accounting-reports")]
 [Authorize]
-public class AccountingReportsController : ControllerBase
+public class AccountingReportsController : BaseController
 {
     private readonly AccountingReportService _reportService;
 
     public AccountingReportsController(AccountingReportService reportService)
     {
         _reportService = reportService;
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
     }
 
     [HttpGet("trial-balance")]

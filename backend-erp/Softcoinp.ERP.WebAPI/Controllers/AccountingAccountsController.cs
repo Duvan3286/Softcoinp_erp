@@ -15,18 +15,13 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/accounting-accounts")]
 [Authorize]
-public class AccountingAccountsController : ControllerBase
+public class AccountingAccountsController : BaseController
 {
     private readonly ApplicationDbContext _context;
 
     public AccountingAccountsController(ApplicationDbContext context)
     {
         _context = context;
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
     }
 
     [HttpGet]

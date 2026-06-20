@@ -12,7 +12,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class DashboardController : ControllerBase
+public class DashboardController : BaseController
 {
     private readonly DashboardService _dashboardService;
 
@@ -70,16 +70,6 @@ public class DashboardController : ControllerBase
 
         await _dashboardService.InvalidateMoraMapCacheAsync(tenantId);
         return Ok(new { message = "Mora map cache invalidated." });
-    }
-
-    private string GetTenantId()
-    {
-        return User.FindFirstValue("tenant_id") ?? string.Empty;
-    }
-
-    private string GetUserId()
-    {
-        return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     }
 
     private string GetUserRole()
