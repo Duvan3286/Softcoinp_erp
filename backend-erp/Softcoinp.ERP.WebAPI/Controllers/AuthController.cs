@@ -110,7 +110,7 @@ public class AuthController : ControllerBase
         // ── Obtener rol en el tenant actual ──
         var tenantRole = tenant != null
             ? await _db.UserTenantRoles
-                .Where(r => r.UserId == user.Id && r.TenantId == tenant.Id && r.IsActive)
+                .Where(r => r.UserId == user.Id && r.TenantId == tenant.Id.ToString() && r.IsActive)
                 .FirstOrDefaultAsync()
             : null;
 
@@ -148,7 +148,7 @@ public class AuthController : ControllerBase
         var refreshToken = new RefreshToken
         {
             UserId = user.Id,
-            TenantId = tenant?.Id ?? Guid.Empty,
+            TenantId = tenant?.Id.ToString() ?? "",
             TokenHash = hashedRefresh,
             ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenDays),
             CreatedFromIp = ip
@@ -204,7 +204,7 @@ public class AuthController : ControllerBase
         var identityRoles = await _userManager.GetRolesAsync(user);
         var tenantRole = tenant != null
             ? await _db.UserTenantRoles
-                .Where(r => r.UserId == user.Id && r.TenantId == tenant.Id && r.IsActive)
+                .Where(r => r.UserId == user.Id && r.TenantId == tenant.Id.ToString() && r.IsActive)
                 .FirstOrDefaultAsync()
             : null;
 
@@ -220,7 +220,7 @@ public class AuthController : ControllerBase
         var newToken = new RefreshToken
         {
             UserId = user.Id,
-            TenantId = tenant?.Id ?? stored.TenantId,
+            TenantId = tenant?.Id.ToString() ?? stored.TenantId,
             TokenHash = hashedNew,
             ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenDays),
             CreatedFromIp = ip
@@ -282,7 +282,7 @@ public class AuthController : ControllerBase
         var identityRoles = await _userManager.GetRolesAsync(user);
         var tenantRole = tenant != null
             ? await _db.UserTenantRoles
-                .Where(r => r.UserId == user.Id && r.TenantId == tenant.Id && r.IsActive)
+                .Where(r => r.UserId == user.Id && r.TenantId == tenant.Id.ToString() && r.IsActive)
                 .FirstOrDefaultAsync()
             : null;
 
@@ -315,7 +315,7 @@ public class AuthController : ControllerBase
 
         // Verificar que el usuario tiene acceso al tenant destino
         var tenantRole = await _db.UserTenantRoles
-            .Where(r => r.UserId == userId && r.TenantId == request.TenantId && r.IsActive)
+            .Where(r => r.UserId == userId && r.TenantId == request.TenantId.ToString() && r.IsActive)
             .FirstOrDefaultAsync();
 
         if (tenantRole == null)
@@ -334,7 +334,7 @@ public class AuthController : ControllerBase
         var newRefresh = new RefreshToken
         {
             UserId = user.Id,
-            TenantId = request.TenantId,
+            TenantId = request.TenantId.ToString(),
             TokenHash = hashedRefresh,
             ExpiresAt = DateTime.UtcNow.AddDays(RefreshTokenDays),
             CreatedFromIp = ip
@@ -478,7 +478,7 @@ public class AuthController : ControllerBase
         {
             UserId = userId,
             Email = email,
-            TenantId = tenantId,
+            TenantId = tenantId?.ToString(),
             EventType = eventType,
             IpAddress = ip,
             UserAgent = userAgent?.Length > 500 ? userAgent[..500] : userAgent,

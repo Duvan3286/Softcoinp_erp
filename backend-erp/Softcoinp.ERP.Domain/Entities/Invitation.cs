@@ -16,7 +16,7 @@ public class Invitation : BaseEntity
     public string Email { get; set; } = string.Empty;
 
     /// <summary>ID del tenant al que se invita</summary>
-    public Guid TenantId { get; set; }
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>Rol que tendrá el usuario al aceptar</summary>
     public AppRole Role { get; set; }

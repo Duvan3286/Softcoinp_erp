@@ -37,7 +37,7 @@ public class AccessAuditLog
     public string Email { get; set; } = string.Empty;
 
     /// <summary>Tenant en el que ocurrió el evento</summary>
-    public Guid? TenantId { get; set; }
+    public string? TenantId { get; set; }
 
     /// <summary>Tipo de evento de auditoría</summary>
     public AuditEventType EventType { get; set; }

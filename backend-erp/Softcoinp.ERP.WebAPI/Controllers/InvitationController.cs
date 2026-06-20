@@ -48,8 +48,8 @@ public class InvitationController : ControllerBase
         // Verificar permisos del usuario actual (SuperAdmin o Admin)
         var userRoles = await _userManager.GetRolesAsync(await _userManager.FindByIdAsync(userId!));
         var tenantRole = await _db.UserTenantRoles
-            .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenant.Id && r.IsActive);
-        
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenant.Id.ToString() && r.IsActive);
+
         var effectiveRoleStr = tenantRole?.Role.ToString() ?? userRoles.FirstOrDefault();
         if (effectiveRoleStr != nameof(AppRole.SuperAdmin) && effectiveRoleStr != nameof(AppRole.Admin))
             return Forbid();
@@ -62,7 +62,7 @@ public class InvitationController : ControllerBase
         if (existingUser != null)
         {
             var existingRole = await _db.UserTenantRoles
-                .AnyAsync(r => r.UserId == existingUser.Id && r.TenantId == tenant.Id && r.IsActive);
+                .AnyAsync(r => r.UserId == existingUser.Id && r.TenantId == tenant.Id.ToString() && r.IsActive);
             if (existingRole)
                 return BadRequest("El usuario ya pertenece a este conjunto.");
         }
@@ -75,7 +75,7 @@ public class InvitationController : ControllerBase
         var invitation = new Invitation
         {
             Email = request.Email,
-            TenantId = tenant.Id,
+            TenantId = tenant.Id.ToString(),
             Role = roleEnum,
             TokenHash = hashedToken,
             Status = InvitationStatus.Pending,
@@ -92,7 +92,7 @@ public class InvitationController : ControllerBase
             Timestamp = DateTime.UtcNow,
             UserId = userId,
             Email = request.Email,
-            TenantId = tenant.Id,
+            TenantId = tenant.Id.ToString(),
             EventType = AuditEventType.InvitationSent,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             Details = $"Invitación creada para el rol {request.Role}"

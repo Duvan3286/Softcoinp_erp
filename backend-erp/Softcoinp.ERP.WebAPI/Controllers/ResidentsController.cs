@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -18,10 +19,12 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 public class ResidentsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IMemoryCache _cache;
 
-    public ResidentsController(ApplicationDbContext context)
+    public ResidentsController(ApplicationDbContext context, IMemoryCache cache)
     {
         _context = context;
+        _cache = cache;
     }
 
     private string GetTenantId() => User.FindFirstValue("tenant_id") ?? string.Empty;
@@ -1089,6 +1092,29 @@ public class ResidentsController : ControllerBase
             return Conflict(new { message = "El nuevo propietario ya figura como propietario activo de esta unidad." });
         }
 
+        var outstandingDebt = await _context.UnitFees
+            .Where(uf => uf.TenantId == tenantId && uf.UnitId == unitId && uf.BalanceAmount > 0)
+            .SumAsync(uf => uf.BalanceAmount);
+
+        var extraordinaryDebt = await _context.ExtraordinaryFeeDistributions
+            .Where(ed => ed.TenantId == tenantId && ed.UnitId == unitId && ed.BalanceAmount > 0)
+            .SumAsync(ed => ed.BalanceAmount);
+
+        var chargesDebt = await _context.IndividualCharges
+            .Where(ic => ic.TenantId == tenantId && ic.UnitId == unitId && ic.BalanceAmount > 0)
+            .SumAsync(ic => ic.BalanceAmount);
+
+        var totalDebt = outstandingDebt + extraordinaryDebt + chargesDebt;
+
+        if (dto.GeneratePazYSalvo && totalDebt > 0)
+        {
+            return BadRequest(new
+            {
+                message = "No se puede generar paz y salvo. La unidad presenta saldos pendientes.",
+                totalDebt
+            });
+        }
+
         foreach (var current in currentOwners)
         {
             current.IsActive = false;
@@ -1150,20 +1176,37 @@ public class ResidentsController : ControllerBase
             });
         }
 
-        object pazYSalvoInfo = new { generated = false };
+        object pazYSalvoInfo;
 
-        if (dto.GeneratePazYSalvo)
+        if (dto.GeneratePazYSalvo && totalDebt == 0)
         {
             pazYSalvoInfo = new
             {
                 generated = true,
-                message = "Paz y salvo pendiente de generación por módulo financiero.",
+                certificateId = Guid.NewGuid(),
                 unitId,
-                transferDate = dto.TransferDate
+                unitIdentifier = unit.Identifier,
+                ownerName = newOwner.FullNameOrCompanyName,
+                transferDate = dto.TransferDate,
+                generatedAt = DateTime.UtcNow,
+                generatedByUserId = userId,
+                message = "Paz y salvo generado. La unidad no presenta obligaciones pendientes."
+            };
+        }
+        else
+        {
+            pazYSalvoInfo = new
+            {
+                generated = false,
+                totalDebt,
+                message = totalDebt > 0
+                    ? "La transferencia se realizó con saldos pendientes. El nuevo propietario asume las deudas de la unidad."
+                    : "Paz y salvo no solicitado."
             };
         }
 
         await _context.SaveChangesAsync();
+        _cache.Remove($"mora_map_{tenantId}");
 
         return Ok(new
         {

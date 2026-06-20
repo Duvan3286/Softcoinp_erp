@@ -36,13 +36,13 @@ public class AuditController : ControllerBase
         // Solo Admin o SuperAdmin pueden ver la auditoría
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var tenantRole = await _db.UserTenantRoles
-            .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenant.Id && r.IsActive);
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenant.Id.ToString() && r.IsActive);
 
         if (tenantRole?.Role != AppRole.Admin && !User.IsInRole(nameof(AppRole.SuperAdmin)))
             return Forbid();
 
         var query = _db.AccessAuditLogs
-            .Where(l => l.TenantId == tenant.Id)
+            .Where(l => l.TenantId == tenant.Id.ToString())
             .OrderByDescending(l => l.Timestamp)
             .AsQueryable();
 

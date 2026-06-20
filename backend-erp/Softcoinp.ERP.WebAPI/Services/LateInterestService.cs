@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -13,10 +14,14 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class LateInterestService
 {
     private readonly ApplicationDbContext _context;
+    private readonly AccountingIntegrationService _accounting;
+    private readonly IMemoryCache _cache;
 
-    public LateInterestService(ApplicationDbContext context)
+    public LateInterestService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache)
     {
         _context = context;
+        _accounting = accounting;
+        _cache = cache;
     }
 
     public async Task<decimal> GetMonthlyRateAsync(string tenantId)
@@ -128,7 +133,7 @@ public class LateInterestService
     }
 
     public async Task<List<LateInterest>> CapitalizeInterestAsync(
-        string tenantId, Guid unitFeeId, string period)
+        string tenantId, Guid unitFeeId, string period, string userId)
     {
         var monthlyRate = await GetMonthlyRateAsync(tenantId);
         var dailyRate = GetDailyRate(monthlyRate);
@@ -170,12 +175,23 @@ public class LateInterestService
         _context.LateInterests.Add(lateInterest);
         await _context.SaveChangesAsync();
 
+        try
+        {
+            await _accounting.RecordLateInterestAsync(
+                tenantId, lateInterest.Id, lateInterest.CalculatedAmount,
+                $"Capitalización de intereses mora período {period}", userId);
+        }
+        catch
+        {
+        }
+
+        _cache.Remove($"mora_map_{tenantId}");
         result.Add(lateInterest);
         return result;
     }
 
     public async Task<List<LateInterest>> CapitalizeAllOverdueInterestAsync(
-        string tenantId, string period)
+        string tenantId, string period, string userId)
     {
         var monthlyRate = await GetMonthlyRateAsync(tenantId);
         var dailyRate = GetDailyRate(monthlyRate);
@@ -218,8 +234,22 @@ public class LateInterestService
         {
             _context.LateInterests.AddRange(result);
             await _context.SaveChangesAsync();
+
+            foreach (var li in result)
+            {
+                try
+                {
+                    await _accounting.RecordLateInterestAsync(
+                        tenantId, li.Id, li.CalculatedAmount,
+                        $"Capitalización de intereses mora período {period}", userId);
+                }
+                catch
+                {
+                }
+            }
         }
 
+        _cache.Remove($"mora_map_{tenantId}");
         return result;
     }
 

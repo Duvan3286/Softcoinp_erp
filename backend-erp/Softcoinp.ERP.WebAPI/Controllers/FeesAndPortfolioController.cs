@@ -79,14 +79,6 @@ public class FeesAndPortfolioController : ControllerBase
                 request.PaymentDueDate,
                 userId);
 
-            try
-            {
-                await _accountingIntegration.RecordBillingAsync(
-                    tenantId, billingPeriod.Id, billingPeriod.MonthlyBudgetTotal,
-                    $"Liquidación de cuotas ordinarias período {billingPeriod.Period}", userId);
-            }
-            catch { /* La liquidación se ejecutó aunque el asiento contable falló */ }
-
             return Ok(new
             {
                 id = billingPeriod.Id,
@@ -261,19 +253,7 @@ public class FeesAndPortfolioController : ControllerBase
         try
         {
             var interests = await _lateInterestService.CapitalizeInterestAsync(
-                tenantId, request.UnitFeeId, request.Period);
-
-            try
-            {
-                var totalInterest = interests.Sum(i => i.CalculatedAmount);
-                if (totalInterest > 0 && interests.Count > 0)
-                {
-                    await _accountingIntegration.RecordLateInterestAsync(
-                        tenantId, interests[0].Id, totalInterest,
-                        $"Capitalización de intereses mora período {request.Period}", userId);
-                }
-            }
-            catch { }
+                tenantId, request.UnitFeeId, request.Period, userId);
 
             return Ok(new { count = interests.Count, total = interests.Sum(i => i.CalculatedAmount) });
         }
@@ -292,9 +272,10 @@ public class FeesAndPortfolioController : ControllerBase
     public async Task<IActionResult> CapitalizeAllInterest([FromBody] CapitalizeAllInterestRequestDto request)
     {
         var tenantId = GetTenantId();
+        var userId = GetUserId();
 
         var interests = await _lateInterestService.CapitalizeAllOverdueInterestAsync(
-            tenantId, request.Period);
+            tenantId, request.Period, userId);
         return Ok(new { count = interests.Count, total = interests.Sum(i => i.CalculatedAmount) });
     }
 
@@ -344,14 +325,6 @@ public class FeesAndPortfolioController : ControllerBase
         try
         {
             var payment = await _paymentService.RegisterPaymentAsync(tenantId, request, userId);
-
-            try
-            {
-                await _accountingIntegration.RecordPaymentAsync(
-                    tenantId, payment.Id, payment.Amount,
-                    $"Recaudo {payment.PaymentMethod} - {payment.UnitId}", userId);
-            }
-            catch { /* El pago se registró aunque el asiento contable falló */ }
 
             return Ok(new
             {

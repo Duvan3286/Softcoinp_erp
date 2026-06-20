@@ -46,7 +46,7 @@ public class UsersController : ControllerBase
 
         var query = _db.UserTenantRoles
             .Include(r => r.User)
-            .Where(r => r.TenantId == tenant.Id && r.IsActive);
+            .Where(r => r.TenantId == tenant.Id.ToString() && r.IsActive);
 
         if (!string.IsNullOrEmpty(role))
         {
@@ -98,7 +98,7 @@ public class UsersController : ControllerBase
             Timestamp = DateTime.UtcNow,
             UserId = targetUser.Id,
             Email = targetUser.Email!,
-            TenantId = tenant.Id,
+            TenantId = tenant.Id.ToString(),
             EventType = AuditEventType.AccountSuspended,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             Details = JsonSerializer.Serialize(new { reason = request.Reason, suspendedBy = currentUserId })
@@ -135,7 +135,7 @@ public class UsersController : ControllerBase
             Timestamp = DateTime.UtcNow,
             UserId = targetUser.Id,
             Email = targetUser.Email!,
-            TenantId = tenant.Id,
+            TenantId = tenant.Id.ToString(),
             EventType = AuditEventType.AccountActivated,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             Details = JsonSerializer.Serialize(new { activatedBy = currentUserId })
@@ -152,7 +152,7 @@ public class UsersController : ControllerBase
         if (roles.Contains(nameof(AppRole.SuperAdmin))) return true;
 
         var tenantRole = await _db.UserTenantRoles
-            .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenantId && r.IsActive);
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenantId.ToString() && r.IsActive);
 
         return tenantRole?.Role == AppRole.Admin;
     }

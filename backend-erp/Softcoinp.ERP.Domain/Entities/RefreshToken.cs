@@ -12,7 +12,7 @@ public class RefreshToken
     public string UserId { get; set; } = string.Empty;
 
     /// <summary>Tenant activo cuando se emitió el token</summary>
-    public Guid TenantId { get; set; }
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>Token hasheado (SHA-256). El valor real solo viaja en la respuesta inicial.</summary>
     public string TokenHash { get; set; } = string.Empty;

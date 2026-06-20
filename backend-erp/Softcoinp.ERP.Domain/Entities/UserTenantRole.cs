@@ -13,7 +13,7 @@ public class UserTenantRole : BaseEntity
     public string UserId { get; set; } = string.Empty;
 
     /// <summary>ID del tenant/conjunto residencial</summary>
-    public Guid TenantId { get; set; }
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>Rol del usuario en este tenant</summary>
     public AppRole Role { get; set; }

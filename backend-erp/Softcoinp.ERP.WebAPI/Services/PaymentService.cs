@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -13,10 +14,14 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class PaymentService
 {
     private readonly ApplicationDbContext _context;
+    private readonly AccountingIntegrationService _accounting;
+    private readonly IMemoryCache _cache;
 
-    public PaymentService(ApplicationDbContext context)
+    public PaymentService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache)
     {
         _context = context;
+        _accounting = accounting;
+        _cache = cache;
     }
 
     public async Task<UnitDebtSummaryDto> GetUnitDebtSummaryAsync(string tenantId, Guid unitId)
@@ -308,6 +313,21 @@ public class PaymentService
         }
 
         await _context.SaveChangesAsync();
+
+        try
+        {
+            await _accounting.RecordPaymentAsync(
+                tenantId,
+                payment.Id,
+                payment.Amount,
+                $"Pago registrado {payment.PaymentDate:yyyy-MM-dd} - Unidad {request.UnitId:N}",
+                userId);
+        }
+        catch
+        {
+        }
+
+        _cache.Remove($"mora_map_{tenantId}");
         return payment;
     }
 

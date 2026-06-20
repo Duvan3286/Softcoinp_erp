@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -13,10 +14,20 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class BillingEngineService
 {
     private readonly ApplicationDbContext _context;
+    private readonly AccountingIntegrationService _accounting;
+    private readonly ContingencyFundService _contingencyFund;
+    private readonly IMemoryCache _cache;
 
-    public BillingEngineService(ApplicationDbContext context)
+    public BillingEngineService(
+        ApplicationDbContext context,
+        AccountingIntegrationService accounting,
+        ContingencyFundService contingencyFund,
+        IMemoryCache cache)
     {
         _context = context;
+        _accounting = accounting;
+        _contingencyFund = contingencyFund;
+        _cache = cache;
     }
 
     public async Task<BillingChecklistDto> GetBillingChecklistAsync(string tenantId, string period)
@@ -159,6 +170,30 @@ public class BillingEngineService
         _context.UnitFees.AddRange(unitFees);
         await _context.SaveChangesAsync();
 
+        try
+        {
+            await _accounting.RecordBillingAsync(
+                tenantId,
+                billingPeriod.Id,
+                billingPeriod.MonthlyBudgetTotal,
+                $"Liquidación mensual {period}",
+                userId);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            var year = int.Parse(period.Substring(0, 4));
+            var month = int.Parse(period.Substring(5, 2));
+            await _contingencyFund.LiquidateMonthlyContributionAsync(tenantId, year, month);
+        }
+        catch
+        {
+        }
+
+        _cache.Remove($"mora_map_{tenantId}");
         return billingPeriod;
     }
 
