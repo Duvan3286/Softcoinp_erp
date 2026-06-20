@@ -78,6 +78,7 @@ builder.Services.AddScoped<AccountingPeriodService>();
 builder.Services.AddScoped<JournalEntryService>();
 builder.Services.AddScoped<AccountingReportService>();
 builder.Services.AddScoped<AccountingIntegrationService>();
+builder.Services.AddScoped<DashboardService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.

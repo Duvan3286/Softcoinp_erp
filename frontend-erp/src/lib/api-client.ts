@@ -53,10 +53,14 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          // Attempt to refresh token
+          const tenantId = getSubdomain();
+          const headers: Record<string, string> = {};
+          if (tenantId) {
+            headers['X-Tenant-Id'] = tenantId;
+          }
           const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
             refreshToken,
-          });
+          }, { headers });
 
           const { token } = response.data;
           localStorage.setItem('auth_token', token);

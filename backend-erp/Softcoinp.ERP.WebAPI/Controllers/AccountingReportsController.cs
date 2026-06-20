@@ -21,7 +21,7 @@ public class AccountingReportsController : ControllerBase
 
     private string GetTenantId()
     {
-        return User.FindFirstValue("TenantId") ?? string.Empty;
+        return User.FindFirstValue("tenant_id") ?? string.Empty;
     }
 
     [HttpGet("trial-balance")]

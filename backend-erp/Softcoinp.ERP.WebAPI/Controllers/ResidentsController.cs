@@ -24,7 +24,7 @@ public class ResidentsController : ControllerBase
         _context = context;
     }
 
-    private string GetTenantId() => User.FindFirstValue("TenantId") ?? string.Empty;
+    private string GetTenantId() => User.FindFirstValue("tenant_id") ?? string.Empty;
     private string GetUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
     // ── PROPIETARIOS — LISTADO Y DETALLE ─────────────────────────────────────

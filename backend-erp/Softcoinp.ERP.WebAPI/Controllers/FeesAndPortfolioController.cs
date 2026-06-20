@@ -46,7 +46,7 @@ public class FeesAndPortfolioController : ControllerBase
 
     private string GetTenantId()
     {
-        return User.FindFirstValue("TenantId") ?? string.Empty;
+        return User.FindFirstValue("tenant_id") ?? string.Empty;
     }
 
     private string GetUserId()
