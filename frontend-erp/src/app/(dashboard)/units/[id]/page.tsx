@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { UnitsService, Unit } from "@/lib/units-service";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import UnitOccupantsPanel from "@/components/residents/UnitOccupantsPanel";
 
 export default function UnitDetailsPage() {
   const params = useParams();
@@ -26,13 +27,14 @@ export default function UnitDetailsPage() {
     }
   };
 
-  const renderStatusBadge = (status: number) => {
-    if (status === 1) return <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold uppercase tracking-wider">Activa y Ocupada</span>;
-    if (status === 2) return <span className="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-xs font-bold uppercase tracking-wider">Activa y Desocupada</span>;
-    if (status === 3) return <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold uppercase tracking-wider">En Proceso de Entrega</span>;
-    if (status === 4) return <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold uppercase tracking-wider">En Litigio</span>;
-    if (status === 5) return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold uppercase tracking-wider">Inactiva</span>;
-    return <span>Desconocido</span>;
+  const renderStatusBadge = (status: number | string) => {
+    const s = String(status).toLowerCase();
+    if (s === "1" || s === "activeoccupied") return <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold uppercase tracking-wider">Activa y Ocupada</span>;
+    if (s === "2" || s === "activeunoccupied") return <span className="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-xs font-bold uppercase tracking-wider">Activa y Desocupada</span>;
+    if (s === "3" || s === "deliveryprocess") return <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold uppercase tracking-wider">En Proceso de Entrega</span>;
+    if (s === "4" || s === "litigation") return <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold uppercase tracking-wider">En Litigio</span>;
+    if (s === "5" || s === "inactive") return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-bold uppercase tracking-wider">Inactiva</span>;
+    return <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-bold uppercase tracking-wider">Desconocido</span>;
   };
 
   if (loading) {
@@ -98,20 +100,7 @@ export default function UnitDetailsPage() {
             </div>
           </div>
 
-          {/* Residents Mock */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-              <h3 className="font-bold text-gray-800">Residentes y Propietarios</h3>
-              <button className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100">Gestionar</button>
-            </div>
-            <div className="p-6 flex flex-col items-center justify-center text-center">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                <span className="text-gray-400">👥</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-800">Sin residentes vinculados</p>
-              <p className="text-xs text-gray-500 mt-1">Este módulo mostrará a los propietarios e inquilinos una vez se integre el CRM.</p>
-            </div>
-          </div>
+          <UnitOccupantsPanel unitId={id} />
 
           {/* Financials Mock */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

@@ -326,8 +326,9 @@ public class UnitsController : ControllerBase
             
             if (string.IsNullOrWhiteSpace(line)) continue;
 
-            // Simple CSV split assuming no commas inside values
-            var columns = line.Split(',');
+            // Detect separator (comma or semicolon)
+            char separator = line.Contains(';') ? ';' : ',';
+            var columns = line.Split(separator);
 
             if (columns.Length < 12)
             {
@@ -339,9 +340,10 @@ public class UnitsController : ControllerBase
             var unitTypeName = columns[1].Trim();
             var towerOrBlock = columns[2].Trim();
             var floorLevelStr = columns[3].Trim();
-            var privateAreaStr = columns[4].Trim();
-            var balconyAreaStr = columns[5].Trim();
-            var coefficientStr = columns[6].Trim();
+            // Allow comma as decimal separator by replacing it with dot
+            var privateAreaStr = columns[4].Trim().Replace(',', '.');
+            var balconyAreaStr = columns[5].Trim().Replace(',', '.');
+            var coefficientStr = columns[6].Trim().Replace(',', '.');
             var statusStr = columns[7].Trim();
             var hasPrivateParkingStr = columns[8].Trim();
             var parkingIdentifier = columns[9].Trim();
@@ -356,7 +358,16 @@ public class UnitsController : ControllerBase
             var unitType = unitTypes.FirstOrDefault(t => t.Name.Equals(unitTypeName, StringComparison.OrdinalIgnoreCase));
             if (unitType == null)
             {
-                errors.Add($"Fila {rowNumber}: El tipo de unidad '{unitTypeName}' no existe.");
+                unitType = new UnitType
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    Name = unitTypeName,
+                    HasCustomLiquidationRules = false,
+                    CreatedByUserId = GetUserId()
+                };
+                unitTypes.Add(unitType);
+                _context.UnitTypes.Add(unitType);
             }
 
             if (!int.TryParse(floorLevelStr, out int floorLevel))
@@ -383,13 +394,43 @@ public class UnitsController : ControllerBase
                 errors.Add($"Fila {rowNumber}: El coeficiente debe ser mayor a 0.");
             }
 
-            if (!Enum.TryParse<UnitStatus>(statusStr, true, out var status))
+            // Parse status with Spanish and English mappings
+            UnitStatus status = UnitStatus.Inactive;
+            var normalizedStatus = statusStr.Replace(" ", "").ToLowerInvariant();
+            if (normalizedStatus == "activayocupada" || normalizedStatus == "activaocupada" || normalizedStatus == "activeoccupied")
             {
-                errors.Add($"Fila {rowNumber}: Estado inválido '{statusStr}'. Valores permitidos: ActiveOccupied, ActiveUnoccupied, DeliveryProcess, Litigation, Inactive.");
+                status = UnitStatus.ActiveOccupied;
+            }
+            else if (normalizedStatus == "activaydesocupada" || normalizedStatus == "activadesocupada" || normalizedStatus == "activeunoccupied")
+            {
+                status = UnitStatus.ActiveUnoccupied;
+            }
+            else if (normalizedStatus == "enprocesodeentrega" || normalizedStatus == "procesodeentrega" || normalizedStatus == "procesoentrega" || normalizedStatus == "deliveryprocess")
+            {
+                status = UnitStatus.DeliveryProcess;
+            }
+            else if (normalizedStatus == "enlitigio" || normalizedStatus == "litigio" || normalizedStatus == "litigation")
+            {
+                status = UnitStatus.Litigation;
+            }
+            else if (normalizedStatus == "inactiva" || normalizedStatus == "inactive")
+            {
+                status = UnitStatus.Inactive;
+            }
+            else
+            {
+                errors.Add($"Fila {rowNumber}: Estado inválido '{statusStr}'. Valores permitidos: Activa y Ocupada, Activa y Desocupada, En Proceso de Entrega, En Litigio, Inactiva.");
             }
 
-            bool hasPrivateParking = bool.TryParse(hasPrivateParkingStr, out bool parsedParking) && parsedParking;
-            bool hasAssignedStorage = bool.TryParse(hasAssignedStorageStr, out bool parsedStorage) && parsedStorage;
+            // Parse Spanish and English boolean representation
+            bool ParseBoolean(string val)
+            {
+                var v = val.Trim().ToLowerInvariant();
+                return v == "true" || v == "sí" || v == "si" || v == "verdadero" || v == "1";
+            }
+
+            bool hasPrivateParking = ParseBoolean(hasPrivateParkingStr);
+            bool hasAssignedStorage = ParseBoolean(hasAssignedStorageStr);
 
             if (errors.Count == 0)
             {
@@ -450,9 +491,10 @@ public class UnitsController : ControllerBase
             .Where(u => u.TenantId == tenantId && u.Status != UnitStatus.Inactive)
             .SumAsync(u => u.CoproprietyCoefficient);
         
-        if ((currentTotal + totalNewCoefficient) != 100m)
+        if ((currentTotal + totalNewCoefficient) > 100m)
         {
-            errors.Add($"La suma de coeficientes no da exactamente 100%. El archivo intenta agregar {totalNewCoefficient:F4}%, el sistema ya tiene {currentTotal:F4}%.");
+            var allowed = 100m - currentTotal;
+            errors.Add($"La suma de coeficientes excede el 100%. El archivo intenta agregar {totalNewCoefficient:F4}%, el sistema ya tiene {currentTotal:F4}%. El máximo permitido a agregar es {allowed:F4}%.");
             await LogBulkImport(tenantId, BulkImportStatus.Failed, 0, errors.Count, System.Text.Json.JsonSerializer.Serialize(errors));
             return BadRequest(new { Message = "Error de validación de coeficientes", Errors = errors });
         }

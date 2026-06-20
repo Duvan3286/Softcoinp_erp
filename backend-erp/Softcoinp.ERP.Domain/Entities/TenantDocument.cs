@@ -3,7 +3,7 @@ using Softcoinp.ERP.Domain.Enums;
 
 namespace Softcoinp.ERP.Domain.Entities;
 
-public enum DocumentType
+public enum TenantDocumentType
 {
     HorizontalPropertyRegulation, // Reglamento de Propiedad Horizontal
     LegalRepresentationCertificate, // Certificado de Existencia y Representación
@@ -21,7 +21,7 @@ public class TenantDocument
 
     public string Title { get; set; } = string.Empty;
     
-    public DocumentType Type { get; set; }
+    public TenantDocumentType Type { get; set; }
 
     /// <summary>Ruta del archivo en el storage local (/uploads/...)</summary>
     public string FilePath { get; set; } = string.Empty;

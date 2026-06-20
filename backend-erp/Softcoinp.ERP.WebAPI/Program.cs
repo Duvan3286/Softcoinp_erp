@@ -66,9 +66,11 @@ builder.Services.AddHttpClient<ICoreIntegrationClient, CoreIntegrationClient>();
 builder.Services.AddScoped<BillingService>();
 
 // Register Application DB Context (Multi-tenant)
-builder.Services.AddDbContext<ApplicationDbContext>(options => {
-    options.UseMySql(masterConnectionString, ServerVersion.AutoDetect(masterConnectionString));
-});
+// IMPORTANT: Do NOT pre-configure the connection string here.
+// OnConfiguring() in ApplicationDbContext resolves the tenant's connection string
+// dynamically via ITenantResolver on each request. Passing a fixed string here
+// would mark options as "IsConfigured = true", bypassing the tenant resolution.
+builder.Services.AddDbContext<ApplicationDbContext>();
 
 builder.Services.AddHealthChecks()
     .AddMySql(masterConnectionString!, name: "master-mysql");
@@ -108,31 +110,59 @@ app.Use(async (context, next) => {
 // Automatic migrations and seeding on startup
 if (app.Configuration.GetValue<bool>("AUTO_MIGRATE") || Environment.GetEnvironmentVariable("AUTO_MIGRATE") == "true")
 {
-    try 
+    var startupLogger = app.Services.GetRequiredService<ILogger<Program>>();
+    using var scope = app.Services.CreateScope();
+    var services = scope.ServiceProvider;
+
+    // Step 1: Ensure erp_master DB exists and the 'test' tenant record is present.
+    // This MUST succeed before anything else can run.
+    bool masterSeeded = false;
+    try
     {
-        using var scope = app.Services.CreateScope();
-        var services = scope.ServiceProvider;
-        
-        // 1. Seed Master Tenant
         await MasterDbInitializer.SeedTenantAsync(services);
-        
-        // 2. Migrate Application DB (Identity tables in Master)
-        var context = services.GetRequiredService<ApplicationDbContext>();
-        await context.Database.MigrateAsync();
-
-        // 3. Seed SuperAdmin
-        var userManager = services.GetRequiredService<UserManager<User>>();
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        await DbInitializer.SeedUsersAsync(userManager, roleManager, app.Configuration);
-
-        // 4. Migrate and Seed all Tenants
-        var migrationService = services.GetRequiredService<DatabaseMigrationService>();
-        await migrationService.MigrateAllAsync();
+        startupLogger.LogInformation("Master DB seeded successfully.");
+        masterSeeded = true;
     }
     catch (Exception ex)
     {
-        var logger = app.Services.GetRequiredService<ILogger<Program>>();
-        logger.LogCritical(ex, "A fatal error occurred during startup migration/seeding.");
+        startupLogger.LogCritical(ex, "FATAL: Could not seed master tenant. Aborting startup migrations.");
+    }
+
+    if (masterSeeded)
+    {
+        // Step 2: Attempt to seed Identity users. This may fail on first boot because
+        // ApplicationDbContext.OnConfiguring() calls ITenantResolver which has no HTTP
+        // context at startup. The failure is non-fatal — per-tenant seeding in Step 3
+        // handles the actual user/role creation for each tenant database.
+        try
+        {
+            var userManager = services.GetRequiredService<UserManager<User>>();
+            var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+            await DbInitializer.SeedUsersAsync(userManager, roleManager, app.Configuration);
+            startupLogger.LogInformation("Master Identity seed completed.");
+        }
+        catch (Exception ex)
+        {
+            startupLogger.LogWarning(ex,
+                "Master Identity seed skipped (expected on first boot — tenant DB does not exist yet). " +
+                "Per-tenant users will be seeded in Step 3.");
+        }
+
+        // Step 3: Create and migrate every active tenant's database, then seed per-tenant users.
+        // Always runs regardless of whether Step 2 succeeded.
+        try
+        {
+            var migrationService = services.GetRequiredService<DatabaseMigrationService>();
+            var migrationResults = await migrationService.MigrateAllAsync();
+            foreach (var entry in migrationResults)
+            {
+                startupLogger.LogInformation("Migration [{Tenant}]: {Status}", entry.Key, entry.Value);
+            }
+        }
+        catch (Exception ex)
+        {
+            startupLogger.LogCritical(ex, "FATAL: Tenant database migration failed.");
+        }
     }
 }
 

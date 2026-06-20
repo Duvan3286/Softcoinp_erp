@@ -49,18 +49,37 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<UnitStateHistory> UnitStateHistories => Set<UnitStateHistory>();
     public DbSet<UnitComplement> UnitComplements => Set<UnitComplement>();
     public DbSet<BulkImportLog> BulkImportLogs => Set<BulkImportLog>();
+
+    // ── Módulo de Residentes y Propietarios (nuevo) ──────────────────
+    public DbSet<Owner> Owners => Set<Owner>();
+    public DbSet<UnitOwner> UnitOwners => Set<UnitOwner>();
+    public DbSet<TenantResident> TenantResidents => Set<TenantResident>();
+    public DbSet<CohabitationGroupMember> CohabitationGroupMembers => Set<CohabitationGroupMember>();
+    public DbSet<OwnerHistory> OwnerHistories => Set<OwnerHistory>();
+    public DbSet<ContactHistory> ContactHistories => Set<ContactHistory>();
+    public DbSet<SpokespersonHistory> SpokespersonHistories => Set<SpokespersonHistory>();
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
+        // Only resolve the tenant connection string when no provider has been configured.
+        // - When created via DI with AddDbContext<T>() (no lambda): IsConfigured=false → resolver runs.
+        // - When created with explicit options (e.g. DatabaseMigrationService): IsConfigured=true → skip.
         if (!optionsBuilder.IsConfigured)
         {
             var connectionString = _tenantResolver.GetConnectionStringAsync().GetAwaiter().GetResult();
-            if (string.IsNullOrEmpty(connectionString))
+
+            if (!string.IsNullOrEmpty(connectionString))
             {
-                connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__MasterConnection")
-                                 ?? "Server=127.0.0.1;Port=3307;Database=erp_master;User=root;Password=1234;";
+                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
             }
-            optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+            else
+            {
+                // Fallback: no tenant in context (e.g. background services, seed without SetCurrentTenant)
+                var masterCs = Environment.GetEnvironmentVariable("ConnectionStrings__MasterConnection")
+                             ?? "Server=127.0.0.1;Port=3307;Database=erp_master;User=root;Password=1234;";
+                optionsBuilder.UseMySql(masterCs, ServerVersion.AutoDetect(masterCs));
+            }
         }
+
         base.OnConfiguring(optionsBuilder);
     }
 
@@ -332,6 +351,174 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(e => e.ExecutedByUserId).HasMaxLength(450);
             entity.Property(e => e.ErrorReport).HasColumnType("longtext");
+        });
+        // ── Módulo de Residentes y Propietarios ──────────────────────────
+
+        modelBuilder.Entity<Owner>(entity =>
+        {
+            entity.ToTable("erp_owners");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.OwnerType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.DocumentType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.DocumentNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.VerificationDigit).HasMaxLength(2);
+            entity.Property(e => e.FullNameOrCompanyName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.MainPhone).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.AlternativePhone).HasMaxLength(20);
+            entity.Property(e => e.CorrespondenceAddress).HasMaxLength(500);
+            entity.Property(e => e.CivilStatus).HasMaxLength(30);
+            entity.Property(e => e.LegalRepresentativeName).HasMaxLength(300);
+            entity.Property(e => e.LegalRepresentativeDocumentType).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.LegalRepresentativeDocument).HasMaxLength(50);
+            entity.Property(e => e.LegalRepresentativeRole).HasMaxLength(100);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            // Un mismo documento no puede pertenecer a dos propietarios activos del mismo tenant
+            entity.HasIndex(e => new { e.TenantId, e.DocumentNumber }).IsUnique();
+            entity.HasIndex(e => e.TenantId);
+        });
+
+        modelBuilder.Entity<UnitOwner>(entity =>
+        {
+            entity.ToTable("erp_unit_owners");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.OwnershipPercentage).HasColumnType("decimal(5,2)");
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany(u => u.UnitOwners)
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany(o => o.UnitOwners)
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice compuesto para buscar vocero activo de una unidad eficientemente
+            entity.HasIndex(e => new { e.UnitId, e.IsActive, e.IsSpokesperson });
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.IsActive });
+        });
+
+        modelBuilder.Entity<TenantResident>(entity =>
+        {
+            entity.ToTable("erp_tenant_residents");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.DocumentType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.DocumentNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FullName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.Phone).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.RealEstateAgentName).HasMaxLength(200);
+            entity.Property(e => e.RealEstateAgentPhone).HasMaxLength(20);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany(u => u.TenantResidents)
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice para consulta de contratos próximos a vencer
+            entity.HasIndex(e => new { e.TenantId, e.LeaseEndDate, e.IsActive });
+            entity.HasIndex(e => new { e.UnitId, e.IsActive });
+        });
+
+        modelBuilder.Entity<CohabitationGroupMember>(entity =>
+        {
+            entity.ToTable("erp_cohabitation_group_members");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.FullNameOrPetName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Relationship).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.PetSpecies).HasMaxLength(100);
+            entity.Property(e => e.PetBreed).HasMaxLength(100);
+            entity.Property(e => e.PetSanitaryRegistration).HasMaxLength(100);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany(u => u.CohabitationGroupMembers)
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice para conteo de mascotas activas por unidad
+            entity.HasIndex(e => new { e.UnitId, e.IsActive, e.IsPet });
+        });
+
+        modelBuilder.Entity<OwnerHistory>(entity =>
+        {
+            entity.ToTable("erp_owner_histories");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.TransferNotes).HasColumnType("longtext");
+            entity.Property(e => e.RecordedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany(u => u.OwnerHistories)
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany(o => o.OwnerHistories)
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice para búsqueda de propietarios actuales (EndDate IS NULL)
+            entity.HasIndex(e => new { e.UnitId, e.EndDate });
+            entity.HasIndex(e => new { e.TenantId, e.OwnerId });
+        });
+
+        modelBuilder.Entity<ContactHistory>(entity =>
+        {
+            entity.ToTable("erp_contact_histories");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.FieldChanged).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.OldValue).HasColumnType("longtext");
+            entity.Property(e => e.NewValue).HasColumnType("longtext");
+            entity.Property(e => e.ChangedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany(o => o.ContactHistories)
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.OwnerId, e.ChangedAt });
+        });
+
+        modelBuilder.Entity<SpokespersonHistory>(entity =>
+        {
+            entity.ToTable("erp_spokesperson_histories");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ChangedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ChangeReason).HasMaxLength(500);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany(u => u.SpokespersonHistories)
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.PreviousSpokesperson)
+                  .WithMany(o => o.SpokespersonHistoriesAsPrevious)
+                  .HasForeignKey(e => e.PreviousSpokespersonId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.NewSpokesperson)
+                  .WithMany(o => o.SpokespersonHistoriesAsNew)
+                  .HasForeignKey(e => e.NewSpokespersonId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.UnitId, e.ChangedAt });
         });
     }
 

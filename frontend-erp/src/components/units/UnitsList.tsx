@@ -62,13 +62,14 @@ export default function UnitsList() {
     setShowBulkImport(false);
   };
 
-  const renderStatusBadge = (status: number) => {
-    if (status === 1) return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">Activa y Ocupada</span>;
-    if (status === 2) return <span className="px-2 py-1 bg-cyan-100 text-cyan-700 rounded-lg text-xs font-semibold">Activa y Desocupada</span>;
-    if (status === 3) return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-semibold">En Proceso de Entrega</span>;
-    if (status === 4) return <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold">En Litigio</span>;
-    if (status === 5) return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">Inactiva</span>;
-    return <span>Desconocido</span>;
+  const renderStatusBadge = (status: number | string) => {
+    const s = String(status).toLowerCase();
+    if (s === "1" || s === "activeoccupied") return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">Activa y Ocupada</span>;
+    if (s === "2" || s === "activeunoccupied") return <span className="px-2 py-1 bg-cyan-100 text-cyan-700 rounded-lg text-xs font-semibold">Activa y Desocupada</span>;
+    if (s === "3" || s === "deliveryprocess") return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-semibold">En Proceso de Entrega</span>;
+    if (s === "4" || s === "litigation") return <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold">En Litigio</span>;
+    if (s === "5" || s === "inactive") return <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">Inactiva</span>;
+    return <span className="px-2 py-1 bg-gray-200 text-gray-800 rounded-lg text-xs font-semibold">Desconocido ({String(status)})</span>;
   };
 
   const filteredUnits = units.filter(u => {

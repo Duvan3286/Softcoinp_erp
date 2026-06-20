@@ -43,17 +43,65 @@ export default function BulkImport({ onSuccess, onCancel }: BulkImportProps) {
       
     } catch (err: any) {
       setIsSubmitting(false);
+      console.error("Error capturado en BulkImport:", err);
       
-      if (err.message) {
+      if (typeof err === "string") {
+        setGlobalMessage(err);
+      } else if (err.message) {
         setGlobalMessage(err.message);
+      } else if (err.Message) { // ASP.NET Core capitalized property
+        setGlobalMessage(err.Message);
       } else {
         setGlobalMessage("Ocurrió un error inesperado.");
       }
 
       if (err.errors && Array.isArray(err.errors)) {
         setErrors(err.errors);
+      } else if (err.Errors && Array.isArray(err.Errors)) { // ASP.NET Core capitalized property
+        setErrors(err.Errors);
       }
     }
+  };
+
+  const downloadTemplate = () => {
+    const headers = [
+      "Identificador",
+      "Tipo de Unidad",
+      "Torre o Bloque",
+      "Piso",
+      "Área Privada",
+      "Área Balcón",
+      "Coeficiente",
+      "Estado",
+      "Tiene Parqueadero",
+      "Identificador Parqueadero",
+      "Tiene Depósito",
+      "Identificador Depósito"
+    ];
+    const sampleRow = [
+      "101",
+      "Apartamento",
+      "Torre A",
+      "1",
+      "75.5",
+      "5.2",
+      "1.25",
+      "Activa y Ocupada",
+      "sí",
+      "P-101",
+      "sí",
+      "D-101"
+    ];
+    const csvContent = "\uFEFF" + [headers.join(";"), sampleRow.join(";")].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "plantilla_carga_masiva_unidades.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -65,27 +113,41 @@ export default function BulkImport({ onSuccess, onCancel }: BulkImportProps) {
       <div className="p-6">
         <div className="mb-6">
           <p className="text-sm text-gray-600 mb-4">
-            Sube un archivo CSV con los datos de las unidades. El archivo debe contener una fila de encabezado.
-            Las columnas deben estar en este orden exacto:
+            Para facilitar la carga masiva, descarga nuestra plantilla prediseñada en español, diligénciala y súbela a continuación.
           </p>
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-semibold text-blue-900">Plantilla Oficial de Carga</h4>
+              <p className="text-xs text-blue-700 mt-0.5">El archivo incluye los encabezados requeridos y un ejemplo de uso.</p>
+            </div>
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              Descargar Plantilla
+            </button>
+          </div>
+          
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Columnas Requeridas:</h4>
           <ul className="list-disc pl-5 text-sm text-gray-600 mb-4 space-y-1">
-            <li>Identifier (texto)</li>
-            <li>UnitTypeName (texto, debe existir)</li>
-            <li>TowerOrBlock (texto)</li>
-            <li>FloorLevel (entero)</li>
-            <li>PrivateArea (decimal)</li>
-            <li>BalconyArea (decimal)</li>
-            <li>CoproprietyCoefficient (decimal, la suma debe ser exactamente 100)</li>
-            <li>Status (ActiveOccupied, ActiveUnoccupied, DeliveryProcess, Litigation, Inactive)</li>
-            <li>HasPrivateParking (true/false)</li>
-            <li>ParkingIdentifier (texto)</li>
-            <li>HasAssignedStorage (true/false)</li>
-            <li>StorageIdentifier (texto)</li>
+            <li><strong>Identificador:</strong> Texto (Ej: 101, Apartamento 101).</li>
+            <li><strong>Tipo de Unidad:</strong> Debe coincidir con un tipo creado (Ej: Apartamento, Parqueadero, Depósito).</li>
+            <li><strong>Torre o Bloque:</strong> Nombre o número de la torre (Ej: Torre A, Bloque 2).</li>
+            <li><strong>Piso:</strong> Número entero.</li>
+            <li><strong>Área Privada:</strong> Número decimal (Ej: 75.5, acepta coma o punto decimal).</li>
+            <li><strong>Área Balcón:</strong> Número decimal (Ej: 5.2, acepta coma o punto decimal).</li>
+            <li><strong>Coeficiente:</strong> Coeficiente de copropiedad (Ej: 1.25). <em>¡La suma total del conjunto debe ser exactamente 100%!</em></li>
+            <li><strong>Estado:</strong> Opciones: <code>Activa y Ocupada</code>, <code>Activa y Desocupada</code>, <code>En Proceso de Entrega</code>, <code>En Litigio</code>, <code>Inactiva</code>.</li>
+            <li><strong>Tiene Parqueadero:</strong> <code>sí</code> o <code>no</code>.</li>
+            <li><strong>Identificador Parqueadero:</strong> Texto (si aplica).</li>
+            <li><strong>Tiene Depósito:</strong> <code>sí</code> o <code>no</code>.</li>
+            <li><strong>Identificador Depósito:</strong> Texto (si aplica).</li>
           </ul>
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Seleccionar Archivo CSV</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Seleccionar Archivo CSV Diligenciado</label>
           <input
             type="file"
             accept=".csv"

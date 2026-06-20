@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Identity;
 using Softcoinp.ERP.Domain.Interfaces;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Infrastructure.Persistence;
-
 using Microsoft.Extensions.Configuration;
 
 namespace Softcoinp.ERP.Infrastructure.Services;
@@ -47,22 +46,21 @@ public class DatabaseMigrationService
         _logger.LogInformation("Starting Master database migration...");
         try
         {
-            // Use EnsureCreated first to make sure tables exist if migrations fail
+            // Use only EnsureCreated for MasterDB — it was created with EnsureCreated (not migrations),
+            // so MigrateAsync would fail with "pending changes" because there is no migration history.
             await _masterDbContext.Database.EnsureCreatedAsync();
-            await _masterDbContext.Database.MigrateAsync();
             results.Add("MasterDB", "Success");
-            _logger.LogInformation("Master database migrated successfully.");
+            _logger.LogInformation("Master database initialized successfully.");
         }
         catch (Exception ex)
         {
             results.Add("MasterDB", $"Partial Success/Warning: {ex.Message}");
-            _logger.LogWarning(ex, "Error migrating Master database, but continuing...");
+            _logger.LogWarning(ex, "Error initializing Master database, but continuing...");
         }
 
         var tenants = await _masterDbContext.Tenants
             .Where(t => t.IsActive)
             .ToListAsync();
-// ... (rest of the method)
 
         _logger.LogInformation("Found {Count} active tenants to migrate.", tenants.Count);
 
@@ -73,22 +71,41 @@ public class DatabaseMigrationService
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                
-                // We need to bypass the standard resolver for migration because we already have the connection string
-                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-                optionsBuilder.UseMySql(tenant.ConnectionString, ServerVersion.AutoDetect(tenant.ConnectionString));
-
-                // Create a temporary context instance for migration
-                // Note: ITenantResolver is still needed by the constructor but won't be used due to IsConfigured check in OnConfiguring
                 var tenantResolver = scope.ServiceProvider.GetRequiredService<ITenantResolver>();
-                using var tenantContext = new ApplicationDbContext(optionsBuilder.Options, tenantResolver);
 
-                await tenantContext.Database.MigrateAsync();
-                
-                // CRITICAL: Set the current tenant in the resolver so that DI-resolved services (like UserManager) use the correct database
+                // CRITICAL: Set the current tenant FIRST so that any DI-resolved service
+                // (ApplicationDbContext via OnConfiguring, UserManager, etc.) uses this tenant's DB.
                 tenantResolver.SetCurrentTenant(tenant);
 
-                // Seed default users and roles
+                // Use a fixed MySQL 8.0 server version to avoid AutoDetect connecting to
+                // a database that might not exist yet (throws "Unknown database").
+                var serverVersion = new MySqlServerVersion(new Version(8, 0, 0));
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                optionsBuilder.UseMySql(tenant.ConnectionString, serverVersion);
+
+                // Create a temporary context with EXPLICIT options for schema operations.
+                // IsConfigured=true → OnConfiguring is skipped → uses the explicit connection string.
+                using var tenantContext = new ApplicationDbContext(optionsBuilder.Options, tenantResolver);
+
+                // EnsureCreated creates the database if it doesn't exist.
+                // Required for fresh environments (docker-compose down -v).
+                await tenantContext.Database.EnsureCreatedAsync();
+
+                // MigrateAsync applies any pending EF migrations on top of the schema.
+                try
+                {
+                    await tenantContext.Database.MigrateAsync();
+                }
+                catch (Exception migEx)
+                {
+                    // EnsureCreated + MigrateAsync can conflict when the schema was already
+                    // created without migration history. Log and continue — DB is functional.
+                    _logger.LogWarning(migEx, "MigrateAsync warning for {Subdomain} (schema may already be current)", tenant.Subdomain);
+                }
+
+                // Seed default users and roles using DI-resolved UserManager.
+                // The ApplicationDbContext resolved from DI has IsConfigured=false →
+                // OnConfiguring runs → resolver returns tenant's connection string (set above).
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
                 await DbInitializer.SeedUsersAsync(userManager, roleManager, _configuration);

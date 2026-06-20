@@ -35,4 +35,11 @@ public class Unit
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime? UpdatedAt { get; set; }
+
+    // Navigation properties for Residents and Owners module
+    public System.Collections.Generic.ICollection<UnitOwner> UnitOwners { get; set; } = new System.Collections.Generic.List<UnitOwner>();
+    public System.Collections.Generic.ICollection<TenantResident> TenantResidents { get; set; } = new System.Collections.Generic.List<TenantResident>();
+    public System.Collections.Generic.ICollection<CohabitationGroupMember> CohabitationGroupMembers { get; set; } = new System.Collections.Generic.List<CohabitationGroupMember>();
+    public System.Collections.Generic.ICollection<OwnerHistory> OwnerHistories { get; set; } = new System.Collections.Generic.List<OwnerHistory>();
+    public System.Collections.Generic.ICollection<SpokespersonHistory> SpokespersonHistories { get; set; } = new System.Collections.Generic.List<SpokespersonHistory>();
 }

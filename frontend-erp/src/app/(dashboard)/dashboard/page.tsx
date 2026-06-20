@@ -31,7 +31,9 @@ export default function DashboardPage() {
 
       <Card className="h-64 flex items-center justify-center bg-background/50 border-dashed">
         <CardContent>
-          <p className="text-muted-foreground italic text-lg">El contenido principal del dashboard se cargará aquí...</p>
+          <p className="text-muted-foreground italic text-lg">
+            El contenido principal del dashboard se cargará aquí...
+          </p>
         </CardContent>
       </Card>
     </div>

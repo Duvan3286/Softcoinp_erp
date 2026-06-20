@@ -6,7 +6,6 @@ import { useSidebar } from '@/context/SidebarContext';
 import {
   LayoutDashboard,
   Briefcase,
-  FileText,
   Users,
   Database,
   Settings,
@@ -50,6 +49,7 @@ export const Sidebar = () => {
   useEffect(() => {
     if (pathname.includes('billing') || pathname.includes('portfolio')) setOpenGroup('finanzas');
     else if (pathname.includes('users') || pathname.includes('integrations')) setOpenGroup('admin');
+    else if (pathname.startsWith('/residents')) setOpenGroup('residents');
     // Close sidebar on mobile when navigating
     setIsOpen(false);
   }, [pathname, setIsOpen]);
@@ -113,6 +113,17 @@ export const Sidebar = () => {
             isExpanded={isExpanded}
             router={router}
           />
+
+          <NavGroup
+            icon={<Users className="w-5 h-5" />}
+            text="Residentes y Prop."
+            isOpen={openGroup === 'residents'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('residents')}
+          >
+            <NavItem text="Propietarios" path="/residents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Arrendatarios" path="/residents/tenants" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
 
           <NavGroup
             icon={<Briefcase className="w-5 h-5" />}

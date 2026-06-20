@@ -203,7 +203,7 @@ public class TenantConfigController : ControllerBase
 
     [HttpPost("documents")]
     [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<IActionResult> UploadDocument([FromForm] IFormFile file, [FromForm] DocumentType type, [FromForm] string title, [FromForm] AppRole minRole)
+    public async Task<IActionResult> UploadDocument([FromForm] IFormFile file, [FromForm] Softcoinp.ERP.Domain.Entities.TenantDocumentType type, [FromForm] string title, [FromForm] AppRole minRole)
     {
         if (file == null || file.Length == 0)
             return BadRequest("Archivo vacío.");

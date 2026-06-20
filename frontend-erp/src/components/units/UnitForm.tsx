@@ -20,7 +20,16 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
   const [privateArea, setPrivateArea] = useState(initialData?.privateArea || 0);
   const [balconyArea, setBalconyArea] = useState(initialData?.balconyArea || 0);
   const [coproprietyCoefficient, setCoproprietyCoefficient] = useState(initialData?.coproprietyCoefficient || 0);
-  const [status, setStatus] = useState(initialData?.status || 3); // 3 = DeliveryProcess
+  const mapStatusToInt = (st: string | number) => {
+    const s = String(st).toLowerCase();
+    if (s === "1" || s === "activeoccupied") return 1;
+    if (s === "2" || s === "activeunoccupied") return 2;
+    if (s === "3" || s === "deliveryprocess") return 3;
+    if (s === "4" || s === "litigation") return 4;
+    if (s === "5" || s === "inactive") return 5;
+    return 3;
+  };
+  const [status, setStatus] = useState<number>(initialData?.status ? mapStatusToInt(initialData.status) : 3);
   const [hasPrivateParking, setHasPrivateParking] = useState(initialData?.hasPrivateParking || false);
   const [parkingIdentifier, setParkingIdentifier] = useState(initialData?.parkingIdentifier || "");
   const [hasAssignedStorage, setHasAssignedStorage] = useState(initialData?.hasAssignedStorage || false);
@@ -175,16 +184,38 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Unidad</label>
-            <select
-              required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
-              value={unitTypeId}
-              onChange={(e) => setUnitTypeId(e.target.value)}
-            >
-              {unitTypes.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                required
+                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+                value={unitTypeId}
+                onChange={(e) => setUnitTypeId(e.target.value)}
+              >
+                <option value="" disabled>Seleccione o cree uno nuevo</option>
+                {unitTypes.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={async () => {
+                  const name = window.prompt("Ingrese el nombre del nuevo tipo de unidad (ej. Apartamento, Local):");
+                  if (name && name.trim()) {
+                    try {
+                      const newType = await UnitsService.createType(name.trim());
+                      setUnitTypes([...unitTypes, newType]);
+                      setUnitTypeId(newType.id);
+                    } catch (err) {
+                      alert("Error al crear el tipo de unidad.");
+                    }
+                  }
+                }}
+                className="px-4 py-2.5 bg-blue-50 text-blue-600 font-semibold rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors"
+                title="Añadir nuevo tipo"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           <div>
