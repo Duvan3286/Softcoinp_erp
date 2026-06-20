@@ -15,23 +15,6 @@ export enum DocumentType {
   PPT = 6,
 }
 
-export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  [DocumentType.CitizenshipCard]: "Cédula de Ciudadanía",
-  [DocumentType.ForeignerID]: "Cédula de Extranjería",
-  [DocumentType.NIT]: "NIT",
-  [DocumentType.Passport]: "Pasaporte",
-  [DocumentType.PEP]: "PEP",
-  [DocumentType.PPT]: "PPT",
-};
-
-export const DOCUMENT_TYPE_SHORT: Record<DocumentType, string> = {
-  [DocumentType.CitizenshipCard]: "CC",
-  [DocumentType.ForeignerID]: "CE",
-  [DocumentType.NIT]: "NIT",
-  [DocumentType.Passport]: "Pasaporte",
-  [DocumentType.PEP]: "PEP",
-  [DocumentType.PPT]: "PPT",
-};
 
 export interface OwnerSummary {
   id: string;
@@ -85,22 +68,6 @@ export interface Owner {
   contactHistory?: ContactHistoryEntry[];
 }
 
-export interface UnitOwner {
-  id: string;
-  unitId: string;
-  unit?: Unit;
-  ownerId: string;
-  owner?: Owner;
-  ownerName?: string;
-  ownerDocument?: string;
-  ownerType?: string;
-  ownershipPercentage: number;
-  isSpokesperson: boolean;
-  residesInUnit: boolean;
-  startDate: string;
-  endDate?: string;
-  isActive: boolean;
-}
 
 export interface TenantResident {
   id: string;
@@ -291,11 +258,6 @@ export const ResidentsService = {
   },
 
   // ── VINCULACIÓN UNIDAD-PROPIETARIO ────────────────────────────────────
-
-  async getUnitOwners(unitId: string): Promise<UnitOwner[]> {
-    const response = await apiClient.get(`/residents/units/${unitId}/owners`);
-    return response.data;
-  },
 
   async assignOwnerToUnit(unitId: string, data: AssignOwnerToUnitPayload): Promise<{ id: string }> {
     const response = await apiClient.post(`/residents/units/${unitId}/owners`, data);
