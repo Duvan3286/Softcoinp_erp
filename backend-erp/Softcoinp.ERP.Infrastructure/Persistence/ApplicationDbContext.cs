@@ -88,6 +88,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<BankReconciliation> BankReconciliations => Set<BankReconciliation>();
     public DbSet<ReconciliationItem> ReconciliationItems => Set<ReconciliationItem>();
 
+    // ── Módulo de Activos Fijos ───────────────────────────────────────────
+    public DbSet<FixedAsset> FixedAssets => Set<FixedAsset>();
+    public DbSet<MonthlyDepreciation> MonthlyDepreciations => Set<MonthlyDepreciation>();
+
     // ── Módulo de Dashboard (nuevo) ────────────────────────────────────
     public DbSet<AlertConfiguration> AlertConfigurations => Set<AlertConfiguration>();
     public DbSet<IndicatorCache> IndicatorCaches => Set<IndicatorCache>();
@@ -1049,7 +1053,52 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasOne(e => e.BankReconciliation)
                   .WithMany(r => r.Items)
                   .HasForeignKey(e => e.BankReconciliationId)
+                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Módulo de Activos Fijos ─────────────────────────────────────────────
+
+        modelBuilder.Entity<FixedAsset>(entity =>
+        {
+            entity.ToTable("erp_fixed_assets");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.SerialNumber).HasMaxLength(100);
+            entity.Property(e => e.Location).HasMaxLength(200);
+            entity.Property(e => e.AcquisitionValue).HasPrecision(18, 2);
+            entity.Property(e => e.ResidualValue).HasPrecision(18, 2);
+            entity.Property(e => e.AccumulatedDepreciation).HasPrecision(18, 2);
+            entity.Property(e => e.BookValue).HasPrecision(18, 2);
+            entity.Property(e => e.DisposalReason).HasMaxLength(500);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.DepreciationMethod).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.HasOne(e => e.AccountingAccount)
+                  .WithMany()
+                  .HasForeignKey(e => e.AccountingAccountId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.TenantId, e.SerialNumber }).IsUnique().HasFilter("[SerialNumber] IS NOT NULL AND [SerialNumber] <> ''");
+        });
+
+        modelBuilder.Entity<MonthlyDepreciation>(entity =>
+        {
+            entity.ToTable("erp_monthly_depreciations");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.PeriodLabel).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.DepreciationAmount).HasPrecision(18, 2);
+            entity.Property(e => e.AccumulatedAfter).HasPrecision(18, 2);
+            entity.Property(e => e.BookValueAfter).HasPrecision(18, 2);
+            entity.HasOne(e => e.FixedAsset)
+                  .WithMany(f => f.Depreciations)
+                  .HasForeignKey(e => e.FixedAssetId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.AccountingEntry)
+                  .WithMany()
+                  .HasForeignKey(e => e.AccountingEntryId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.TenantId, e.FixedAssetId, e.FiscalYear, e.Month }).IsUnique();
         });
 
         // ── Módulo de Dashboard ─────────────────────────────────────────────────

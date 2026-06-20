@@ -87,7 +87,7 @@ public class AccountingIntegrationService
     {
         var receivableAccount = await GetAccountOrThrowAsync(tenantId, "1305");
         var financialIncomeAccount = await _context.AccountingAccounts
-            .Where(a => a.TenantId == tenantId && a.Code.StartsWith("5305") && !a.IsGroup)
+            .Where(a => a.TenantId == tenantId && a.Code.StartsWith("4210") && !a.IsGroup)
             .OrderBy(a => a.Code)
             .FirstOrDefaultAsync() ?? await GetAccountOrThrowAsync(tenantId, "4405");
 

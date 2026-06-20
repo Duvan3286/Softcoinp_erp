@@ -187,4 +187,36 @@ public class AccountingReportService
 
         return balanceData;
     }
+
+    public async Task<List<ComparativeIncomeStatementItemDto>> GetComparativeIncomeStatementAsync(
+        string tenantId, Guid currentPeriodId, Guid previousPeriodId)
+    {
+        var current = await GetIncomeStatementAsync(tenantId, currentPeriodId);
+        var previous = await GetIncomeStatementAsync(tenantId, previousPeriodId);
+
+        var prevDict = previous.ToDictionary(p => p.AccountCode);
+        return current.Select(c => new ComparativeIncomeStatementItemDto
+        {
+            AccountCode = c.AccountCode,
+            AccountName = c.AccountName,
+            CurrentBalance = c.Balance,
+            PreviousBalance = prevDict.TryGetValue(c.AccountCode, out var p) ? p.Balance : 0m
+        }).ToList();
+    }
+
+    public async Task<List<ComparativeBalanceSheetItemDto>> GetComparativeBalanceSheetAsync(
+        string tenantId, Guid currentPeriodId, Guid previousPeriodId)
+    {
+        var current = await GetBalanceSheetAsync(tenantId, currentPeriodId);
+        var previous = await GetBalanceSheetAsync(tenantId, previousPeriodId);
+
+        var prevDict = previous.ToDictionary(p => p.AccountCode);
+        return current.Select(c => new ComparativeBalanceSheetItemDto
+        {
+            AccountCode = c.AccountCode,
+            AccountName = c.AccountName,
+            CurrentBalance = c.Balance,
+            PreviousBalance = prevDict.TryGetValue(c.AccountCode, out var p) ? p.Balance : 0m
+        }).ToList();
+    }
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -16,12 +17,14 @@ public class PaymentService
     private readonly ApplicationDbContext _context;
     private readonly AccountingIntegrationService _accounting;
     private readonly IMemoryCache _cache;
+    private readonly ILogger<PaymentService> _logger;
 
-    public PaymentService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache)
+    public PaymentService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache, ILogger<PaymentService> logger)
     {
         _context = context;
         _accounting = accounting;
         _cache = cache;
+        _logger = logger;
     }
 
     public async Task<UnitDebtSummaryDto> GetUnitDebtSummaryAsync(string tenantId, Guid unitId)
@@ -323,8 +326,9 @@ public class PaymentService
                 $"Pago registrado {payment.PaymentDate:yyyy-MM-dd} - Unidad {request.UnitId:N}",
                 userId);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error al registrar asiento contable de pago {PaymentId} para tenant {TenantId}", payment.Id, tenantId);
         }
 
         _cache.Remove($"mora_map_{tenantId}");

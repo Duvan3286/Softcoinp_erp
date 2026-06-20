@@ -125,9 +125,14 @@ public class DbInitializer
             new AccountingAccount { Code = "4110", Name = "Cuotas de Administración Extraordinarias", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },
             new AccountingAccount { Code = "4195", Name = "Otros Ingresos", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },
             new AccountingAccount { Code = "42", Name = "Ingresos No Operacionales", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },
+            new AccountingAccount { Code = "4205", Name = "Ingresos Varios", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = false, IsOfficialStandard = true, TenantId = tenantId },
             new AccountingAccount { Code = "4210", Name = "Rendimientos Financieros", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },
+            new AccountingAccount { Code = "421001", Name = "Intereses por Mora", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = false, IsOfficialStandard = true, TenantId = tenantId },
             new AccountingAccount { Code = "4220", Name = "Arrendamiento Zonas Comunes", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },
             new AccountingAccount { Code = "4230", Name = "Multas y Sanciones", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },
+            new AccountingAccount { Code = "4295", Name = "Otros Ingresos Extraordinarios", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = false, IsOfficialStandard = true, TenantId = tenantId },
+            new AccountingAccount { Code = "44", Name = "Ingresos por Cuotas", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },
+            new AccountingAccount { Code = "4405", Name = "Cuotas de Administración", Category = AccountingAccountCategory.Income, Nature = AccountingAccountNature.Credit, IsGroup = false, IsOfficialStandard = true, TenantId = tenantId },
 
             // --- 5. GASTOS (Debit) ---
             new AccountingAccount { Code = "5", Name = "Gastos", Category = AccountingAccountCategory.Expense, Nature = AccountingAccountNature.Debit, IsGroup = true, IsOfficialStandard = true, TenantId = tenantId },

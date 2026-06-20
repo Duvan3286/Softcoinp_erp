@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -17,17 +18,20 @@ public class BillingEngineService
     private readonly AccountingIntegrationService _accounting;
     private readonly ContingencyFundService _contingencyFund;
     private readonly IMemoryCache _cache;
+    private readonly ILogger<BillingEngineService> _logger;
 
     public BillingEngineService(
         ApplicationDbContext context,
         AccountingIntegrationService accounting,
         ContingencyFundService contingencyFund,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        ILogger<BillingEngineService> logger)
     {
         _context = context;
         _accounting = accounting;
         _contingencyFund = contingencyFund;
         _cache = cache;
+        _logger = logger;
     }
 
     public async Task<BillingChecklistDto> GetBillingChecklistAsync(string tenantId, string period)
@@ -179,8 +183,9 @@ public class BillingEngineService
                 $"Liquidación mensual {period}",
                 userId);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error al registrar asiento contable de liquidación {Period} para tenant {TenantId}", period, tenantId);
         }
 
         try
@@ -189,8 +194,9 @@ public class BillingEngineService
             var month = int.Parse(period.Substring(5, 2));
             await _contingencyFund.LiquidateMonthlyContributionAsync(tenantId, year, month);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error al liquidar fondo de imprevistos para período {Period} tenant {TenantId}", period, tenantId);
         }
 
         _cache.Remove($"mora_map_{tenantId}");

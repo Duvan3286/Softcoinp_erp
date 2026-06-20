@@ -65,4 +65,22 @@ public class AccountingReportsController : ControllerBase
         var result = await _reportService.GetBalanceSheetAsync(tenantId, periodId);
         return Ok(result);
     }
+
+    [HttpGet("income-statement/comparative")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Auditor")]
+    public async Task<IActionResult> GetComparativeIncomeStatement([FromQuery] Guid currentPeriodId, [FromQuery] Guid previousPeriodId)
+    {
+        var tenantId = GetTenantId();
+        var result = await _reportService.GetComparativeIncomeStatementAsync(tenantId, currentPeriodId, previousPeriodId);
+        return Ok(result);
+    }
+
+    [HttpGet("balance-sheet/comparative")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Auditor")]
+    public async Task<IActionResult> GetComparativeBalanceSheet([FromQuery] Guid currentPeriodId, [FromQuery] Guid previousPeriodId)
+    {
+        var tenantId = GetTenantId();
+        var result = await _reportService.GetComparativeBalanceSheetAsync(tenantId, currentPeriodId, previousPeriodId);
+        return Ok(result);
+    }
 }

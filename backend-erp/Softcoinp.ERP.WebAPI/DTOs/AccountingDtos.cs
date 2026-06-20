@@ -140,3 +140,23 @@ public class BalanceSheetItemDto
     public string AccountName { get; set; } = string.Empty;
     public decimal Balance { get; set; }
 }
+
+public class ComparativeIncomeStatementItemDto
+{
+    public string AccountCode { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
+    public decimal CurrentBalance { get; set; }
+    public decimal PreviousBalance { get; set; }
+    public decimal Variation => CurrentBalance - PreviousBalance;
+    public decimal VariationPercent => PreviousBalance != 0m ? Math.Round((CurrentBalance - PreviousBalance) / PreviousBalance * 100m, 2) : 0m;
+}
+
+public class ComparativeBalanceSheetItemDto
+{
+    public string AccountCode { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
+    public decimal CurrentBalance { get; set; }
+    public decimal PreviousBalance { get; set; }
+    public decimal Variation => CurrentBalance - PreviousBalance;
+    public decimal VariationPercent => PreviousBalance != 0m ? Math.Round((CurrentBalance - PreviousBalance) / PreviousBalance * 100m, 2) : 0m;
+}

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -25,6 +26,7 @@ public class FeesAndPortfolioController : ControllerBase
     private readonly StatementService _statementService;
     private readonly AccountingIntegrationService _accountingIntegration;
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<FeesAndPortfolioController> _logger;
 
     public FeesAndPortfolioController(
         BillingEngineService billingEngine,
@@ -33,7 +35,8 @@ public class FeesAndPortfolioController : ControllerBase
         PaymentAgreementService agreementService,
         StatementService statementService,
         AccountingIntegrationService accountingIntegration,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        ILogger<FeesAndPortfolioController> logger)
     {
         _billingEngine = billingEngine;
         _lateInterestService = lateInterestService;
@@ -42,6 +45,7 @@ public class FeesAndPortfolioController : ControllerBase
         _statementService = statementService;
         _accountingIntegration = accountingIntegration;
         _context = context;
+        _logger = logger;
     }
 
     private string GetTenantId()
@@ -624,7 +628,10 @@ public class FeesAndPortfolioController : ControllerBase
                     tenantId, fee.Id, fee.TotalAmount,
                     $"Cuota extraordinaria: {fee.Name} ({fee.StartPeriod})", GetUserId());
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar asiento contable de cuota extraordinaria {FeeId} para tenant {TenantId}", fee.Id, tenantId);
+            }
 
             return Ok(new { id = fee.Id, name = fee.Name, amountPerUnit, distributionsCount = distributions.Count });
         }
@@ -775,7 +782,10 @@ public class FeesAndPortfolioController : ControllerBase
                 tenantId, charge.Id, charge.Amount,
                 $"Cargo individual: {charge.Concept} - Unidad {unit.Identifier}", GetUserId());
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al registrar asiento contable de cargo individual {ChargeId} para tenant {TenantId}", charge.Id, tenantId);
+        }
 
         return Ok(new
         {
