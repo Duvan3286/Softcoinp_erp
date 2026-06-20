@@ -139,8 +139,11 @@ public class ContingencyFundService
             .Select(a => a.Id)
             .ToListAsync();
 
-        var entries = await _context.AccountingEntries
-            .Where(e => e.TenantId == tenantId && e.EntryDate >= startPeriod && e.EntryDate <= endPeriod && incomeAccounts.Contains(e.AccountingAccountId))
+        var entries = await _context.EntryLines
+            .Where(l => l.AccountingEntry!.TenantId == tenantId
+                     && l.AccountingEntry.EntryDate >= startPeriod
+                     && l.AccountingEntry.EntryDate <= endPeriod
+                     && incomeAccounts.Contains(l.AccountingAccountId))
             .ToListAsync();
 
         decimal totalIncome = entries.Sum(e => e.Credit) - entries.Sum(e => e.Debit);
@@ -184,35 +187,39 @@ public class ContingencyFundService
 
         if (expenseAccount != null && reserveAccount != null)
         {
-            var entryExpense = new AccountingEntry
+            var entryId = Guid.NewGuid();
+            var entry = new AccountingEntry
             {
-                Id = Guid.NewGuid(),
+                Id = entryId,
                 TenantId = tenantId,
+                EntryDate = DateTime.UtcNow,
+                Description = $"Aporte fondo de imprevistos mensual {pct}% sobre ingresos de {totalIncome:C2} ({period})",
+                ExternalReference = $"LIQ-{period}",
+                EntryType = EntryType.Automatic,
+                Status = EntryStatus.Final,
+                TotalDebit = contributionAmount,
+                TotalCredit = contributionAmount,
+                CreatedByUserId = "SYSTEM"
+            };
+            entry.Lines.Add(new EntryLine
+            {
+                AccountingEntryId = entryId,
                 AccountingAccountId = expenseAccount.Id,
                 Debit = contributionAmount,
-                Credit = 0,
-                EntryDate = DateTime.UtcNow,
-                Description = $"Aporte fondo de imprevistos mensual {pct}% sobre ingresos de {totalIncome:C2} ({period})",
-                Reference = $"LIQ-{period}"
-            };
-
-            var entryReserve = new AccountingEntry
+                Credit = 0
+            });
+            entry.Lines.Add(new EntryLine
             {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
+                AccountingEntryId = entryId,
                 AccountingAccountId = reserveAccount.Id,
                 Debit = 0,
-                Credit = contributionAmount,
-                EntryDate = DateTime.UtcNow,
-                Description = $"Aporte fondo de imprevistos mensual {pct}% sobre ingresos de {totalIncome:C2} ({period})",
-                Reference = $"LIQ-{period}"
-            };
+                Credit = contributionAmount
+            });
 
-            _context.AccountingEntries.Add(entryExpense);
-            _context.AccountingEntries.Add(entryReserve);
+            _context.AccountingEntries.Add(entry);
 
             // Asociar comprobante
-            contribution.AccountingRecordId = entryExpense.Id;
+            contribution.AccountingRecordId = entryId;
         }
 
         _context.ContingencyFundContributions.Add(contribution);
@@ -290,34 +297,38 @@ public class ContingencyFundService
 
         if (reserveAccount != null && bankAccount != null)
         {
-            var entryReserve = new AccountingEntry
+            var entryId = Guid.NewGuid();
+            var entry = new AccountingEntry
             {
-                Id = Guid.NewGuid(),
+                Id = entryId,
                 TenantId = tenantId,
+                EntryDate = DateTime.UtcNow,
+                Description = $"Retiro del fondo de imprevistos por acta del consejo {councilApprovalActNumber}. Justificación: {justification}",
+                ExternalReference = $"CON-{councilApprovalActNumber}",
+                EntryType = EntryType.Automatic,
+                Status = EntryStatus.Final,
+                TotalDebit = amount,
+                TotalCredit = amount,
+                CreatedByUserId = userId
+            };
+            entry.Lines.Add(new EntryLine
+            {
+                AccountingEntryId = entryId,
                 AccountingAccountId = reserveAccount.Id,
                 Debit = amount,
-                Credit = 0,
-                EntryDate = DateTime.UtcNow,
-                Description = $"Retiro del fondo de imprevistos por acta del consejo {councilApprovalActNumber}. Justificación: {justification}",
-                Reference = $"CON-{councilApprovalActNumber}"
-            };
-
-            var entryBank = new AccountingEntry
+                Credit = 0
+            });
+            entry.Lines.Add(new EntryLine
             {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
+                AccountingEntryId = entryId,
                 AccountingAccountId = bankAccount.Id,
                 Debit = 0,
-                Credit = amount,
-                EntryDate = DateTime.UtcNow,
-                Description = $"Retiro del fondo de imprevistos por acta del consejo {councilApprovalActNumber}. Justificación: {justification}",
-                Reference = $"CON-{councilApprovalActNumber}"
-            };
+                Credit = amount
+            });
 
-            _context.AccountingEntries.Add(entryReserve);
-            _context.AccountingEntries.Add(entryBank);
+            _context.AccountingEntries.Add(entry);
 
-            usage.AccountingRecordId = entryReserve.Id;
+            usage.AccountingRecordId = entryId;
         }
 
         _context.ContingencyFundUsages.Add(usage);

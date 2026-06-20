@@ -23,6 +23,7 @@ public class FeesAndPortfolioController : ControllerBase
     private readonly PaymentService _paymentService;
     private readonly PaymentAgreementService _agreementService;
     private readonly StatementService _statementService;
+    private readonly AccountingIntegrationService _accountingIntegration;
     private readonly ApplicationDbContext _context;
 
     public FeesAndPortfolioController(
@@ -31,6 +32,7 @@ public class FeesAndPortfolioController : ControllerBase
         PaymentService paymentService,
         PaymentAgreementService agreementService,
         StatementService statementService,
+        AccountingIntegrationService accountingIntegration,
         ApplicationDbContext context)
     {
         _billingEngine = billingEngine;
@@ -38,6 +40,7 @@ public class FeesAndPortfolioController : ControllerBase
         _paymentService = paymentService;
         _agreementService = agreementService;
         _statementService = statementService;
+        _accountingIntegration = accountingIntegration;
         _context = context;
     }
 
@@ -75,6 +78,14 @@ public class FeesAndPortfolioController : ControllerBase
                 request.CutoffDate,
                 request.PaymentDueDate,
                 userId);
+
+            try
+            {
+                await _accountingIntegration.RecordBillingAsync(
+                    tenantId, billingPeriod.Id, billingPeriod.MonthlyBudgetTotal,
+                    $"Liquidación de cuotas ordinarias período {billingPeriod.Period}", userId);
+            }
+            catch { /* La liquidación se ejecutó aunque el asiento contable falló */ }
 
             return Ok(new
             {
@@ -245,11 +256,25 @@ public class FeesAndPortfolioController : ControllerBase
     public async Task<IActionResult> CapitalizeInterest([FromBody] CapitalizeInterestRequestDto request)
     {
         var tenantId = GetTenantId();
+        var userId = GetUserId();
 
         try
         {
             var interests = await _lateInterestService.CapitalizeInterestAsync(
                 tenantId, request.UnitFeeId, request.Period);
+
+            try
+            {
+                var totalInterest = interests.Sum(i => i.CalculatedAmount);
+                if (totalInterest > 0 && interests.Count > 0)
+                {
+                    await _accountingIntegration.RecordLateInterestAsync(
+                        tenantId, interests[0].Id, totalInterest,
+                        $"Capitalización de intereses mora período {request.Period}", userId);
+                }
+            }
+            catch { }
+
             return Ok(new { count = interests.Count, total = interests.Sum(i => i.CalculatedAmount) });
         }
         catch (KeyNotFoundException ex)
@@ -319,6 +344,15 @@ public class FeesAndPortfolioController : ControllerBase
         try
         {
             var payment = await _paymentService.RegisterPaymentAsync(tenantId, request, userId);
+
+            try
+            {
+                await _accountingIntegration.RecordPaymentAsync(
+                    tenantId, payment.Id, payment.Amount,
+                    $"Recaudo {payment.PaymentMethod} - {payment.UnitId}", userId);
+            }
+            catch { /* El pago se registró aunque el asiento contable falló */ }
+
             return Ok(new
             {
                 id = payment.Id,
@@ -611,6 +645,14 @@ public class FeesAndPortfolioController : ControllerBase
             await _context.SaveChangesAsync();
             await tx.CommitAsync();
 
+            try
+            {
+                await _accountingIntegration.RecordExtraordinaryFeeAsync(
+                    tenantId, fee.Id, fee.TotalAmount,
+                    $"Cuota extraordinaria: {fee.Name} ({fee.StartPeriod})", GetUserId());
+            }
+            catch { }
+
             return Ok(new { id = fee.Id, name = fee.Name, amountPerUnit, distributionsCount = distributions.Count });
         }
         catch (Exception)
@@ -753,6 +795,14 @@ public class FeesAndPortfolioController : ControllerBase
 
         _context.IndividualCharges.Add(charge);
         await _context.SaveChangesAsync();
+
+        try
+        {
+            await _accountingIntegration.RecordIndividualChargeAsync(
+                tenantId, charge.Id, charge.Amount,
+                $"Cargo individual: {charge.Concept} - Unidad {unit.Identifier}", GetUserId());
+        }
+        catch { }
 
         return Ok(new
         {

@@ -74,6 +74,10 @@ builder.Services.AddScoped<LateInterestService>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<PaymentAgreementService>();
 builder.Services.AddScoped<StatementService>();
+builder.Services.AddScoped<AccountingPeriodService>();
+builder.Services.AddScoped<JournalEntryService>();
+builder.Services.AddScoped<AccountingReportService>();
+builder.Services.AddScoped<AccountingIntegrationService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.

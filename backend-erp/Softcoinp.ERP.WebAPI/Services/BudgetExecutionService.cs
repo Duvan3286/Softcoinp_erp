@@ -49,8 +49,10 @@ public class BudgetExecutionService
         // 4. Obtener todas las transacciones contables del período fiscal
         var startDate = new DateTime(fiscalPeriod, 1, 1);
         var endDate = new DateTime(fiscalPeriod, 12, 31, 23, 59, 59);
-        var journalEntries = await _context.AccountingEntries
-            .Where(e => e.TenantId == tenantId && e.EntryDate >= startDate && e.EntryDate <= endDate)
+        var journalEntries = await _context.EntryLines
+            .Where(l => l.AccountingEntry!.TenantId == tenantId
+                     && l.AccountingEntry.EntryDate >= startDate
+                     && l.AccountingEntry.EntryDate <= endDate)
             .ToListAsync();
 
         // 5. Mapeo temporal para calcular valores de movimiento

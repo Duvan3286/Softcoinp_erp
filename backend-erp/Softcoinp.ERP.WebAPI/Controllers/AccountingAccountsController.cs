@@ -202,7 +202,7 @@ public class AccountingAccountsController : ControllerBase
         }
 
         // Regla de Negocio: No se puede eliminar una cuenta que ya tiene movimientos en el diario o está vinculada al presupuesto
-        var hasJournalEntries = await _context.AccountingEntries
+        var hasJournalEntries = await _context.EntryLines
             .AnyAsync(e => e.AccountingAccountId == id);
 
         if (hasJournalEntries)

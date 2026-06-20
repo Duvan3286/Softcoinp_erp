@@ -37,6 +37,9 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<ContingencyFundContribution> ContingencyFundContributions => Set<ContingencyFundContribution>();
     public DbSet<ContingencyFundUsage> ContingencyFundUsages => Set<ContingencyFundUsage>();
     public DbSet<AccountingEntry> AccountingEntries => Set<AccountingEntry>();
+    public DbSet<AccountingPeriod> AccountingPeriods => Set<AccountingPeriod>();
+    public DbSet<EntryLine> EntryLines => Set<EntryLine>();
+    public DbSet<EntryReversal> EntryReversals => Set<EntryReversal>();
 
     // ── Módulo Auth & Roles (existente) ──────────────────────────────
     public DbSet<UserTenantRole> UserTenantRoles => Set<UserTenantRole>();
@@ -211,22 +214,80 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
         });
 
+        modelBuilder.Entity<AccountingPeriod>(entity =>
+        {
+            entity.ToTable("erp_accounting_periods");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.PeriodLabel).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ClosedByUserId).HasMaxLength(450);
+            entity.HasIndex(e => new { e.TenantId, e.FiscalYear, e.Month }).IsUnique();
+        });
+
         modelBuilder.Entity<AccountingEntry>(entity =>
         {
             entity.ToTable("erp_accounting_entries");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.EntryType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.ExternalReference).HasMaxLength(100);
+            entity.Property(e => e.TotalDebit).HasPrecision(18, 2);
+            entity.Property(e => e.TotalCredit).HasPrecision(18, 2);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.AccountingPeriod)
+                  .WithMany()
+                  .HasForeignKey(e => e.AccountingPeriodId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .IsRequired(false);
+
+            entity.HasIndex(e => new { e.TenantId, e.EntryNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.EntryDate });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+        });
+
+        modelBuilder.Entity<EntryLine>(entity =>
+        {
+            entity.ToTable("erp_entry_lines");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ThirdPartyId).HasMaxLength(255);
             entity.Property(e => e.Debit).HasPrecision(18, 2);
             entity.Property(e => e.Credit).HasPrecision(18, 2);
-            entity.Property(e => e.Description).HasMaxLength(500);
-            entity.Property(e => e.Reference).HasMaxLength(100);
+
+            entity.HasOne(e => e.AccountingEntry)
+                  .WithMany(e => e.Lines)
+                  .HasForeignKey(e => e.AccountingEntryId)
+                  .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.AccountingAccount)
                   .WithMany()
                   .HasForeignKey(e => e.AccountingAccountId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
 
-            entity.HasIndex(e => new { e.TenantId, e.EntryDate });
+        modelBuilder.Entity<EntryReversal>(entity =>
+        {
+            entity.ToTable("erp_entry_reversals");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.ReversedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.OriginalEntry)
+                  .WithMany()
+                  .HasForeignKey(e => e.OriginalEntryId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ReversalEntry)
+                  .WithMany()
+                  .HasForeignKey(e => e.ReversalEntryId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.OriginalEntryId }).IsUnique();
         });
 
         modelBuilder.Entity<FinancialTransaction>(entity =>
