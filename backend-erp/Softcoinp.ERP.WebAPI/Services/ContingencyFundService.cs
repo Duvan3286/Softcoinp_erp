@@ -130,29 +130,19 @@ public class ContingencyFundService
             pct = tenantConfig.ContingencyFundPercentage;
         }
 
-        // 3. Calcular ingresos totales ejecutados en el período (Cuentas tipo Ingreso y de movimiento)
-        var startPeriod = new DateTime(year, month, 1);
-        var endPeriod = startPeriod.AddMonths(1).AddSeconds(-1);
+        // 3. Calcular aporte basado en el presupuesto anual (Ley 675 de 2001)
+        var activeBudget = await _context.Budgets
+            .Where(b => b.TenantId == tenantId && b.FiscalPeriod == year && b.Status == BudgetStatus.Active)
+            .Include(b => b.BudgetDetails)
+            .FirstOrDefaultAsync();
 
-        var incomeAccounts = await _context.AccountingAccounts
-            .Where(a => a.TenantId == tenantId && a.Category == AccountingAccountCategory.Income && a.IsGroup == false)
-            .Select(a => a.Id)
-            .ToListAsync();
-
-        var entries = await _context.EntryLines
-            .Where(l => l.AccountingEntry!.TenantId == tenantId
-                     && l.AccountingEntry.EntryDate >= startPeriod
-                     && l.AccountingEntry.EntryDate <= endPeriod
-                     && incomeAccounts.Contains(l.AccountingAccountId))
-            .ToListAsync();
-
-        decimal totalIncome = entries.Sum(e => e.Credit) - entries.Sum(e => e.Debit);
-        if (totalIncome < 0)
+        decimal monthlyBudget = 0m;
+        if (activeBudget != null)
         {
-            totalIncome = 0; // Evitar aportes negativos si hubo más reversiones que recaudos
+            monthlyBudget = Math.Round(activeBudget.BudgetDetails.Sum(d => d.ApprovedValue) / 12m, 2);
         }
 
-        decimal contributionAmount = Math.Round(totalIncome * (pct / 100m), 2);
+        decimal contributionAmount = Math.Round(monthlyBudget * (pct / 100m), 2);
 
         // 4. Iniciar transacción o registrar datos contables
         var contribution = new ContingencyFundContribution
@@ -161,7 +151,7 @@ public class ContingencyFundService
             TenantId = tenantId,
             Period = period,
             Amount = contributionAmount,
-            IncomeBase = totalIncome,
+            IncomeBase = monthlyBudget,
             Percentage = pct,
             ContributionDate = DateTime.UtcNow
         };
@@ -193,7 +183,7 @@ public class ContingencyFundService
                 Id = entryId,
                 TenantId = tenantId,
                 EntryDate = DateTime.UtcNow,
-                Description = $"Aporte fondo de imprevistos mensual {pct}% sobre ingresos de {totalIncome:C2} ({period})",
+                Description = $"Aporte fondo de imprevistos mensual {pct}% sobre presupuesto de {monthlyBudget:C2} ({period})",
                 ExternalReference = $"LIQ-{period}",
                 EntryType = EntryType.Automatic,
                 Status = EntryStatus.Final,

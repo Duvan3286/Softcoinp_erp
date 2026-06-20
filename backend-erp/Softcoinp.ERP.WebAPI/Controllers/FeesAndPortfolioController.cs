@@ -550,6 +550,8 @@ public class FeesAndPortfolioController : ControllerBase
             return BadRequest("El nombre de la cuota extraordinaria es obligatorio.");
         if (request.TotalAmount <= 0)
             return BadRequest("El monto total debe ser mayor a cero.");
+        if (string.IsNullOrWhiteSpace(request.MeetingActNumber))
+            return BadRequest("El número del acta de asamblea es obligatorio para cuotas extraordinarias.");
 
         if (!Enum.TryParse<DistributionType>(request.DistributionType, true, out var distributionType))
             return BadRequest("Tipo de distribución inválido. Use: AllByCoefficient o SpecificGroup.");
@@ -572,6 +574,7 @@ public class FeesAndPortfolioController : ControllerBase
             TenantId = tenantId,
             Name = request.Name,
             Description = request.Notes,
+            MeetingActNumber = request.MeetingActNumber,
             TotalAmount = request.TotalAmount,
             DistributionType = distributionType,
             NumberOfInstallments = request.NumberOfInstallments,

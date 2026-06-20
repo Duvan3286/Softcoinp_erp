@@ -172,31 +172,43 @@ public class BillingEngineService
         }
 
         _context.UnitFees.AddRange(unitFees);
-        await _context.SaveChangesAsync();
 
+        using var tx = await _context.Database.BeginTransactionAsync();
         try
         {
-            await _accounting.RecordBillingAsync(
-                tenantId,
-                billingPeriod.Id,
-                billingPeriod.MonthlyBudgetTotal,
-                $"Liquidación mensual {period}",
-                userId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al registrar asiento contable de liquidación {Period} para tenant {TenantId}", period, tenantId);
-        }
+            await _context.SaveChangesAsync();
 
-        try
-        {
-            var year = int.Parse(period.Substring(0, 4));
-            var month = int.Parse(period.Substring(5, 2));
-            await _contingencyFund.LiquidateMonthlyContributionAsync(tenantId, year, month);
+            try
+            {
+                await _accounting.RecordBillingAsync(
+                    tenantId,
+                    billingPeriod.Id,
+                    billingPeriod.MonthlyBudgetTotal,
+                    $"Liquidación mensual {period}",
+                    userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al registrar asiento contable de liquidación {Period} para tenant {TenantId}", period, tenantId);
+            }
+
+            try
+            {
+                var year = int.Parse(period.Substring(0, 4));
+                var month = int.Parse(period.Substring(5, 2));
+                await _contingencyFund.LiquidateMonthlyContributionAsync(tenantId, year, month);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al liquidar fondo de imprevistos para período {Period} tenant {TenantId}", period, tenantId);
+            }
+
+            await tx.CommitAsync();
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.LogError(ex, "Error al liquidar fondo de imprevistos para período {Period} tenant {TenantId}", period, tenantId);
+            await tx.RollbackAsync();
+            throw;
         }
 
         _cache.Remove($"mora_map_{tenantId}");

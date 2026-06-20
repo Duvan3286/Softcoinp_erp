@@ -352,6 +352,7 @@ public class CreateExtraordinaryFeeRequestDto
     public DateTime DueDate { get; set; }
     public string StartPeriod { get; set; } = string.Empty;
     public int NumberOfInstallments { get; set; } = 1;
+    public string MeetingActNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
 }
 

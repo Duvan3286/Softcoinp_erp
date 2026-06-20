@@ -9,7 +9,9 @@ namespace Softcoinp.ERP.Domain.Entities;
 public class ConfigurationAuditLog
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    
+
+    public string TenantId { get; set; } = string.Empty;
+
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
     /// <summary>Usuario que realizó el cambio (Admin o SuperAdmin)</summary>
@@ -26,7 +28,4 @@ public class ConfigurationAuditLog
 
     /// <summary>Motivo del cambio (opcional)</summary>
     public string? Reason { get; set; }
-
-    // Navigation (Opcional si se mapea el User, pero la BD Application no tiene tabla Users.
-    // Solo guardamos el string del ID, ya que la validación se hace a nivel aplicación).
 }

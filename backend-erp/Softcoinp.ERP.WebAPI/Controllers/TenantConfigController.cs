@@ -67,11 +67,12 @@ public class TenantConfigController : ControllerBase
             return BadRequest("Según la Ley 675, el fondo de imprevistos debe ser mínimo el 1% del presupuesto.");
 
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
+        var currentTenantId = User.FindFirstValue("tenant_id") ?? string.Empty;
 
         // 2. Historial de Cambios Financieros (Auditoría)
         if (!isNew)
         {
-            await AuditFinancialChange(config, dto, currentUserId);
+            await AuditFinancialChange(currentTenantId, config, dto, currentUserId);
         }
 
         // 3. Historial de Representantes Legales
@@ -286,25 +287,38 @@ public class TenantConfigController : ControllerBase
         return File(bytes, doc.ContentType, Path.GetFileName(doc.FilePath));
     }
 
-    private async Task AuditFinancialChange(TenantConfiguration oldConfig, UpdateTenantConfigDto newConfig, string userId)
+    private async Task AuditFinancialChange(string tenantId, TenantConfiguration oldConfig, UpdateTenantConfigDto newConfig, string userId)
     {
         if (oldConfig.LatePaymentInterestRate != newConfig.LatePaymentInterestRate)
-            _context.ConfigurationAuditLogs.Add(CreateAudit("LatePaymentInterestRate", oldConfig.LatePaymentInterestRate, newConfig.LatePaymentInterestRate, userId));
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "LatePaymentInterestRate", oldConfig.LatePaymentInterestRate, newConfig.LatePaymentInterestRate, userId));
 
         if (oldConfig.BillingCycleDay != newConfig.BillingCycleDay)
-            _context.ConfigurationAuditLogs.Add(CreateAudit("BillingCycleDay", oldConfig.BillingCycleDay, newConfig.BillingCycleDay, userId));
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "BillingCycleDay", oldConfig.BillingCycleDay, newConfig.BillingCycleDay, userId));
 
         if (oldConfig.AnnualBudget != newConfig.AnnualBudget)
-            _context.ConfigurationAuditLogs.Add(CreateAudit("AnnualBudget", oldConfig.AnnualBudget, newConfig.AnnualBudget, userId));
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "AnnualBudget", oldConfig.AnnualBudget, newConfig.AnnualBudget, userId));
 
         if (oldConfig.MaxLegalInterestRate != newConfig.MaxLegalInterestRate)
-            _context.ConfigurationAuditLogs.Add(CreateAudit("MaxLegalInterestRate", oldConfig.MaxLegalInterestRate, newConfig.MaxLegalInterestRate, userId));
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "MaxLegalInterestRate", oldConfig.MaxLegalInterestRate, newConfig.MaxLegalInterestRate, userId));
+
+        if (oldConfig.GracePeriodDays != newConfig.GracePeriodDays)
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "GracePeriodDays", oldConfig.GracePeriodDays, newConfig.GracePeriodDays, userId));
+
+        if (oldConfig.ContingencyFundPercentage != newConfig.ContingencyFundPercentage)
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "ContingencyFundPercentage", oldConfig.ContingencyFundPercentage, newConfig.ContingencyFundPercentage, userId));
+
+        if (oldConfig.HasContingencyFund != newConfig.HasContingencyFund)
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "HasContingencyFund", oldConfig.HasContingencyFund, newConfig.HasContingencyFund, userId));
+
+        if (oldConfig.RoundingPolicy != newConfig.RoundingPolicy)
+            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "RoundingPolicy", oldConfig.RoundingPolicy, newConfig.RoundingPolicy, userId));
     }
 
-    private ConfigurationAuditLog CreateAudit(string paramName, object oldVal, object newVal, string userId)
+    private ConfigurationAuditLog CreateAudit(string tenantId, string paramName, object oldVal, object newVal, string userId)
     {
         return new ConfigurationAuditLog
         {
+            TenantId = tenantId,
             ParameterName = paramName,
             OldValue = oldVal?.ToString() ?? "",
             NewValue = newVal?.ToString() ?? "",

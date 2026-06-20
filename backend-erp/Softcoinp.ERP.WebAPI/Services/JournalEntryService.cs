@@ -63,6 +63,21 @@ public class JournalEntryService
             throw new InvalidOperationException($"Las siguientes cuentas no existen, no pertenecen al tenant o son cuentas de grupo: {string.Join(", ", invalidAccounts)}");
         }
 
+        // Validar que el período no esté cerrado
+        if (dto.AccountingPeriodId.HasValue)
+        {
+            var period = await _context.AccountingPeriods
+                .FirstOrDefaultAsync(p => p.Id == dto.AccountingPeriodId.Value && p.TenantId == tenantId);
+            if (period == null)
+            {
+                throw new InvalidOperationException("El período contable especificado no existe.");
+            }
+            if (period.Status == AccountingPeriodStatus.Closed)
+            {
+                throw new InvalidOperationException($"El período {period.PeriodLabel} está cerrado. No se pueden crear asientos en períodos cerrados.");
+            }
+        }
+
         // Obtener número de asiento
         var entryNumber = await _periodService.GetNextEntryNumberAsync(tenantId, dto.AccountingPeriodId);
 
@@ -242,6 +257,11 @@ public class JournalEntryService
         if (originalEntry.Status != EntryStatus.Final)
         {
             throw new InvalidOperationException("Solo se pueden revertir asientos en estado Final.");
+        }
+
+        if (originalEntry.EntryType == EntryType.Automatic)
+        {
+            throw new InvalidOperationException("No se pueden revertir asientos generados automáticamente por el sistema. Cree un asiento manual de ajuste en su lugar.");
         }
 
         // Verificar que no esté ya revertido

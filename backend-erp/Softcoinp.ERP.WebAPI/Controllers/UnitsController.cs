@@ -185,10 +185,10 @@ public class UnitsController : ControllerBase
             .SumAsync(u => u.CoproprietyCoefficient);
         
         var willBeActive = dto.Status != UnitStatus.Inactive;
-        if (willBeActive && (currentTotal + dto.CoproprietyCoefficient) > 100m)
+        if (willBeActive && Math.Abs(100m - (currentTotal + dto.CoproprietyCoefficient)) > 0.0001m)
         {
-            var allowed = 100m - currentTotal;
-            return BadRequest($"La suma de coeficientes excedería el 100%. El máximo permitido para esta unidad es {allowed:F4}%.");
+            var expected = 100m - currentTotal;
+            return BadRequest($"La suma de coeficientes debe ser exactamente 100%. Coeficiente actual: {currentTotal:F4}%, esperado para esta unidad: {expected:F4}%.");
         }
 
         var unit = new Unit
@@ -253,10 +253,10 @@ public class UnitsController : ControllerBase
             .SumAsync(u => u.CoproprietyCoefficient);
         
         var willBeActive = dto.Status != UnitStatus.Inactive;
-        if (willBeActive && (currentTotalOtherUnits + dto.CoproprietyCoefficient) > 100m)
+        if (willBeActive && Math.Abs(100m - (currentTotalOtherUnits + dto.CoproprietyCoefficient)) > 0.0001m)
         {
-            var allowed = 100m - currentTotalOtherUnits;
-            return BadRequest($"La actualización excedería el 100%. El máximo permitido para esta unidad es {allowed:F4}%.");
+            var expected = 100m - currentTotalOtherUnits;
+            return BadRequest($"La suma de coeficientes debe ser exactamente 100%. Coeficiente actual sin esta unidad: {currentTotalOtherUnits:F4}%, esperado para esta unidad: {expected:F4}%.");
         }
 
         if (unit.Status != dto.Status)
@@ -491,10 +491,10 @@ public class UnitsController : ControllerBase
             .Where(u => u.TenantId == tenantId && u.Status != UnitStatus.Inactive)
             .SumAsync(u => u.CoproprietyCoefficient);
         
-        if ((currentTotal + totalNewCoefficient) > 100m)
+        if (Math.Abs(100m - (currentTotal + totalNewCoefficient)) > 0.0001m)
         {
-            var allowed = 100m - currentTotal;
-            errors.Add($"La suma de coeficientes excede el 100%. El archivo intenta agregar {totalNewCoefficient:F4}%, el sistema ya tiene {currentTotal:F4}%. El máximo permitido a agregar es {allowed:F4}%.");
+            var expected = 100m - currentTotal;
+            errors.Add($"La suma de coeficientes debe ser exactamente 100%. El sistema tiene {currentTotal:F4}%, el archivo agrega {totalNewCoefficient:F4}%. Se esperaba {expected:F4}% en el archivo para completar el 100%.");
             await LogBulkImport(tenantId, BulkImportStatus.Failed, 0, errors.Count, System.Text.Json.JsonSerializer.Serialize(errors));
             return BadRequest(new { Message = "Error de validación de coeficientes", Errors = errors });
         }

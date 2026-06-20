@@ -453,8 +453,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
         {
             entity.ToTable("erp_configuration_audit_logs");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
             entity.Property(e => e.ChangedByUserId).HasMaxLength(450);
             entity.Property(e => e.ParameterName).HasMaxLength(100);
+            entity.HasIndex(e => new { e.TenantId, e.ParameterName, e.Timestamp });
         });
 
         // ── LegalRepresentativeHistory ───────────────────────────────────
