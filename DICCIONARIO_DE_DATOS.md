@@ -120,7 +120,7 @@ Registro de todas las personas y mascotas que habitan en una unidad.
 
 ---
 
-## 4. Módulo de Plan Contable y Presupuesto
+## 4. Módulo Contable
 
 ### 4.1 Cuentas Contables (`AccountingAccount`)
 Catálogo jerárquico de cuentas basado en la **Resolución 029 de 2019** del Consejo Técnico de la Contaduría Pública, adaptado para propiedades horizontales sin ánimo de lucro.
@@ -176,18 +176,156 @@ Catálogo jerárquico de cuentas basado en la **Resolución 029 de 2019** del Co
 | **Es Estándar Oficial (`isOfficialStandard`)** | `boolean` | Sí | `true` = viene precargada con la Resolución 029 y no puede modificarse. `false` = cuenta auxiliar creada por el conjunto. |
 
 ### 4.2 Asientos Contables (`AccountingEntry`)
-Registro de cada movimiento en el libro diario. Es la fuente de verdad para calcular la ejecución presupuestal en tiempo real.
+Registro de cada movimiento en el libro diario. Es la fuente de verdad para calcular la ejecución presupuestal y los saldos contables en tiempo real.
 
 | Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
 |-------|--------------|-------------|----------------------|
-| **Cuenta Contable (`accountingAccountId`)** | `Guid` FK | Sí | Debe ser una cuenta de movimiento (`isGroup = false`). |
-| **Débito (`debit`)** | `decimal(18,2)` | Sí | Valor debitado en la cuenta. Poner `0` si el movimiento es solo crédito. |
-| **Crédito (`credit`)** | `decimal(18,2)` | Sí | Valor acreditado en la cuenta. Poner `0` si el movimiento es solo débito. |
+| **Período Contable (`accountingPeriodId`)** | `Guid` FK | No | Período fiscal al que pertenece el asiento. Nulo si la gestión de períodos no está activa. |
+| **Número de Asiento (`entryNumber`)** | `int` | Automático | Número correlativo único por tenant. Se asigna automáticamente al crear el asiento. |
+| **Tipo de Asiento (`entryType`)** | `Enum` | Sí | `Manual` = Ingresado por un usuario · `Automatic` = Generado por integración (facturación, pagos). |
+| **Estado (`status`)** | `Enum` | Sí | `Draft` = Borrador (no contabilizado) · `Final` = Contabilizado (inmutable) · `Reversed` = Revertido. |
 | **Fecha del Asiento (`entryDate`)** | `datetime` | Sí | Fecha en que ocurrió el movimiento económico (no la fecha de registro). Determina en qué período fiscal se contabiliza. |
 | **Descripción (`description`)** | `string` max 500 | No | Texto libre que explica el concepto del movimiento. |
-| **Referencia (`reference`)** | `string` max 100 | No | Número del comprobante de egreso, ingreso o recibo que origina el asiento. Ej. "CE-00123", "LIQ-2025-06". |
+| **Referencia Externa (`externalReference`)** | `string` max 100 | No | Identificador del documento externo que origina el asiento. Ej. "LIQ-2026-06", "PAG-00123". |
+| **Total Débito (`totalDebit`)** | `decimal(18,2)` | Automático | Suma de todos los débitos de las líneas del asiento. Debe ser igual a `totalCredit`. |
+| **Total Crédito (`totalCredit`)** | `decimal(18,2)` | Automático | Suma de todos los créditos de las líneas del asiento. Debe ser igual a `totalDebit`. |
+| **Creado Por (`createdByUserId`)** | `string` FK | Automático | ID del usuario que creó el asiento. |
+| **Actualizado Por (`updatedByUserId`)** | `string` FK | No | ID del último usuario que modificó el asiento (solo aplica en borrador). |
 
-### 4.3 Presupuesto Anual (`Budget`)
+> [!IMPORTANT]
+> **Partida doble**: Todo asiento debe cumplir `totalDebit = totalCredit`. Esta validación se ejecuta tanto en la API como en la base de datos. Un asiento en estado `Final` es inmutable: no se pueden editar sus líneas ni cambiar su fecha. Para corregir un asiento final debe revertirse (generando un asiento de reversión).
+
+### 4.3 Líneas de Asiento (`EntryLine`)
+Cada línea individual que compone un asiento contable, registrando el movimiento en una cuenta específica.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asiento Contable (`accountingEntryId`)** | `Guid` FK | Sí | Asiento al que pertenece la línea. |
+| **Cuenta Contable (`accountingAccountId`)** | `Guid` FK | Sí | Debe ser una cuenta de movimiento (`isGroup = false`). |
+| **Tercero (`thirdPartyId`)** | `string` max 50 | No | Identificador del tercero asociado al movimiento (proveedor, propietario, etc.). |
+| **Débito (`debit`)** | `decimal(18,2)` | Sí | Valor debitado en la cuenta. Poner `0` si el movimiento es solo crédito. |
+| **Crédito (`credit`)** | `decimal(18,2)` | Sí | Valor acreditado en la cuenta. Poner `0` si el movimiento es solo débito. |
+
+### 4.4 Reversiones de Asientos (`EntryReversal`)
+Registro de cada reversión de un asiento contable finalizado. La reversión genera un nuevo asiento con signos opuestos (débitos y créditos intercambiados).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asiento Original (`originalEntryId`)** | `Guid` FK | Sí | Asiento en estado `Final` que se está revirtiendo. |
+| **Asiento de Reversión (`reversalEntryId`)** | `Guid` FK | Sí | Nuevo asiento generado con los valores opuestos. |
+| **Motivo (`reason`)** | `string` max 500 | Sí | Explicación del motivo de la reversión. |
+| **Fecha de Reversión (`reversedAt`)** | `datetime` | Automático | Fecha y hora en que se ejecutó la reversión. |
+| **Reversado Por (`reversedByUserId`)** | `string` FK | Automático | ID del usuario que ejecutó la reversión. |
+
+### 4.5 Períodos Contables (`AccountingPeriod`)
+Representa un mes calendario dentro del ciclo contable del conjunto. Se utiliza para organizar los asientos y controlar el cierre mensual.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Año Fiscal (`fiscalYear`)** | `int` | Sí | Año calendario. Ej. `2026`. |
+| **Mes (`month`)** | `int` | Sí | Número del mes (1-12). |
+| **Etiqueta (`periodLabel`)** | `string` max 20 | Automático | Nombre del período. Ej. "2026-06". |
+| **Estado (`status`)** | `Enum` | Sí | `Open` = Abierto para contabilizar · `Closed` = Cerrado, no se pueden registrar asientos. |
+| **Fecha de Apertura (`openedAt`)** | `datetime` | Automático | Fecha en que se abrió el período. |
+| **Fecha de Cierre (`closedAt`)** | `datetime` | No | Fecha en que se cerró el período. |
+| **Cerrado Por (`closedByUserId`)** | `string` FK | No | ID del usuario que ejecutó el cierre. |
+| **Último Número de Asiento (`lastEntryNumber`)** | `int` | Automático | Contador del último número de asiento asignado en el período. Se incrementa automáticamente. |
+
+### 4.6 Cuentas Bancarias (`BankAccount`)
+Registro de las cuentas bancarias del conjunto, asociadas a la cuenta contable `1110` (Bancos) del PUC.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Cuenta Contable (`accountingAccountId`)** | `Guid` FK | Sí | Cuenta del PUC asociada (generalmente una subcuenta de `1110`). |
+| **Nombre del Banco (`bankName`)** | `string` max 200 | Sí | Nombre de la entidad bancaria. Ej. "Bancolombia", "Davivienda". |
+| **Número de Cuenta (`accountNumber`)** | `string` max 50 | Sí | Número de la cuenta bancaria. Único por tenant. |
+| **Tipo de Cuenta (`accountType`)** | `Enum` | Sí | `Checking` = Cuenta corriente · `Savings` = Cuenta de ahorros. |
+| **Saldo Actual (`currentBalance`)** | `decimal(18,2)` | Automático | Saldo según libro mayor del ERP. Se actualiza con cada movimiento registrado. |
+| **Saldo Inicial (`openingBalance`)** | `decimal(18,2)` | Sí | Saldo al momento de crear la cuenta en el sistema. |
+| **Activa (`isActive`)** | `boolean` | Sí | `false` si la cuenta fue cerrada o dejó de usarse. |
+
+### 4.7 Movimientos Bancarios (`BankMovement`)
+Registro individual de cada transacción que afecta el saldo de una cuenta bancaria.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Cuenta Bancaria (`bankAccountId`)** | `Guid` FK | Sí | Cuenta bancaria afectada. |
+| **Asiento Contable (`accountingEntryId`)** | `Guid` FK | No | Asiento contable asociado al movimiento (si aplica). |
+| **Tipo de Movimiento (`movementType`)** | `Enum` | Sí | `Deposit` = Consignación · `Withdrawal` = Retiro · `Transfer` = Transferencia · `Fee` = Comisión · `Interest` = Rendimiento. |
+| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor del movimiento. Positivo para ingresos, negativo para egresos. |
+| **Fecha del Movimiento (`movementDate`)** | `datetime` | Sí | Fecha en que ocurrió la transacción bancaria. |
+| **Descripción (`description`)** | `string` max 500 | Sí | Concepto del movimiento. |
+| **Número de Referencia (`referenceNumber`)** | `string` max 100 | No | Número de cheque, consignación o transacción. |
+| **Saldo Parcial (`runningBalance`)** | `decimal(18,2)` | Automático | Saldo de la cuenta después de aplicar este movimiento. |
+| **Creado Por (`createdByUserId`)** | `string` FK | Automático | ID del usuario que registró el movimiento. |
+
+### 4.8 Conciliaciones Bancarias (`BankReconciliation`)
+Proceso de verificación mensual que compara el saldo contable (ERP) contra el saldo del extracto bancario.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Cuenta Bancaria (`bankAccountId`)** | `Guid` FK | Sí | Cuenta bancaria que se concilia. |
+| **Año Fiscal (`fiscalYear`)** | `int` | Sí | Año de la conciliación. |
+| **Mes (`month`)** | `int` | Sí | Mes de la conciliación. Solo una conciliación por cuenta/mes. |
+| **Etiqueta (`periodLabel`)** | `string` max 20 | Automático | Ej. "2026-06". |
+| **Saldo en Libros (`bookBalance`)** | `decimal(18,2)` | Automático | Saldo según el ERP al cierre del mes. |
+| **Saldo del Extracto (`statementBalance`)** | `decimal(18,2)` | Sí | Saldo reportado por el banco en el extracto. |
+| **Diferencia (`difference`)** | `decimal(18,2)` | Automático | `statementBalance - bookBalance`. Debe ser 0 después de conciliar. |
+| **Estado (`status`)** | `Enum` | Sí | `InProgress` = En proceso · `Completed` = Conciliada. |
+| **Creado Por (`createdByUserId`)** | `string` FK | Automático | ID del usuario que inició la conciliación. |
+| **Completado Por (`completedByUserId`)** | `string` FK | No | ID del usuario que completó la conciliación. |
+
+### 4.9 Ítems de Conciliación (`ReconciliationItem`)
+Cada partida individual que se concilia entre los libros contables y el extracto bancario.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Conciliación Bancaria (`bankReconciliationId`)** | `Guid` FK | Sí | Conciliación a la que pertenece el ítem. |
+| **Movimiento Bancario (`bankMovementId`)** | `Guid` FK | No | Movimiento del ERP asociado (si existe en libros). |
+| **Descripción (`description`)** | `string` max 500 | Sí | Concepto de la partida. |
+| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor de la partida. |
+| **Fecha del Movimiento (`movementDate`)** | `datetime` | Sí | Fecha de la transacción. |
+| **Está en Libros (`isInBooks`)** | `boolean` | Sí | `true` si la partida aparece en el ERP. |
+| **Está en Extracto (`isInStatement`)** | `boolean` | Sí | `true` si la partida aparece en el extracto bancario. |
+| **Está Conciliada (`isCleared`)** | `boolean` | Sí | `true` cuando la partida ha sido verificada en ambos lados. |
+
+### 4.10 Activos Fijos (`FixedAsset`)
+Registro de bienes muebles e inmuebles propiedad del conjunto que se deprecian periódicamente según su vida útil.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Cuenta Contable (`accountingAccountId`)** | `Guid` FK | No | Cuenta del activo en el PUC (ej. `1520` Maquinaria y Equipo). |
+| **Nombre (`name`)** | `string` max 200 | Sí | Nombre del activo. Ej. "Bomba de agua sistema presión". |
+| **Descripción (`description`)** | `string` max 1000 | No | Detalle adicional del activo. |
+| **Número de Serie (`serialNumber`)** | `string` max 100 | No | Número de serie o placa del fabricante. |
+| **Ubicación (`location`)** | `string` max 200 | No | Lugar físico donde se encuentra el activo. |
+| **Valor de Adquisición (`acquisitionValue`)** | `decimal(18,2)` | Sí | Costo de compra del activo, incluyendo impuestos no recuperables. |
+| **Fecha de Adquisición (`acquisitionDate`)** | `datetime` | Sí | Fecha de compra o puesta en servicio. |
+| **Vida Útil en Meses (`usefulLifeMonths`)** | `int` | Sí | Meses durante los cuales se depreciará el activo. |
+| **Valor Residual (`residualValue`)** | `decimal(18,2)` | Sí | Valor estimado al final de la vida útil. |
+| **Método de Depreciación (`depreciationMethod`)** | `Enum` | Sí | `StraightLine` = Línea recta (único método soportado actualmente). |
+| **Depreciación Acumulada (`accumulatedDepreciation`)** | `decimal(18,2)` | Automático | Suma de todas las depreciaciones mensuales registradas. |
+| **Valor en Libros (`bookValue`)** | `decimal(18,2)` | Automático | `acquisitionValue - accumulatedDepreciation`. |
+| **Estado (`status`)** | `Enum` | Sí | `Active` = En uso · `Disposed` = Dado de baja · `FullyDepreciated` = Totalmente depreciado. |
+| **Fecha de Baja (`disposalDate`)** | `datetime` | No | Fecha en que se dio de baja el activo. |
+| **Valor de Baja (`disposalValue`)** | `decimal(18,2)` | No | Valor recibido por la venta o desecho. |
+| **Motivo de Baja (`disposalReason`)** | `string` max 500 | No | Razón de la baja (venta, pérdida, donación). |
+
+### 4.11 Depreciación Mensual (`MonthlyDepreciation`)
+Registro mensual del cargo por depreciación de cada activo fijo.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Activo Fijo (`fixedAssetId`)** | `Guid` FK | Sí | Activo que se deprecia. |
+| **Asiento Contable (`accountingEntryId`)** | `Guid` FK | No | Asiento generado por la depreciación (Débito Gasto / Crédito Depreciación Acumulada). |
+| **Año Fiscal (`fiscalYear`)** | `int` | Sí | Año de la depreciación. |
+| **Mes (`month`)** | `int` | Sí | Mes de la depreciación. |
+| **Etiqueta (`periodLabel`)** | `string` max 20 | Automático | Ej. "2026-06". |
+| **Monto de Depreciación (`depreciationAmount`)** | `decimal(18,2)` | Automático | Valor calculado según el método de depreciación del activo. |
+| **Depreciación Acumulada Después (`accumulatedAfter`)** | `decimal(18,2)` | Automático | Depreciación acumulada después de aplicar este mes. |
+| **Valor en Libros Después (`bookValueAfter`)** | `decimal(18,2)` | Automático | Valor contable después de la depreciación del mes. |
+
+### 4.12 Presupuesto Anual (`Budget`)
 Instrumento de planeación financiera aprobado por la Asamblea Ordinaria de Copropietarios. Solo puede existir **un presupuesto activo por período fiscal**.
 
 > [!IMPORTANT]
@@ -205,7 +343,7 @@ Instrumento de planeación financiera aprobado por la Asamblea Ordinaria de Copr
 - **Manual**: se ingresan los valores cuenta por cuenta desde cero.
 - **Copia del período anterior**: el sistema toma el presupuesto aprobado del año anterior y aplica un ajuste porcentual global o diferenciado por cuenta.
 
-### 4.4 Detalle del Presupuesto (`BudgetDetail`)
+### 4.13 Detalle del Presupuesto (`BudgetDetail`)
 Asignación de valor aprobado a cada cuenta de ingreso o gasto dentro de un presupuesto.
 
 | Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
@@ -215,7 +353,7 @@ Asignación de valor aprobado a cada cuenta de ingreso o gasto dentro de un pres
 | **Valor Aprobado (`approvedValue`)** | `decimal(18,2)` | Sí | Monto que la asamblea aprobó para esta cuenta en el período fiscal. Solo afectable después de la activación mediante movimientos presupuestales. |
 | **Observaciones (`observations`)** | `string` max 500 | No | Notas sobre el criterio utilizado para definir el valor de este rubro. |
 
-### 4.5 Movimientos Presupuestales (`BudgetMovement`)
+### 4.14 Movimientos Presupuestales (`BudgetMovement`)
 Registro de **traslados** (mover entre rubros) y **adiciones** (aumentar el techo aprobado) sobre un presupuesto activo. Cada movimiento requiere respaldo formal en acta.
 
 > [!NOTE]
@@ -234,14 +372,14 @@ Registro de **traslados** (mover entre rubros) y **adiciones** (aumentar el tech
 | **Número de Acta (`meetingActNumber`)** | `string` max 100 | Sí | Número del acta del consejo o asamblea que aprobó el movimiento. |
 | **Fecha de Aprobación (`approvalDate`)** | `datetime` | Sí | Fecha en que fue aprobado el movimiento. |
 
-### 4.6 Fondo de Imprevistos (`ContingencyFund`)
+### 4.15 Fondo de Imprevistos (`ContingencyFund`)
 Reserva obligatoria según el **Artículo 35 de la Ley 675 de 2001**. Se constituye con un porcentaje mínimo del 1% de los ingresos del período y solo puede usarse para expensas imprevistas o de urgencia con aprobación del consejo.
 
 | Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
 |-------|--------------|-------------|----------------------|
 | **Saldo Actual (`currentBalance`)** | `decimal(18,2)` | Automático | Calculado por el sistema. Se incrementa con cada aporte mensual y se reduce con cada uso aprobado. No editable manualmente. |
 
-### 4.7 Aportes al Fondo de Imprevistos (`ContingencyFundContribution`)
+### 4.16 Aportes al Fondo de Imprevistos (`ContingencyFundContribution`)
 Registro de cada aporte mensual liquidado al fondo. El sistema genera automáticamente el asiento contable correspondiente (Débito 5196 / Crédito 3205).
 
 | Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
@@ -253,7 +391,7 @@ Registro de cada aporte mensual liquidado al fondo. El sistema genera automátic
 | **Fecha de Liquidación (`contributionDate`)** | `datetime` | Automático | Fecha y hora en que se ejecutó la liquidación mensual. |
 | **Referencia Asiento (`accountingRecordId`)** | `Guid` FK | Automático | Referencia al asiento contable de gasto (Débito 5196) generado por la liquidación. |
 
-### 4.8 Usos del Fondo de Imprevistos (`ContingencyFundUsage`)
+### 4.17 Usos del Fondo de Imprevistos (`ContingencyFundUsage`)
 Registro de cada retiro del fondo. El sistema genera automáticamente el asiento contable (Débito 3205 / Crédito 1110).
 
 > [!WARNING]
@@ -468,6 +606,15 @@ Documento oficial que certifica que una unidad no tiene obligaciones pendientes 
 | `erp_spokesperson_histories` | Residentes | Historial de designación de voceros por unidad |
 | `erp_accounting_accounts` | Contabilidad | Plan de cuentas (Resolución 029 + auxiliares) |
 | `erp_accounting_entries` | Contabilidad | Libro diario — asientos contables |
+| `erp_entry_lines` | Contabilidad | Líneas de detalle de cada asiento |
+| `erp_entry_reversals` | Contabilidad | Reversiones de asientos contables |
+| `erp_accounting_periods` | Contabilidad | Períodos contables mensuales |
+| `erp_bank_accounts` | Contabilidad | Cuentas bancarias del conjunto |
+| `erp_bank_movements` | Contabilidad | Movimientos registrados en cuentas bancarias |
+| `erp_bank_reconciliations` | Contabilidad | Conciliaciones bancarias mensuales |
+| `erp_reconciliation_items` | Contabilidad | Partidas individuales de conciliación |
+| `erp_fixed_assets` | Contabilidad | Activos fijos del conjunto |
+| `erp_monthly_depreciations` | Contabilidad | Depreciación mensual de activos fijos |
 | `erp_budgets` | Presupuesto | Presupuestos anuales aprobados por asamblea |
 | `erp_budget_details` | Presupuesto | Rubros del presupuesto por cuenta contable |
 | `erp_budget_movements` | Presupuesto | Traslados y adiciones presupuestales |
