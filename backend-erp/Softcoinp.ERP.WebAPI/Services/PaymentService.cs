@@ -18,13 +18,15 @@ public class PaymentService
     private readonly AccountingIntegrationService _accounting;
     private readonly IMemoryCache _cache;
     private readonly ILogger<PaymentService> _logger;
+    private readonly IndicatorCacheService _indicatorCache;
 
-    public PaymentService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache, ILogger<PaymentService> logger)
+    public PaymentService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache, ILogger<PaymentService> logger, IndicatorCacheService indicatorCache)
     {
         _context = context;
         _accounting = accounting;
         _cache = cache;
         _logger = logger;
+        _indicatorCache = indicatorCache;
     }
 
     public async Task<UnitDebtSummaryDto> GetUnitDebtSummaryAsync(string tenantId, Guid unitId)
@@ -332,6 +334,7 @@ public class PaymentService
         }
 
         _cache.Remove($"mora_map_{tenantId}");
+        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
         return payment;
     }
 

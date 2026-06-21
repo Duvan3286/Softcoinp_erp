@@ -19,19 +19,22 @@ public class BillingEngineService
     private readonly ContingencyFundService _contingencyFund;
     private readonly IMemoryCache _cache;
     private readonly ILogger<BillingEngineService> _logger;
+    private readonly IndicatorCacheService _indicatorCache;
 
     public BillingEngineService(
         ApplicationDbContext context,
         AccountingIntegrationService accounting,
         ContingencyFundService contingencyFund,
         IMemoryCache cache,
-        ILogger<BillingEngineService> logger)
+        ILogger<BillingEngineService> logger,
+        IndicatorCacheService indicatorCache)
     {
         _context = context;
         _accounting = accounting;
         _contingencyFund = contingencyFund;
         _cache = cache;
         _logger = logger;
+        _indicatorCache = indicatorCache;
     }
 
     public async Task<BillingChecklistDto> GetBillingChecklistAsync(string tenantId, string period)
@@ -212,6 +215,7 @@ public class BillingEngineService
         }
 
         _cache.Remove($"mora_map_{tenantId}");
+        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
         return billingPeriod;
     }
 

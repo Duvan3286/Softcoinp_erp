@@ -13,10 +13,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class BudgetService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IndicatorCacheService _indicatorCache;
 
-    public BudgetService(ApplicationDbContext context)
+    public BudgetService(ApplicationDbContext context, IndicatorCacheService indicatorCache)
     {
         _context = context;
+        _indicatorCache = indicatorCache;
     }
 
     /// <summary>
@@ -280,6 +282,7 @@ public class BudgetService
         budget.Status = BudgetStatus.Active;
 
         await _context.SaveChangesAsync();
+        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
         return budget;
     }
 

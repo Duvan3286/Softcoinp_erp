@@ -16,11 +16,13 @@ public class DashboardService
 {
     private readonly ApplicationDbContext _context;
     private readonly IMemoryCache _memoryCache;
+    private readonly IndicatorCacheService _indicatorCache;
 
-    public DashboardService(ApplicationDbContext context, IMemoryCache memoryCache)
+    public DashboardService(ApplicationDbContext context, IMemoryCache memoryCache, IndicatorCacheService indicatorCache)
     {
         _context = context;
         _memoryCache = memoryCache;
+        _indicatorCache = indicatorCache;
     }
 
     public async Task<DashboardDataDto> GetDashboardAsync(
@@ -76,6 +78,17 @@ public class DashboardService
     }
 
     private async Task<DashboardKpisDto> GetKpisAsync(string tenantId)
+    {
+        var cacheKey = $"kpis_{tenantId}";
+        var cached = await _indicatorCache.GetAsync<DashboardKpisDto>(tenantId, cacheKey);
+        if (cached != null) return cached;
+
+        var kpis = await ComputeKpisAsync(tenantId);
+        await _indicatorCache.SetAsync(tenantId, cacheKey, kpis, expirationMinutes: 5);
+        return kpis;
+    }
+
+    private async Task<DashboardKpisDto> ComputeKpisAsync(string tenantId)
     {
         var now = DateTime.UtcNow;
         var currentPeriod = $"{now.Year}-{now.Month:D2}";
