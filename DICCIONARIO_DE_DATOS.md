@@ -16,6 +16,19 @@ Este módulo almacena los datos de la copropiedad y del representante legal.
 | **Fecha de Fin** | `date` | No | Fecha en la que cesan las funciones (si es indefinido se puede omitir). |
 | **Porcentaje Fondo de Imprevistos** | `decimal(5,2)` | Sí | Porcentaje mínimo sobre los ingresos mensuales destinado al fondo de imprevistos (Ley 675 Art. 35). Mínimo legal: 1%. |
 
+### 1.1 Auditoría de Configuración (`ConfigurationAuditLog`)
+Registro de cambios realizados sobre los parámetros de configuración del conjunto. Cada modificación a parámetros críticos (porcentaje de interés, porcentaje fondo, etc.) queda registrada con el valor anterior y el nuevo.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Tenant (`tenantId`)** | `string` max 255 | Automático | Identificador del conjunto al que pertenece el cambio. Se hereda del contexto de la solicitud. |
+| **Marca de Tiempo (`timestamp`)** | `datetime` | Automático | Fecha y hora del cambio. |
+| **Cambiado Por (`changedByUserId`)** | `string` max 450 | Automático | ID del usuario que realizó el cambio. |
+| **Parámetro (`parameterName`)** | `string` max 100 | Sí | Nombre del parámetro modificado. Ej. `"LatePaymentInterestRate"`, `"ContingencyFundPercentage"`. |
+| **Valor Anterior (`oldValue`)** | `string` | Automático | Valor serializado antes del cambio. |
+| **Valor Nuevo (`newValue`)** | `string` | Automático | Valor serializado después del cambio. |
+| **Motivo (`reason`)** | `string` max 1000 | No | Razón opcional del cambio ingresada por el usuario. |
+
 ---
 
 ## 2. Módulo de Unidades (Catálogo de Propiedades)
@@ -78,7 +91,7 @@ Tabla asociativa que registra la asignación de un propietario a una unidad con 
 |-------|--------------|-------------|----------------------|
 | **Unidad (`unitId`)** | `Guid` FK | Sí | Referencia a la unidad sobre la que recae la propiedad. |
 | **Propietario (`ownerId`)** | `Guid` FK | Sí | Referencia al propietario registrado. |
-| **Porcentaje de Propiedad (`ownershipPercentage`)** | `decimal(5,2)` | Sí | Porcentaje que le corresponde al propietario dentro de la unidad (útil en copropiedades entre múltiples personas). La suma de todos los propietarios activos de la unidad no debe exceder 100%. |
+| **Porcentaje de Propiedad (`ownershipPercentage`)** | `decimal(7,4)` | Sí | Porcentaje que le corresponde al propietario dentro de la unidad (útil en copropiedades entre múltiples personas). La suma de todos los propietarios activos de la unidad no debe exceder 100%. Precisión aumentada a (7,4) para soportar coeficientes pequeños en conjuntos con muchas unidades. |
 | **Es Vocero (`isSpokesperson`)** | `boolean` | Sí | Solo puede haber un vocero activo por unidad. Si se designa uno nuevo, el anterior pierde esa condición. |
 | **Reside en la Unidad (`residesInUnit`)** | `boolean` | Sí | Indica si el propietario habita físicamente la unidad o la tiene arrendada/vacía. |
 | **Fecha de Inicio (`startDate`)** | `date` | Sí | Fecha desde la que es válida esta asignación de propiedad. |
@@ -379,6 +392,9 @@ Reserva obligatoria según el **Artículo 35 de la Ley 675 de 2001**. Se constit
 |-------|--------------|-------------|----------------------|
 | **Saldo Actual (`currentBalance`)** | `decimal(18,2)` | Automático | Calculado por el sistema. Se incrementa con cada aporte mensual y se reduce con cada uso aprobado. No editable manualmente. |
 
+> [!IMPORTANT]
+> **Tope de acumulación**: El saldo del fondo de imprevistos no puede superar el **10% del presupuesto anual** vigente. Si al intentar realizar un aporte mensual se supera este límite, el sistema **no genera el aporte** y lo omite automáticamente. Esta regla evita la acumulación excesiva de recursos en el fondo más allá de lo razonable para gastos imprevistos.
+
 ### 4.16 Aportes al Fondo de Imprevistos (`ContingencyFundContribution`)
 Registro de cada aporte mensual liquidado al fondo. El sistema genera automáticamente el asiento contable correspondiente (Débito 5196 / Crédito 3205).
 
@@ -524,14 +540,18 @@ Registro de intereses de mora calculados sobre obligaciones vencidas. La capital
 | Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
 |-------|--------------|-------------|----------------------|
 | **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad deudora. |
-| **Tipo de Origen (`sourceType`)** | `string` | Sí | `UnitFee`, `ExtraordinaryFeeDistribution` o `IndividualCharge`. |
-| **ID de Origen (`sourceId`)** | `Guid` | Sí | ID del registro que generó el interés. |
+| **Cuota Ordinaria (`unitFeeId`)** | `Guid?` FK | No | ID de la cuota ordinaria asociada (si el interés proviene de una cuota ordinaria). Nullable para soportar intereses de extraordinarias o individuales. |
+| **Distribución Extraordinaria (`extraordinaryFeeDistributionId`)** | `Guid?` FK | No | ID de la distribución de cuota extraordinaria asociada (si el interés proviene de una extraordinaria). |
+| **Cobro Individual (`individualChargeId`)** | `Guid?` FK | No | ID del cobro individual asociado (si el interés proviene de una multa o daño). |
 | **Período (`period`)** | `string` max 7 | Sí | Período en que se calculó el interés. Formato `YYYY-MM`. |
 | **Monto Base (`baseAmount`)** | `decimal(18,2)` | Sí | Saldo de capital sobre el que se calculó el interés. |
-| **Tasa Diaria (`dailyRate`)** | `decimal(18,6)` | Sí | `tasaMensual / 30 / 100`. La tasa mensual se toma de `TenantConfiguration.LatePaymentInterestRate`. |
+| **Tasa Diaria (`dailyRate`)** | `decimal(12,8)` | Sí | `tasaMensual / 30 / 100`. La tasa mensual se toma de `TenantConfiguration.LatePaymentInterestRate`. |
 | **Días de Mora (`daysOverdue`)** | `int` | Sí | Número de días entre la fecha de vencimiento y la fecha de cálculo. |
 | **Monto Calculado (`calculatedAmount`)** | `decimal(18,2)` | Sí | `baseAmount × dailyRate × daysOverdue`. Redondeado a 2 decimales. |
 | **Está Capitalizado (`isCapitalized`)** | `boolean` | Sí | `true` cuando el interés ha sido formalmente incorporado al capital para efectos de cobro judicial. |
+
+> [!NOTE]
+> Los campos `unitFeeId`, `extraordinaryFeeDistributionId` e `individualChargeId` reemplazan al anterior par `sourceType`/`sourceId`. Ahora se usan FK directas nullable para una mejor integridad referencial. Un registro de interés puede estar asociado a **una sola** de estas tres entidades como máximo.
 
 ### 5.9 Acuerdo de Pago (`PaymentAgreement`)
 Instrumento formal aprobado por el Consejo de Administración para facilitar el pago de obligaciones vencidas, incluyendo la posibilidad de condonar parcialmente los intereses de mora.
@@ -586,6 +606,58 @@ Documento oficial que certifica que una unidad no tiene obligaciones pendientes 
 | **Expedido Por (`issuedByUserId`)** | `string` FK | Automático | ID del usuario que expidió el certificado. |
 | **Nombre del Administrador (`signedByAdministratorName`)** | `string` max 300 | Automático | Nombre del representante legal registrado en la configuración del conjunto al momento de la expedición. |
 
+### 5.12 Deuda de Acuerdo de Pago (`AgreementDebt`)
+Vincula un acuerdo de pago con las deudas subyacentes (cuotas ordinarias, extraordinarias, cobros individuales) que fueron incluidas en el acuerdo. Permite rastrear qué obligaciones específicas cubre cada acuerdo.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Acuerdo de Pago (`paymentAgreementId`)** | `Guid` FK | Sí | Acuerdo al que pertenece esta deuda vinculada. |
+| **Tipo de Origen (`sourceType`)** | `string` max 30 | Sí | `UnitFee`, `ExtraordinaryFeeDistribution` o `IndividualCharge`. |
+| **ID de Origen (`sourceId`)** | `Guid` | Sí | ID del registro de la deuda original (cuota, distribución o cobro). |
+| **Saldo Original (`originalBalance`)** | `decimal(18,2)` | Sí | Monto de la deuda al momento de incluirse en el acuerdo. |
+| **Fecha de Creación (`createdAt`)** | `datetime` | Automático | Fecha y hora en que se vinculó la deuda al acuerdo. |
+
+> [!NOTE]
+> Índice único por `(PaymentAgreementId, SourceType, SourceId)` para evitar duplicados. Al crear el acuerdo, las obligaciones incluidas se marcan automáticamente como cubiertas por el acuerdo.
+
+---
+
+## 6. Módulo de Notificaciones
+
+### 6.1 Notificación (`Notification`)
+Notificaciones in-app dirigidas a propietarios. Se generan automáticamente por eventos del sistema (ej. transferencia de propiedad, vencimiento de cuotas).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Propietario (`ownerId`)** | `Guid` FK | Sí | Propietario destinatario de la notificación. |
+| **Título (`title`)** | `string` max 200 | Sí | Título breve de la notificación. |
+| **Mensaje (`message`)** | `string` max 2000 | Sí | Cuerpo del mensaje de la notificación. |
+| **Leída (`isRead`)** | `boolean` | Sí | `false` por defecto. El propietario la marca como leída desde la app. |
+| **Fecha de Creación (`createdAt`)** | `datetime` | Automático | Fecha y hora de generación de la notificación. |
+
+> [!NOTE]
+> Índice compuesto por `(OwnerId, IsRead, CreatedAt)` para consultas eficientes de bandeja de notificaciones. Las notificaciones se crean con `isRead = false` y el frontend las ordena por fecha descendente.
+
+---
+
+## 7. Módulo de Caché de Indicadores
+
+### 7.1 Caché de Indicador (`IndicatorCache`)
+Caché persistente para indicadores del dashboard y reportes. Almacena resultados de cálculos costosos (mora total, recaudo del mes, indicadores de cartera) para evitar recalcularlos en cada petición.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Clave (`cacheKey`)** | `string` max 200 | Sí | Identificador único del indicador dentro del tenant. Ej. `"mora_map"`, `"portfolio_summary"`. |
+| **Valor (`cacheValue`)** | `longtext` | Sí | Valor serializado del indicador (JSON). |
+| **Estado (`status`)** | `Enum` | Sí | `Valid` = Dato vigente · `Invalid` = Requiere recálculo. Almacenado como string. |
+| **Última Actualización (`lastUpdatedAt`)** | `datetime` | Automático | Fecha y hora del último cálculo. |
+| **Próxima Invalidación (`nextInvalidationAt`)** | `datetime` | No | Fecha programada para invalidación automática (si aplica). |
+| **Conteo de Consultas (`hitCount`)** | `int` | Automático | Número de veces que se ha consultado este indicador desde su último cálculo. |
+| **Conteo de Invalidaciones (`invalidationCount`)** | `int` | Automático | Número de veces que se ha invalidado este indicador. |
+
+> [!IMPORTANT]
+> El sistema invalida automáticamente la caché cuando ocurren eventos que afectan los indicadores: creación/actualización de pagos, cuotas, unidades, acuerdos de pago, etc. La próxima consulta al dashboard dispara el recálculo bajo demanda. Índice único por `(TenantId, CacheKey)`.
+
 ---
 
 ## Resumen de Tablas en Base de Datos
@@ -631,4 +703,8 @@ Documento oficial que certifica que una unidad no tiene obligaciones pendientes 
 | `erp_late_interests` | Cuotas y Cartera | Intereses de mora calculados/capitalizados |
 | `erp_payment_agreements` | Cuotas y Cartera | Acuerdos de pago |
 | `erp_agreement_installments` | Cuotas y Cartera | Cuotas individuales de acuerdos de pago |
+| `erp_agreement_debts` | Cuotas y Cartera | Deudas subyacentes vinculadas a acuerdos de pago |
 | `erp_clearance_certificates` | Cuotas y Cartera | Paz y salvos expedidos |
+| `erp_configuration_audit_logs` | Configuración | Auditoría de cambios en parámetros del conjunto |
+| `erp_notifications` | Notificaciones | Notificaciones in-app para propietarios |
+| `erp_indicator_caches` | Caché | Caché persistente de indicadores del dashboard |
