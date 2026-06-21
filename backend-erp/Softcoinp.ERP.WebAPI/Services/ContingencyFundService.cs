@@ -144,6 +144,26 @@ public class ContingencyFundService
 
         decimal contributionAmount = Math.Round(monthlyBudget * (pct / 100m), 2);
 
+        // Validar tope de acumulación (10% del presupuesto anual según Ley 675)
+        var annualBudget = monthlyBudget * 12;
+        var maxBalance = Math.Round(annualBudget * 0.10m, 2);
+
+        var fund = await _context.ContingencyFunds.FirstOrDefaultAsync(f => f.TenantId == tenantId);
+        if (fund != null && fund.CurrentBalance >= maxBalance)
+        {
+            throw new InvalidOperationException($"El fondo de imprevistos ya ha alcanzado su tope máximo de {maxBalance:C2} (10% del presupuesto anual). No se requiere aporte para el período {period}.");
+        }
+
+        if (fund != null && (fund.CurrentBalance + contributionAmount) > maxBalance)
+        {
+            contributionAmount = maxBalance - fund.CurrentBalance;
+        }
+
+        if (contributionAmount <= 0m)
+        {
+            throw new InvalidOperationException($"El fondo de imprevistos ya ha alcanzado su tope máximo de {maxBalance:C2}.");
+        }
+
         // 4. Iniciar transacción o registrar datos contables
         var contribution = new ContingencyFundContribution
         {
@@ -157,7 +177,6 @@ public class ContingencyFundService
         };
 
         // 5. Actualizar el saldo actual en ContingencyFund
-        var fund = await _context.ContingencyFunds.FirstOrDefaultAsync(f => f.TenantId == tenantId);
         if (fund == null)
         {
             fund = new ContingencyFund
