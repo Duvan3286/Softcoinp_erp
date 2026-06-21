@@ -245,6 +245,13 @@ public class CreatePaymentAgreementRequestDto
     public string CouncilActNumber { get; set; } = string.Empty;
     public string DigitalAcceptance { get; set; } = string.Empty;
     public DateTime StartDate { get; set; }
+    public List<AgreementDebtItemDto> IncludedDebts { get; set; } = new();
+}
+
+public class AgreementDebtItemDto
+{
+    public string SourceType { get; set; } = string.Empty;
+    public Guid SourceId { get; set; }
 }
 
 public class AgreementSimulationDto
@@ -296,6 +303,7 @@ public class PaymentAgreementDetailDto
     public DateTime? DefaultedAt { get; set; }
     public string DigitalAcceptance { get; set; } = string.Empty;
     public List<AgreementInstallmentDto> Installments { get; set; } = new();
+    public List<AgreementDebtItemDto> IncludedDebts { get; set; } = new();
 }
 
 public class AgreementInstallmentDto
@@ -307,6 +315,11 @@ public class AgreementInstallmentDto
     public decimal PaidAmount { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime? PaidAt { get; set; }
+}
+
+public class PayAgreementRequestDto
+{
+    public decimal Amount { get; set; }
 }
 
 public class StatementRequestDto

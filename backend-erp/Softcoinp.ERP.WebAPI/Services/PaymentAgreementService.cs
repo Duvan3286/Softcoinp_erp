@@ -91,6 +91,49 @@ public class PaymentAgreementService
             throw new ArgumentException("La deuda total incluida debe ser mayor a cero.");
         }
 
+        // Validar que las deudas especificadas existan y pertenezcan a la unidad
+        var validatedBalance = 0m;
+        foreach (var debt in request.IncludedDebts)
+        {
+            switch (debt.SourceType)
+            {
+                case "UnitFee":
+                    var fee = await _context.UnitFees
+                        .FirstOrDefaultAsync(uf => uf.Id == debt.SourceId && uf.TenantId == tenantId && uf.UnitId == request.UnitId);
+                    if (fee == null)
+                        throw new ArgumentException($"La cuota ordinaria {debt.SourceId} no existe o no pertenece a la unidad.");
+                    if (fee.BalanceAmount <= 0)
+                        throw new ArgumentException($"La cuota ordinaria {debt.SourceId} no tiene saldo pendiente.");
+                    validatedBalance += fee.BalanceAmount;
+                    break;
+
+                case "ExtraordinaryFee":
+                    var ed = await _context.ExtraordinaryFeeDistributions
+                        .FirstOrDefaultAsync(e => e.Id == debt.SourceId && e.TenantId == tenantId && e.UnitId == request.UnitId);
+                    if (ed == null)
+                        throw new ArgumentException($"La cuota extraordinaria {debt.SourceId} no existe o no pertenece a la unidad.");
+                    if (ed.BalanceAmount <= 0)
+                        throw new ArgumentException($"La cuota extraordinaria {debt.SourceId} no tiene saldo pendiente.");
+                    validatedBalance += ed.BalanceAmount;
+                    break;
+
+                case "IndividualCharge":
+                    var charge = await _context.IndividualCharges
+                        .FirstOrDefaultAsync(ic => ic.Id == debt.SourceId && ic.TenantId == tenantId && ic.UnitId == request.UnitId);
+                    if (charge == null)
+                        throw new ArgumentException($"El cobro individual {debt.SourceId} no existe o no pertenece a la unidad.");
+                    if (charge.BalanceAmount <= 0)
+                        throw new ArgumentException($"El cobro individual {debt.SourceId} no tiene saldo pendiente.");
+                    if (charge.IsDisputed)
+                        throw new ArgumentException($"El cobro individual {debt.SourceId} está disputado y no puede incluirse en el acuerdo.");
+                    validatedBalance += charge.BalanceAmount;
+                    break;
+
+                default:
+                    throw new ArgumentException($"Tipo de origen inválido: {debt.SourceType}");
+            }
+        }
+
         var simulation = SimulateAgreement(
             request.TotalDebtIncluded,
             request.NumberOfInstallments,
@@ -131,6 +174,38 @@ public class PaymentAgreementService
             };
 
             _context.AgreementInstallments.Add(installment);
+        }
+
+        // Persist vínculos con las deudas subyacentes
+        foreach (var debt in request.IncludedDebts)
+        {
+            var originalBalance = 0m;
+
+            if (debt.SourceType == "UnitFee")
+            {
+                var fee = await _context.UnitFees.FirstOrDefaultAsync(uf => uf.Id == debt.SourceId);
+                if (fee != null) originalBalance = fee.BalanceAmount;
+            }
+            else if (debt.SourceType == "ExtraordinaryFee")
+            {
+                var ed = await _context.ExtraordinaryFeeDistributions.FirstOrDefaultAsync(e => e.Id == debt.SourceId);
+                if (ed != null) originalBalance = ed.BalanceAmount;
+            }
+            else if (debt.SourceType == "IndividualCharge")
+            {
+                var charge = await _context.IndividualCharges.FirstOrDefaultAsync(ic => ic.Id == debt.SourceId);
+                if (charge != null) originalBalance = charge.BalanceAmount;
+            }
+
+            _context.AgreementDebts.Add(new AgreementDebt
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                PaymentAgreementId = agreement.Id,
+                SourceType = debt.SourceType,
+                SourceId = debt.SourceId,
+                OriginalBalance = originalBalance
+            });
         }
 
         await _context.SaveChangesAsync();
@@ -304,6 +379,15 @@ public class PaymentAgreementService
             })
             .ToListAsync();
 
+        var includedDebts = await _context.AgreementDebts
+            .Where(ad => ad.PaymentAgreementId == agreementId)
+            .Select(ad => new AgreementDebtItemDto
+            {
+                SourceType = ad.SourceType,
+                SourceId = ad.SourceId
+            })
+            .ToListAsync();
+
         return new PaymentAgreementDetailDto
         {
             Id = agreement.Id,
@@ -318,7 +402,8 @@ public class PaymentAgreementService
             StartedAt = agreement.StartedAt,
             DefaultedAt = agreement.DefaultedAt,
             DigitalAcceptance = agreement.DigitalAcceptance,
-            Installments = installments
+            Installments = installments,
+            IncludedDebts = includedDebts
         };
     }
 }

@@ -81,6 +81,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<PaymentAgreement> PaymentAgreements => Set<PaymentAgreement>();
     public DbSet<AgreementInstallment> AgreementInstallments => Set<AgreementInstallment>();
     public DbSet<ClearanceCertificate> ClearanceCertificates => Set<ClearanceCertificate>();
+    public DbSet<AgreementDebt> AgreementDebts => Set<AgreementDebt>();
 
     // ── Módulo Bancario (nuevo) ─────────────────────────────────────────
     public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
@@ -972,6 +973,24 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.PaymentAgreementId, e.InstallmentNumber }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Status, e.DueDate });
+        });
+
+        modelBuilder.Entity<AgreementDebt>(entity =>
+        {
+            entity.ToTable("erp_agreement_debts");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.SourceType).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.OriginalBalance).HasPrecision(18, 2);
+
+            entity.HasOne(e => e.PaymentAgreement)
+                  .WithMany()
+                  .HasForeignKey(e => e.PaymentAgreementId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.PaymentAgreementId, e.SourceType, e.SourceId }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.SourceType, e.SourceId });
         });
 
         modelBuilder.Entity<ClearanceCertificate>(entity =>

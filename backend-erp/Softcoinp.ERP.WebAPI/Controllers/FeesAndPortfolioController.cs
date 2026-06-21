@@ -437,6 +437,27 @@ public class FeesAndPortfolioController : BaseController
         }
     }
 
+    [HttpPost("agreements/{agreementId}/pay")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> PayAgreementInstallment(Guid agreementId, [FromBody] PayAgreementRequestDto request)
+    {
+        var tenantId = GetTenantId();
+
+        try
+        {
+            await _agreementService.ApplyPaymentToAgreementAsync(tenantId, agreementId, request.Amount);
+            return Ok(new { message = "Pago aplicado al acuerdo exitosamente." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpPost("statement")]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
     public async Task<IActionResult> GetUnitStatement([FromBody] StatementRequestDto request)
