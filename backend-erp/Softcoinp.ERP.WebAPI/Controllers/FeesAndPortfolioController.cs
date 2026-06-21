@@ -247,7 +247,7 @@ public class FeesAndPortfolioController : BaseController
         try
         {
             var interests = await _lateInterestService.CapitalizeInterestAsync(
-                tenantId, request.UnitFeeId, request.Period, userId);
+                tenantId, request.SourceType, request.SourceId, request.Period, userId);
 
             return Ok(new { count = interests.Count, total = interests.Sum(i => i.CalculatedAmount) });
         }
@@ -256,6 +256,10 @@ public class FeesAndPortfolioController : BaseController
             return NotFound(ex.Message);
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
         }

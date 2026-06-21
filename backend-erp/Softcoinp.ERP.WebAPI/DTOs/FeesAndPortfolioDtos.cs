@@ -120,6 +120,8 @@ public class LateInterestPreviewDto
 public class LateInterestSummaryDto
 {
     public Guid Id { get; set; }
+    public string SourceType { get; set; } = string.Empty;
+    public Guid? SourceId { get; set; }
     public string Period { get; set; } = string.Empty;
     public decimal BaseAmount { get; set; }
     public decimal DailyRate { get; set; }
@@ -130,7 +132,8 @@ public class LateInterestSummaryDto
 
 public class CapitalizeInterestRequestDto
 {
-    public Guid UnitFeeId { get; set; }
+    public string SourceType { get; set; } = "UnitFee";
+    public Guid SourceId { get; set; }
     public string Period { get; set; } = string.Empty;
 }
 

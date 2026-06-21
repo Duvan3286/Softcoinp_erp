@@ -927,7 +927,8 @@ public class DashboardService
         var unitFeeIds = overdueFees.Select(f => f.Id).ToList();
         var lateInterests = await _context.LateInterests
             .Where(li => li.TenantId == tenantId
-                && unitFeeIds.Contains(li.UnitFeeId)
+                && li.UnitFeeId != null
+                && unitFeeIds.Contains(li.UnitFeeId.Value)
                 && !li.IsCapitalized)
             .ToListAsync();
 

@@ -8,7 +8,7 @@ public class LateInterest
     public Guid Id { get; set; }
     public string TenantId { get; set; } = string.Empty;
 
-    public Guid UnitFeeId { get; set; }
+    public Guid? UnitFeeId { get; set; }
     public UnitFee? UnitFee { get; set; }
 
     public Guid? ExtraordinaryFeeDistributionId { get; set; }

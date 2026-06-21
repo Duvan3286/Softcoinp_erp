@@ -483,7 +483,8 @@ public class PaymentService
         var unpaidInterests = await _context.LateInterests
             .Where(li => li.TenantId == tenantId
                       && li.IsCapitalized
-                      && unitFeeIds.Contains(li.UnitFeeId)
+                      && li.UnitFeeId != null
+                      && unitFeeIds.Contains(li.UnitFeeId.Value)
                       && !paidInterestIds.Contains(li.Id))
             .Select(li => li.Id)
             .ToListAsync();
