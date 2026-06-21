@@ -264,6 +264,16 @@ public class BudgetService
             throw new InvalidOperationException($"Operación bloqueada: Ya existe un presupuesto ACTIVO para el período fiscal {budget.FiscalPeriod} (Presupuesto ID: {activeBudget.Id}).");
         }
 
+        // Validar que no existan periodos de facturación ya ejecutados para este año fiscal
+        var yearPrefix = budget.FiscalPeriod.ToString() + "-";
+        var hasBillingPeriods = await _context.BillingPeriods
+            .AnyAsync(bp => bp.TenantId == tenantId && bp.Period.StartsWith(yearPrefix));
+
+        if (hasBillingPeriods)
+        {
+            throw new InvalidOperationException($"Operación bloqueada: Ya existen periodos de facturación generados para el año fiscal {budget.FiscalPeriod}. No se puede activar un presupuesto después de haber ejecutado liquidaciones mensuales.");
+        }
+
         // Activar el presupuesto y registrar los datos de aprobación de la asamblea
         budget.MeetingActNumber = meetingActNumber;
         budget.ApprovalDate = approvalDate;
