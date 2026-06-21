@@ -96,6 +96,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
     // ── Módulo de Dashboard (nuevo) ────────────────────────────────────
     public DbSet<AlertConfiguration> AlertConfigurations => Set<AlertConfiguration>();
     public DbSet<IndicatorCache> IndicatorCaches => Set<IndicatorCache>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -703,6 +704,23 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => new { e.OwnerId, e.ChangedAt });
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("erp_notifications");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(2000);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.OwnerId, e.IsRead, e.CreatedAt });
         });
 
         modelBuilder.Entity<SpokespersonHistory>(entity =>

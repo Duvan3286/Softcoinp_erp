@@ -82,6 +82,7 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<FixedAssetService>();
 builder.Services.AddScoped<BankReconciliationService>();
 builder.Services.AddScoped<IndicatorCacheService>();
+builder.Services.AddScoped<NotificationService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.

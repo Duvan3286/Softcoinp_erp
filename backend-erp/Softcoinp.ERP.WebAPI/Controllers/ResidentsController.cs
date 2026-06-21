@@ -10,6 +10,7 @@ using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
 using Softcoinp.ERP.WebAPI.DTOs;
+using Softcoinp.ERP.WebAPI.Services;
 
 namespace Softcoinp.ERP.WebAPI.Controllers;
 
@@ -20,11 +21,13 @@ public class ResidentsController : BaseController
 {
     private readonly ApplicationDbContext _context;
     private readonly IMemoryCache _cache;
+    private readonly NotificationService _notificationService;
 
-    public ResidentsController(ApplicationDbContext context, IMemoryCache cache)
+    public ResidentsController(ApplicationDbContext context, IMemoryCache cache, NotificationService notificationService)
     {
         _context = context;
         _cache = cache;
+        _notificationService = notificationService;
     }
 
     // ── PROPIETARIOS — LISTADO Y DETALLE ─────────────────────────────────────
@@ -1204,6 +1207,11 @@ public class ResidentsController : BaseController
 
         await _context.SaveChangesAsync();
         _cache.Remove($"mora_map_{tenantId}");
+
+        await _notificationService.CreateAsync(
+            tenantId, newOwner.Id,
+            "Transferencia de propiedad",
+            $"Se ha registrado la transferencia de la unidad {unit.Identifier} a su nombre. Fecha de transferencia: {dto.TransferDate:yyyy-MM-dd}.");
 
         return Ok(new
         {
