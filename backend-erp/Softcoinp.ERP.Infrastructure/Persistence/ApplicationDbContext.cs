@@ -444,10 +444,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.LegalRepresentativeDocumentType).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.LegalRepresentativeDv).HasMaxLength(1);
             
-            entity.Property(e => e.LatePaymentInterestRate).HasColumnType("decimal(5,2)");
-            entity.Property(e => e.MaxLegalInterestRate).HasColumnType("decimal(5,2)");
-            entity.Property(e => e.AnnualBudget).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.ContingencyFundPercentage).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.LatePaymentInterestRate).HasPrecision(5, 2);
+            entity.Property(e => e.MaxLegalInterestRate).HasPrecision(5, 2);
+            entity.Property(e => e.AnnualBudget).HasPrecision(18, 2);
+            entity.Property(e => e.ContingencyFundPercentage).HasPrecision(5, 2);
         });
 
         // ── ConfigurationAuditLog ────────────────────────────────────────
@@ -501,9 +501,9 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.Property(e => e.Identifier).IsRequired().HasMaxLength(50);
             entity.Property(e => e.TowerOrBlock).HasMaxLength(50);
-            entity.Property(e => e.PrivateArea).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.BalconyArea).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.CoproprietyCoefficient).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PrivateArea).HasPrecision(18, 2);
+            entity.Property(e => e.BalconyArea).HasPrecision(18, 2);
+            entity.Property(e => e.CoproprietyCoefficient).HasPrecision(18, 4);
             
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(e => e.ParkingIdentifier).HasMaxLength(50);
@@ -599,7 +599,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.OwnershipPercentage).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.OwnershipPercentage).HasPrecision(7, 4);
 
             entity.HasOne(e => e.Unit)
                   .WithMany(u => u.UnitOwners)
