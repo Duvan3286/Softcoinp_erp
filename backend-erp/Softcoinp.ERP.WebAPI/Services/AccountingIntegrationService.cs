@@ -125,6 +125,54 @@ public class AccountingIntegrationService
         };
     }
 
+    public async Task<AccountingEntry> RecordCreditNoteAsync(
+        string tenantId, Guid chargeId, decimal amount,
+        string chargeType, string description, string userId)
+    {
+        var receivableAccount = await GetAccountOrThrowAsync(tenantId, "1305");
+
+        Guid incomeAccountId;
+
+        switch (chargeType)
+        {
+            case "UnitFee":
+                var incomeAccount = await _context.AccountingAccounts
+                    .Where(a => a.TenantId == tenantId && a.Code.StartsWith("4405") && !a.IsGroup)
+                    .OrderBy(a => a.Code)
+                    .FirstOrDefaultAsync();
+                incomeAccountId = incomeAccount?.Id ?? (await GetAccountOrThrowAsync(tenantId, "4405")).Id;
+                break;
+
+            case "ExtraordinaryFee":
+                var extraordinaryAccount = await _context.AccountingAccounts
+                    .Where(a => a.TenantId == tenantId && a.Code.StartsWith("4295") && !a.IsGroup)
+                    .OrderBy(a => a.Code)
+                    .FirstOrDefaultAsync();
+                incomeAccountId = extraordinaryAccount?.Id ?? (await GetAccountOrThrowAsync(tenantId, "4405")).Id;
+                break;
+
+            case "IndividualCharge":
+                var otherIncomeAccount = await _context.AccountingAccounts
+                    .Where(a => a.TenantId == tenantId && a.Code.StartsWith("4205") && !a.IsGroup)
+                    .OrderBy(a => a.Code)
+                    .FirstOrDefaultAsync();
+                incomeAccountId = otherIncomeAccount?.Id ?? (await GetAccountOrThrowAsync(tenantId, "4405")).Id;
+                break;
+
+            default:
+                incomeAccountId = (await GetAccountOrThrowAsync(tenantId, "4405")).Id;
+                break;
+        }
+
+        var entry = NewEntry(tenantId, description, $"NC-{chargeId:N}", amount, userId);
+        entry.Lines.Add(MakeLine(entry.Id, incomeAccountId, amount, 0));
+        entry.Lines.Add(MakeLine(entry.Id, receivableAccount.Id, 0, amount));
+
+        _context.AccountingEntries.Add(entry);
+        await _context.SaveChangesAsync();
+        return entry;
+    }
+
     private static EntryLine MakeLine(Guid entryId, Guid accountId, decimal debit, decimal credit)
     {
         return new EntryLine

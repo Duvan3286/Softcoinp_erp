@@ -18,11 +18,16 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 public class PQRController : BaseController
 {
     private readonly PQRRadicationService _radicationService;
+    private readonly ClaimResolutionService _claimResolutionService;
     private readonly ApplicationDbContext _context;
 
-    public PQRController(PQRRadicationService radicationService, ApplicationDbContext context)
+    public PQRController(
+        PQRRadicationService radicationService,
+        ClaimResolutionService claimResolutionService,
+        ApplicationDbContext context)
     {
         _radicationService = radicationService;
+        _claimResolutionService = claimResolutionService;
         _context = context;
     }
 
@@ -516,5 +521,33 @@ public class PQRController : BaseController
             MonthlyTrend = monthlyTrend,
             AverageResponseByType = avgResponseByType
         });
+    }
+
+    [HttpPost("{id}/resolve-claim")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> ResolveClaim(Guid id, [FromBody] ResolveClaimRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        try
+        {
+            await _claimResolutionService.ResolveClaimAsync(
+                tenantId, id, request.Resolved, request.ResolutionNote, userId);
+
+            var message = request.Resolved
+                ? "Reclamo declarado procedente. Nota de crédito generada automáticamente en el módulo de cuotas."
+                : "Reclamo declarado improcedente. No se generaron ajustes.";
+
+            return Ok(new { message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 }

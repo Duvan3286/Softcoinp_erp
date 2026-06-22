@@ -85,6 +85,7 @@ builder.Services.AddScoped<BankReconciliationService>();
 builder.Services.AddScoped<IndicatorCacheService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<PQRRadicationService>();
+builder.Services.AddScoped<ClaimResolutionService>();
 
 // Register Background Services
 builder.Services.AddHostedService<PQRAlertEngineService>();

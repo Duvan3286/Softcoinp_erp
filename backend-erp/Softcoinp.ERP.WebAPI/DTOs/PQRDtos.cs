@@ -175,3 +175,9 @@ public class UpdatePqrTimeConfigRequestDto
     public string PQRType { get; set; } = string.Empty;
     public int BusinessDays { get; set; }
 }
+
+public class ResolveClaimRequestDto
+{
+    public bool Resolved { get; set; }
+    public string ResolutionNote { get; set; } = string.Empty;
+}
