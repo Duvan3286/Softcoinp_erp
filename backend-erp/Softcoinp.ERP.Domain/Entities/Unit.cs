@@ -42,4 +42,8 @@ public class Unit
     public System.Collections.Generic.ICollection<CohabitationGroupMember> CohabitationGroupMembers { get; set; } = new System.Collections.Generic.List<CohabitationGroupMember>();
     public System.Collections.Generic.ICollection<OwnerHistory> OwnerHistories { get; set; } = new System.Collections.Generic.List<OwnerHistory>();
     public System.Collections.Generic.ICollection<SpokespersonHistory> SpokespersonHistories { get; set; } = new System.Collections.Generic.List<SpokespersonHistory>();
+
+    // Navigation properties for PQR module
+    public System.Collections.Generic.ICollection<PqrRecord> PqrRecords { get; set; } = new System.Collections.Generic.List<PqrRecord>();
+    public System.Collections.Generic.ICollection<PqrRecord> PqrRecordsAsInvolvedResident { get; set; } = new System.Collections.Generic.List<PqrRecord>();
 }

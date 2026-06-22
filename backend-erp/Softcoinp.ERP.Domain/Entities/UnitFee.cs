@@ -22,4 +22,7 @@ public class UnitFee
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+
+    // Navigation properties for PQR module
+    public System.Collections.Generic.ICollection<PqrRecord> PqrRecords { get; set; } = new System.Collections.Generic.List<PqrRecord>();
 }

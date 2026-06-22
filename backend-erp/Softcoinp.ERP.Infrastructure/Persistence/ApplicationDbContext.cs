@@ -98,6 +98,15 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<IndicatorCache> IndicatorCaches => Set<IndicatorCache>();
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    // ── Módulo PQR (nuevo) ────────────────────────────────────────────
+    public DbSet<PqrRecord> PqrRecords => Set<PqrRecord>();
+    public DbSet<PqrFollowUp> PqrFollowUps => Set<PqrFollowUp>();
+    public DbSet<PqrResponse> PqrResponses => Set<PqrResponse>();
+    public DbSet<PqrInternalNote> PqrInternalNotes => Set<PqrInternalNote>();
+    public DbSet<PqrFile> PqrFiles => Set<PqrFile>();
+    public DbSet<PqrTimeConfig> PqrTimeConfigs => Set<PqrTimeConfig>();
+    public DbSet<PqrAlert> PqrAlerts => Set<PqrAlert>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Only resolve the tenant connection string when no provider has been configured.
@@ -1166,6 +1175,195 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
 
             entity.HasIndex(e => new { e.TenantId, e.CacheKey }).IsUnique();
+        });
+
+        // ── Configuración Módulo PQR ──────────────────────────────────
+        modelBuilder.Entity<PqrRecord>(entity =>
+        {
+            entity.ToTable("erp_pqr_records");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+
+            entity.Property(e => e.RadicadoNumber).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.PQRType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Priority).HasConversion<string>().HasMaxLength(10).IsRequired();
+
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(4000);
+
+            entity.Property(e => e.RadiadorName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.RadiadorDocumentType).HasMaxLength(20);
+            entity.Property(e => e.RadiadorDocumentNumber).HasMaxLength(50);
+            entity.Property(e => e.RadiadorContact).HasMaxLength(200);
+
+            entity.Property(e => e.Channel).HasConversion<string>().HasMaxLength(15).IsRequired();
+
+            entity.Property(e => e.AssignedToUserId).HasMaxLength(450);
+
+            entity.Property(e => e.InvolvedResidentName).HasMaxLength(300);
+
+            entity.Property(e => e.IsInternal).IsRequired();
+
+            entity.Property(e => e.ClaimResolutionNote).HasMaxLength(2000);
+
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany(u => u.PqrRecords)
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany(o => o.PqrRecords)
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.TenantResident)
+                  .WithMany(t => t.PqrRecords)
+                  .HasForeignKey(e => e.TenantResidentId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.RelatedPQR)
+                  .WithMany()
+                  .HasForeignKey(e => e.RelatedPQRId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.InvolvedResidentUnit)
+                  .WithMany(u => u.PqrRecordsAsInvolvedResident)
+                  .HasForeignKey(e => e.InvolvedResidentUnitId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.UnitFee)
+                  .WithMany(f => f.PqrRecords)
+                  .HasForeignKey(e => e.UnitFeeId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ExtraordinaryFeeDistribution)
+                  .WithMany(d => d.PqrRecords)
+                  .HasForeignKey(e => e.ExtraordinaryFeeDistributionId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.IndividualCharge)
+                  .WithMany(c => c.PqrRecords)
+                  .HasForeignKey(e => e.IndividualChargeId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.RadicadoNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.Priority, e.Deadline });
+            entity.HasIndex(e => new { e.TenantId, e.PQRType, e.Status });
+            entity.HasIndex(e => e.FiledAt);
+        });
+
+        modelBuilder.Entity<PqrFollowUp>(entity =>
+        {
+            entity.ToTable("erp_pqr_follow_ups");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ChangedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ChangedByUserName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Justification).IsRequired().HasMaxLength(2000);
+
+            entity.Property(e => e.PreviousStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.NewStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.PQR)
+                  .WithMany(p => p.FollowUps)
+                  .HasForeignKey(e => e.PQRId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.PQRId, e.ChangedAt });
+        });
+
+        modelBuilder.Entity<PqrResponse>(entity =>
+        {
+            entity.ToTable("erp_pqr_responses");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ResponseText).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.SentByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.SentByUserName).IsRequired().HasMaxLength(300);
+
+            entity.HasOne(e => e.PQR)
+                  .WithMany(p => p.Responses)
+                  .HasForeignKey(e => e.PQRId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.PQRId, e.SentAt });
+        });
+
+        modelBuilder.Entity<PqrInternalNote>(entity =>
+        {
+            entity.ToTable("erp_pqr_internal_notes");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.NoteText).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.AuthorName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.PQR)
+                  .WithMany(p => p.InternalNotes)
+                  .HasForeignKey(e => e.PQRId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PqrFile>(entity =>
+        {
+            entity.ToTable("erp_pqr_files");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.OriginalFileName).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.FilePath).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.UploadedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UploadedByUserName).IsRequired().HasMaxLength(300);
+
+            entity.HasOne(e => e.PQR)
+                  .WithMany(p => p.Files)
+                  .HasForeignKey(e => e.PQRId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.PqrResponse)
+                  .WithMany(r => r.Files)
+                  .HasForeignKey(e => e.PqrResponseId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.PqrInternalNote)
+                  .WithMany(n => n.Files)
+                  .HasForeignKey(e => e.PqrInternalNoteId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PqrTimeConfig>(entity =>
+        {
+            entity.ToTable("erp_pqr_time_configs");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.PQRType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.UpdatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.PQRType }).IsUnique();
+        });
+
+        modelBuilder.Entity<PqrAlert>(entity =>
+        {
+            entity.ToTable("erp_pqr_alerts");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.AlertType).HasConversion<string>().HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.PQR)
+                  .WithMany(p => p.Alerts)
+                  .HasForeignKey(e => e.PQRId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.PQRId, e.AlertType, e.IsActive });
+            entity.HasIndex(e => new { e.IsActive, e.GeneratedAt });
         });
     }
 

@@ -26,4 +26,7 @@ public class IndividualCharge
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime? UpdatedAt { get; set; }
+
+    // Navigation properties for PQR module
+    public System.Collections.Generic.ICollection<PqrRecord> PqrRecords { get; set; } = new System.Collections.Generic.List<PqrRecord>();
 }

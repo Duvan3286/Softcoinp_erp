@@ -20,9 +20,10 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 8. [Módulo de Fondo de Imprevistos](#8-módulo-de-fondo-de-imprevistos)
 9. [Módulo de Cuotas y Cartera](#9-módulo-de-cuotas-y-cartera)
 10. [Módulo de Configuración](#10-módulo-de-configuración)
-11. [Roles y Permisos](#11-roles-y-permisos)
-12. [Preguntas Frecuentes](#12-preguntas-frecuentes)
-13. [Glosario](#13-glosario)
+11. [Módulo PQR](#11-módulo-pqr)
+12. [Roles y Permisos](#12-roles-y-permisos)
+13. [Preguntas Frecuentes](#13-preguntas-frecuentes)
+14. [Glosario](#14-glosario)
 
 ---
 
@@ -599,7 +600,148 @@ Registro de todos los cambios realizados en la configuración:
 
 ---
 
-## 11. Roles y Permisos
+## 11. Módulo PQR (Peticiones, Quejas y Reclamos)
+
+### 11.1 ¿Qué es una PQR?
+
+**PQR** significa **Petición, Queja o Reclamo**. Es el canal oficial de comunicación entre los residentes y la administración del conjunto. La Ley 675 de 2001 establece la obligación del administrador de atender y responder las solicitudes de los copropietarios dentro de plazos razonables.
+
+| Tipo | Descripción | Plazo recomendado |
+|------|-------------|-------------------|
+| **Petición** | Solicitud de información, servicio o acción específica (ej. solicitar paz y salvo, pedir uso del salón comunal). | 5 días hábiles |
+| **Queja** | Manifestación de inconformidad por conductas que afectan la convivencia (ej. ruido excesivo, mal uso de zonas comunes). | 3 días hábiles |
+| **Reclamo** | Inconformidad relacionada con cobros, sanciones o decisiones administrativas (ej. cobro incorrecto en la cuota). | 10 días hábiles |
+
+> Los plazos pueden ser ajustados por el administrador según el reglamento del conjunto.
+
+### 11.2 Radicar una PQR
+
+#### Desde el portal del administrador
+
+1. Acceda al módulo desde el menú lateral. Si no aparece visible, su rol puede no tener permisos.
+2. Haga clic en **Nueva PQR**.
+3. Complete los campos:
+
+| Campo | Descripción |
+|-------|-------------|
+| Tipo | Petición, Queja o Reclamo |
+| Categoría | Cobros, Mantenimiento, Convivencia, Zonas Comunes, Administración, Otros |
+| Asunto | Título breve de la solicitud |
+| Descripción | Detalle completo de la situación |
+| Unidad | Unidad desde la cual se radica |
+| Radicante | Nombre de la persona que presenta la PQR |
+| Canal | Cómo llegó la solicitud (Portal Web, Correo, Presencial o Verbal) |
+| Archivos | Documentos, fotos o soportes adjuntos |
+
+4. Si es un **reclamo relacionado con un cobro**, marque la opción y seleccione la cuota o cargo correspondiente.
+5. Si es una **queja que involucra a otro residente**, registre su nombre (se mantendrá confidencial).
+6. Si es una **PQR interna** (generada por la administración), márquela como interna para que no sea visible a residentes.
+7. Haga clic en **Radicar**.
+
+> El sistema asignará automáticamente un **número de radicado** único con formato `PQR-2026-06-00001` y calculará la **fecha límite de respuesta** en días hábiles.
+
+#### Desde el portal del residente
+
+Los residentes pueden radicar PQR desde su portal personal. Las PQR internas de la administración no aparecen en este portal.
+
+### 11.3 Bandeja del Administrador
+
+Acceda a la lista de PQR activas ordenadas por urgencia. Cada PQR muestra:
+
+- **Semáforo de tiempo**: Verde (dentro del plazo), Amarillo (50-80%), Rojo (más de 80% o vencida).
+- **Indicador de prioridad**: Alta, Media o Baja.
+- **Número de radicado**, tipo, estado y unidad.
+
+Puede filtrar por:
+- Estado (Radicada, En Revisión, En Gestión, Respondida, Cerrada, Reabierta, Escalada)
+- Tipo (Petición, Queja, Reclamo)
+- Internas (mostrar/ocultar)
+
+### 11.4 Detalle de una PQR
+
+Al abrir una PQR, encuentra:
+
+- **Información general**: Datos del radicante, unidad, tipo, categoría, canal.
+- **Historial de estados**: Todos los cambios de estado con fecha, usuario y justificación.
+- **Respuestas**: Cada respuesta emitida por la administración, con opción de marcar como definitiva o parcial.
+- **Notas internas** (solo visible para Administración/Consejo/Contador): Notas del equipo que no son visibles para el residente.
+- **Archivos adjuntos**: Documentos subidos por el radicante y por la administración.
+- **Alertas**: Alertas generadas por vencimiento de tiempos.
+
+### 11.5 Responder una PQR
+
+1. Desde el detalle de la PQR, haga clic en **Responder**.
+2. Redacte el texto de la respuesta.
+3. Adjunte archivos de soporte si es necesario.
+4. Seleccione si la respuesta es **Definitiva** (cierra la PQR) o **Parcial** (actualización de estado).
+5. Si requiere que el residente confirme haber recibido la respuesta, active la opción.
+6. Haga clic en **Enviar Respuesta**.
+
+### 11.6 Cambiar estado de una PQR
+
+| Acción | Nuevo Estado | Cuándo usarlo |
+|--------|-------------|---------------|
+| Revisar | En Revisión | Cuando el administrador abre la PQR para analizarla. |
+| Asignar | En Gestión | Cuando se asigna a un responsable interno. |
+| Responder | Respondida | Cuando se emite una respuesta formal. |
+| Cerrar | Cerrada | Cuando el radicante confirmó o venció el plazo de confirmación. |
+| Reabrir | Reabierta | Cuando el radicante considera insatisfactoria la respuesta (dentro de 10 días). |
+| Escalar | Escalada | Cuando se requiere intervención del Consejo de Administración. |
+
+### 11.7 Alertas automáticas
+
+El sistema monitorea automáticamente los tiempos de respuesta:
+
+| Umbral | Acción |
+|--------|--------|
+| **50% del plazo** | Se genera una alerta interna para el administrador si la PQR sigue en estado Radicada o En Revisión. |
+| **80% del plazo** | Se genera una alerta y se escala al Consejo de Administración. |
+| **100% (vencimiento)** | La PQR se marca automáticamente como **Escalada** y se genera una alerta crítica en el Dashboard. |
+
+Las alertas activas se pueden consultar desde el panel de indicadores y resolver manualmente cuando la situación esté controlada.
+
+### 11.8 Vínculo con cartera (reclamos de cobro)
+
+Si un reclamo está relacionado con un cobro (cuota ordinaria, extraordinaria o cobro individual):
+
+1. Al radicar, marque la opción **Vinculado a Cobro** y seleccione el cobro correspondiente.
+2. El sistema vincula el reclamo al estado de cuenta de la unidad.
+3. Cuando el administrador o el consejo resuelva el reclamo:
+   - **Procedente**: Marque "Reclamo Resuelto = Sí". El sistema genera automáticamente una **nota de crédito** en el módulo de cuotas, ajustando el saldo sin intervención manual adicional.
+   - **Improcedente**: Marque "Reclamo Resuelto = No". El cobro se mantiene y el radicante es notificado.
+
+### 11.9 Configuración de tiempos
+
+El administrador puede ajustar los plazos de respuesta desde la configuración del módulo:
+
+1. Acceda a **Configuración de Tiempos PQR**.
+2. Para cada tipo (Petición, Queja, Reclamo), defina los **días hábiles** de respuesta.
+3. Guarde los cambios.
+
+> Los valores por defecto son: Petición 5 días, Queja 3 días, Reclamo 10 días.
+
+### 11.10 Panel de indicadores PQR
+
+El administrador cuenta con un tablero de indicadores que muestra:
+
+- **Total de PQR**: Abiertas, cerradas y escaladas.
+- **Alertas activas**: Alertas pendientes por vencimiento.
+- **Tiempo promedio de respuesta**: En horas, por tipo de PQR.
+- **Distribución por tipo y categoría**: Gráfico de torta.
+- **Tendencia mensual**: Número de radicaciones por mes.
+- **Estado actual**: Cantidad de PQR en cada estado.
+
+### 11.11 Portal del residente
+
+Los residentes pueden:
+
+- Ver el listado de sus PQR activas e históricas (solo las no internas).
+- Consultar el detalle de cada PQR con su historial de estados y respuestas.
+- **No pueden ver las notas internas** del equipo de administración.
+
+---
+
+## 12. Roles y Permisos
 
 El sistema cuenta con los siguientes roles:
 
@@ -625,10 +767,11 @@ El sistema cuenta con los siguientes roles:
 | Fondo Imprevistos | CRUD | Aprobar | CRUD | Lectura | — |
 | Cuotas y Cartera | CRUD | — | CRUD | Lectura | Su estado de cuenta |
 | Configuración | CRUD | — | — | — | — |
+| PQR | CRUD | Responder, Alertas | Responder | Lectura | Radicar, Seguimiento |
 
 ---
 
-## 12. Preguntas Frecuentes
+## 13. Preguntas Frecuentes
 
 **¿Cómo recupero mi contraseña?**
 Actualmente debe contactar al administrador del sistema para restablecerla.
@@ -656,7 +799,7 @@ Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes p
 
 ---
 
-## 13. Glosario
+## 14. Glosario
 
 | Término | Definición |
 |---------|------------|
@@ -670,6 +813,9 @@ Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes p
 | **Resolución 029** | Norma contable para propiedades horizontales en Colombia (2019). |
 | **Inmutabilidad** | Principio contable: los registros financieros no se eliminan, solo se ajustan o revierten. |
 | **Anticipo** | Excedente de un pago que se aplica al período siguiente. |
+| **PQR** | Petición, Queja o Reclamo. Solicitud formal del residente a la administración. |
+| **Radicado** | Número único de identificación de una PQR. Formato `PQR-YYYY-MM-NNNNN`. |
+| **Escalada** | Estado de una PQR que superó su plazo de respuesta o fue elevada al Consejo de Administración. |
 
 ---
 

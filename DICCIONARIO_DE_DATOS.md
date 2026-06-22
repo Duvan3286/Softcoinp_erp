@@ -660,6 +660,145 @@ Caché persistente para indicadores del dashboard y reportes. Almacena resultado
 
 ---
 
+## 8. Módulo PQR (Peticiones, Quejas y Reclamos)
+
+### 8.1 PQR (`PqrRecord`)
+Solicitud formal dirigida a la administración del conjunto. Clasificada en Petición, Queja o Reclamo con ciclo de vida completo.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Número de Radicado (`radicadoNumber`)** | `string` max 30 | Automático | Formato `PQR-YYYY-MM-NNNNN`. Único por tenant. Generado automáticamente al radicar. |
+| **Tipo (`pqrType`)** | `Enum` string | Sí | `Request` (Petición) · `Complaint` (Queja) · `Claim` (Reclamo). |
+| **Categoría (`category`)** | `Enum` string | Sí | `Billing` · `Maintenance` · `Coexistence` · `CommonAreas` · `Administration` · `Other`. |
+| **Estado (`status`)** | `Enum` string | Sí | `Filed` · `UnderReview` · `InManagement` · `Responded` · `Closed` · `Reopened` · `Escalated`. |
+| **Prioridad (`priority`)** | `Enum` string | Sí | `High` · `Medium` · `Low`. Por defecto `Medium`. |
+| **Asunto (`subject`)** | `string` max 300 | Sí | Título breve de la solicitud. |
+| **Descripción (`description`)** | `string` max 4000 | Sí | Texto libre con el detalle de la solicitud. |
+| **Nombre del Radicante (`radiadorName`)** | `string` max 300 | Sí | Nombre de la persona que radica la PQR. |
+| **Tipo Documento Radicante (`radiadorDocumentType`)** | `string` max 20 | No | CC, NIT, CE, Pasaporte, etc. |
+| **Documento Radicante (`radiadorDocumentNumber`)** | `string` max 50 | No | Número de identificación del radicante. |
+| **Contacto Radicante (`radiadorContact`)** | `string` max 200 | No | Correo o teléfono del radicante. |
+| **Propietario (`ownerId`)** | `Guid?` FK | No | Referencia al propietario si está registrado. |
+| **Arrendatario (`tenantResidentId`)** | `Guid?` FK | No | Referencia al arrendatario si está registrado. |
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad desde la cual se radica la PQR. |
+| **Canal (`channel`)** | `Enum` string | Sí | `WebPortal` · `Email` · `InPerson` · `Verbal`. |
+| **PQR Relacionada (`relatedPQRId`)** | `Guid?` FK | No | Referencia a otra PQR anterior relacionada. |
+| **Asignado A (`assignedToUserId`)** | `string` max 450 | No | ID del usuario interno responsable de atender la PQR. |
+| **Fecha Límite (`deadline`)** | `datetime` | No | Fecha límite de respuesta calculada en días hábiles según configuración. |
+| **Residente Involucrado (`involvedResidentName`)** | `string` max 300 | No | Para quejas: nombre del residente involucrado en el conflicto (confidencial). |
+| **Unidad Involucrada (`involvedResidentUnitId`)** | `Guid?` FK | No | Para quejas: unidad del residente involucrado. |
+| **Es Interna (`isInternal`)** | `boolean` | Sí | `true` si fue generada por la administración (no visible para residentes). |
+| **Vinculada a Cobro (`isLinkedToCharge`)** | `boolean` | Sí | `true` si el reclamo está vinculado a una cuota ordinaria, extraordinaria o cobro individual. |
+| **Cuota Ordinaria (`unitFeeId`)** | `Guid?` FK | No | Cuota ordinaria asociada al reclamo. |
+| **Distribución Extraordinaria (`extraordinaryFeeDistributionId`)** | `Guid?` FK | No | Distribución de cuota extraordinaria asociada. |
+| **Cobro Individual (`individualChargeId`)** | `Guid?` FK | No | Cobro individual asociado al reclamo. |
+| **Reclamo Resuelto (`claimResolved`)** | `boolean?` | No | `true` si el reclamo fue declarado procedente, `false` si improcedente. |
+| **Nota de Resolución (`claimResolutionNote`)** | `string` max 2000 | No | Justificación de la resolución del reclamo. |
+| **Nota de Crédito Generada (`creditNoteGenerated`)** | `boolean` | Sí | `true` si se generó automáticamente un ajuste en el módulo de cuotas. |
+| **Fecha de Radicación (`filedAt`)** | `datetime` | Automático | Fecha y hora de radicación. |
+| **Fecha de Cierre (`closedAt`)** | `datetime` | No | Fecha en que se cerró la PQR. |
+| **Cierre Definitivo (`closedDefinitivelyAt`)** | `datetime` | No | Fecha después de la cual no se puede reabrir la PQR (10 días después del cierre). |
+
+### 8.2 Seguimiento de PQR (`PqrFollowUp`)
+Registro de cada cambio de estado de una PQR.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **PQR (`pqrId`)** | `Guid` FK | Sí | PQR asociada al seguimiento. |
+| **Estado Anterior (`previousStatus`)** | `Enum` string | Sí | Estado antes del cambio. |
+| **Estado Nuevo (`newStatus`)** | `Enum` string | Sí | Estado después del cambio. |
+| **Fecha del Cambio (`changedAt`)** | `datetime` | Automático | Fecha y hora del cambio. |
+| **Usuario (`changedByUserId`)** | `string` max 450 | Sí | ID del usuario que realizó el cambio. |
+| **Nombre del Usuario (`changedByUserName`)** | `string` max 300 | Sí | Nombre visible del usuario. |
+| **Justificación (`justification`)** | `string` max 2000 | Sí | Motivo del cambio de estado. |
+| **Es Automático (`isAutomatic`)** | `boolean` | Sí | `true` si el cambio fue generado por el sistema (alertas, vencimientos). |
+
+### 8.3 Respuesta PQR (`PqrResponse`)
+Respuesta formal emitida por la administración al radicante.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **PQR (`pqrId`)** | `Guid` FK | Sí | PQR a la que pertenece la respuesta. |
+| **Texto de Respuesta (`responseText`)** | `string` max 4000 | Sí | Contenido de la respuesta. |
+| **Es Definitiva (`isDefinitive`)** | `boolean` | Sí | `true` si la respuesta es definitiva y cierra la PQR. |
+| **Es Parcial (`isPartialUpdate`)** | `boolean` | Sí | `true` si es una actualización parcial del estado. |
+| **Fecha de Envío (`sentAt`)** | `datetime` | Automático | Fecha y hora de envío. |
+| **Requiere Confirmación (`requiresConfirmation`)** | `boolean` | Sí | `true` si se requiere que el radicante confirme recepción. |
+| **Confirmado Por Radicante (`confirmedByRadiador`)** | `boolean?` | No | `true` si el radicante confirmó la respuesta. |
+| **Fecha de Confirmación (`confirmedAt`)** | `datetime` | No | Fecha en que el radicante confirmó. |
+
+### 8.4 Nota Interna PQR (`PqrInternalNote`)
+Notas visibles exclusivamente para el equipo de administración. Nunca expuestas al residente.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **PQR (`pqrId`)** | `Guid` FK | Sí | PQR asociada. |
+| **Texto (`noteText`)** | `string` max 4000 | Sí | Contenido de la nota. |
+| **Autor (`authorName`)** | `string` max 300 | Sí | Nombre del autor. |
+| **Usuario (`createdByUserId`)** | `string` max 450 | Sí | ID del usuario que creó la nota. |
+
+> [!WARNING]
+> **Restricción de visibilidad**: Estas notas nunca deben incluirse en respuestas a endpoints accesibles por residentes. En el endpoint `GET /api/pqr/{id}` se filtran por rol del usuario autenticado.
+
+### 8.5 Archivo PQR (`PqrFile`)
+Archivos adjuntos asociados a una PQR, sus respuestas o notas internas.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **PQR (`pqrId`)** | `Guid` FK | Sí | PQR propietaria del archivo. |
+| **Respuesta (`pqrResponseId`)** | `Guid?` FK | No | Respuesta a la que está adjunto (si aplica). |
+| **Nota Interna (`pqrInternalNoteId`)** | `Guid?` FK | No | Nota interna a la que está adjunto (si aplica). |
+| **Nombre Interno (`fileName`)** | `string` max 500 | Sí | Nombre único con el que se almacena. |
+| **Nombre Original (`originalFileName`)** | `string` max 500 | Sí | Nombre original del archivo subido. |
+| **Tipo de Contenido (`contentType`)** | `string` max 200 | Sí | MIME type del archivo. |
+| **Tamaño (`fileSize`)** | `long` | Sí | Tamaño en bytes. |
+| **Ruta (`filePath`)** | `string` max 1000 | Sí | Ruta física de almacenamiento. |
+| **Subido Por (`uploadedByUserId`)** | `string` max 450 | Sí | ID del usuario que subió el archivo. |
+| **Nombre del Usuario (`uploadedByUserName`)** | `string` max 300 | Sí | Nombre visible. |
+| **Es del Radicante (`isFromApplicant`)** | `boolean` | Sí | `true` si fue subido por el radicante. |
+
+### 8.6 Configuración de Tiempos PQR (`PqrTimeConfig`)
+Tiempos límite configurables por el administrador para cada tipo de PQR.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Tipo (`pqrType`)** | `Enum` string | Sí | `Request` · `Complaint` · `Claim`. Índice único por tenant+tipo. |
+| **Días Hábiles (`businessDays`)** | `int` | Sí | Días hábiles para respuesta. Por defecto: Petición=5, Queja=3, Reclamo=10. |
+
+### 8.7 Alerta PQR (`PqrAlert`)
+Alertas generadas automáticamente por el motor de vencimiento de tiempos.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **PQR (`pqrId`)** | `Guid` FK | Sí | PQR que generó la alerta. |
+| **Tipo (`alertType`)** | `Enum` string | Sí | `FiftyPercent` (50% plazo) · `EightyPercent` (80% plazo) · `Overdue` (vencida). |
+| **Generada El (`generatedAt`)** | `datetime` | Automático | Fecha de generación. |
+| **Activa (`isActive`)** | `boolean` | Sí | `true` mientras no haya sido resuelta. |
+| **Resuelta El (`resolvedAt`)** | `datetime` | No | Fecha en que se resolvió la alerta. |
+| **Escalada al Consejo (`escalatedToCouncil`)** | `boolean` | Sí | `true` si la alerta fue escalada al Consejo de Administración. |
+
+### 8.8 Reglas de Negocio del Módulo PQR
+
+> [!IMPORTANT]
+> **Radicación**: El número de radicado se genera automáticamente con formato `PQR-YYYY-MM-NNNNN` y no puede modificarse.
+>
+> **Fecha límite**: Se calcula en días hábiles (lunes a viernes) al momento de radicar según la configuración del tenant para cada tipo de PQR.
+>
+> **Alertas automáticas**: El motor de alertas (`PQRAlertEngineService`) ejecuta cada 15 minutos:
+> - Al **50%** del plazo sin cambio de estado: alerta interna al administrador.
+> - Al **80%** del plazo sin respuesta: alerta escalada al Consejo de Administración.
+> - Al **100%** (vencimiento): la PQR se marca automáticamente como `Escalated` y se genera alerta crítica.
+>
+> **Vinculación con cartera**: Los reclamos sobre cobros pueden vincularse a `UnitFee`, `ExtraordinaryFeeDistribution` o `IndividualCharge`. Si el reclamo es declarado procedente, se genera una nota de crédito.
+>
+> **Reapertura**: Una PQR cerrada puede ser reabierta dentro de los 10 días siguientes al cierre. Después de ese plazo, queda cerrada definitivamente.
+>
+> **Confidencialidad**: Las quejas que involucran a otro residente registran su nombre y unidad, pero este no recibe notificaciones sobre el contenido de la queja.
+>
+> **Inmutabilidad del historial**: El historial completo (seguimientos, respuestas, notas internas, archivos) se conserva indefinidamente y no puede ser eliminado por ningún usuario.
+
+---
+
 ## Resumen de Tablas en Base de Datos
 
 | Tabla | Módulo | Descripción |
@@ -708,3 +847,10 @@ Caché persistente para indicadores del dashboard y reportes. Almacena resultado
 | `erp_configuration_audit_logs` | Configuración | Auditoría de cambios en parámetros del conjunto |
 | `erp_notifications` | Notificaciones | Notificaciones in-app para propietarios |
 | `erp_indicator_caches` | Caché | Caché persistente de indicadores del dashboard |
+| `erp_pqr_records` | PQR | Solicitudes formales (Peticiones, Quejas, Reclamos) |
+| `erp_pqr_follow_ups` | PQR | Historial de cambios de estado de PQR |
+| `erp_pqr_responses` | PQR | Respuestas emitidas al radicante |
+| `erp_pqr_internal_notes` | PQR | Notas internas del equipo de administración (no visibles para residentes) |
+| `erp_pqr_files` | PQR | Archivos adjuntos de PQR, respuestas y notas internas |
+| `erp_pqr_time_configs` | PQR | Configuración de días hábiles por tipo de PQR |
+| `erp_pqr_alerts` | PQR | Alertas generadas por vencimiento de tiempos |

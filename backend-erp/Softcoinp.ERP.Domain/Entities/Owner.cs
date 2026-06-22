@@ -43,4 +43,7 @@ public class Owner
     public ICollection<OwnerHistory> OwnerHistories { get; set; } = new List<OwnerHistory>();
     public ICollection<SpokespersonHistory> SpokespersonHistoriesAsPrevious { get; set; } = new List<SpokespersonHistory>();
     public ICollection<SpokespersonHistory> SpokespersonHistoriesAsNew { get; set; } = new List<SpokespersonHistory>();
+
+    // Navigation properties for PQR module
+    public ICollection<PqrRecord> PqrRecords { get; set; } = new List<PqrRecord>();
 }

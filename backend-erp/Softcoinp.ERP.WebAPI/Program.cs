@@ -12,6 +12,7 @@ using Softcoinp.ERP.Infrastructure.External;
 using Softcoinp.ERP.Application.Services;
 using Softcoinp.ERP.WebAPI.Services;
 using Softcoinp.ERP.WebAPI.Middleware;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,6 +84,10 @@ builder.Services.AddScoped<FixedAssetService>();
 builder.Services.AddScoped<BankReconciliationService>();
 builder.Services.AddScoped<IndicatorCacheService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<PQRRadicationService>();
+
+// Register Background Services
+builder.Services.AddHostedService<PQRAlertEngineService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.

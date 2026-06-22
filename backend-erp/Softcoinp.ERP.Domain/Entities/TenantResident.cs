@@ -29,4 +29,7 @@ public class TenantResident
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;
+
+    // Navigation properties for PQR module
+    public System.Collections.Generic.ICollection<PqrRecord> PqrRecords { get; set; } = new System.Collections.Generic.List<PqrRecord>();
 }
