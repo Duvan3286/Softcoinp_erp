@@ -181,3 +181,43 @@ public class ResolveClaimRequestDto
     public bool Resolved { get; set; }
     public string ResolutionNote { get; set; } = string.Empty;
 }
+
+public class ChangePqrStatusRequestDto
+{
+    public string Status { get; set; } = string.Empty;
+    public string Justification { get; set; } = string.Empty;
+}
+
+public class AssignPqrRequestDto
+{
+    public string AssignedToUserId { get; set; } = string.Empty;
+    public string AssignedToUserName { get; set; } = string.Empty;
+}
+
+public class UpdatePqrPriorityRequestDto
+{
+    public string Priority { get; set; } = string.Empty;
+}
+
+public class AddPqrResponseRequestDto
+{
+    public string ResponseText { get; set; } = string.Empty;
+    public bool IsDefinitive { get; set; }
+    public bool IsPartialUpdate { get; set; }
+    public bool RequiresConfirmation { get; set; }
+}
+
+public class AddPqrInternalNoteRequestDto
+{
+    public string NoteText { get; set; } = string.Empty;
+}
+
+public class ReopenPqrRequestDto
+{
+    public string Justification { get; set; } = string.Empty;
+}
+
+public class ConfirmResponseRequestDto
+{
+    public bool Confirmed { get; set; }
+}

@@ -550,4 +550,332 @@ public class PQRController : BaseController
             return BadRequest(ex.Message);
         }
     }
+
+    [HttpPut("{id}/status")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangePqrStatusRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+        var userName = User.Identity?.Name ?? "Administrador";
+
+        if (!Enum.TryParse<PQRStatus>(request.Status, true, out var newStatus))
+        {
+            return BadRequest("Estado inválido.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Justification))
+        {
+            return BadRequest("La justificación es obligatoria para cambiar el estado.");
+        }
+
+        var pqr = await _context.PqrRecords
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+
+        if (pqr == null)
+        {
+            return NotFound("PQR no encontrada.");
+        }
+
+        var previousStatus = pqr.Status;
+        pqr.Status = newStatus;
+        pqr.UpdatedAt = DateTime.UtcNow;
+
+        if (newStatus == PQRStatus.Closed)
+        {
+            pqr.ClosedAt = DateTime.UtcNow;
+            pqr.ClosedDefinitivelyAt = DateTime.UtcNow.AddDays(10);
+        }
+
+        var followUp = new PqrFollowUp
+        {
+            Id = Guid.NewGuid(),
+            PQRId = pqr.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = newStatus,
+            ChangedAt = DateTime.UtcNow,
+            ChangedByUserId = userId,
+            ChangedByUserName = userName,
+            Justification = request.Justification,
+            IsAutomatic = false
+        };
+
+        _context.PqrFollowUps.Add(followUp);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = $"Estado actualizado a {newStatus}.", previousStatus = previousStatus.ToString(), newStatus = newStatus.ToString() });
+    }
+
+    [HttpPut("{id}/assign")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> AssignPqr(Guid id, [FromBody] AssignPqrRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        if (string.IsNullOrWhiteSpace(request.AssignedToUserId))
+        {
+            return BadRequest("El ID del usuario asignado es obligatorio.");
+        }
+
+        var pqr = await _context.PqrRecords
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+
+        if (pqr == null)
+        {
+            return NotFound("PQR no encontrada.");
+        }
+
+        pqr.AssignedToUserId = request.AssignedToUserId;
+
+        if (pqr.Status == PQRStatus.Filed || pqr.Status == PQRStatus.UnderReview)
+        {
+            var previousStatus = pqr.Status;
+            pqr.Status = PQRStatus.InManagement;
+            pqr.UpdatedAt = DateTime.UtcNow;
+
+            var followUp = new PqrFollowUp
+            {
+                Id = Guid.NewGuid(),
+                PQRId = pqr.Id,
+                PreviousStatus = previousStatus,
+                NewStatus = PQRStatus.InManagement,
+                ChangedAt = DateTime.UtcNow,
+                ChangedByUserId = userId,
+                ChangedByUserName = User.Identity?.Name ?? "Administrador",
+                Justification = $"PQR asignada a {request.AssignedToUserName}. Gestión en curso.",
+                IsAutomatic = false
+            };
+
+            _context.PqrFollowUps.Add(followUp);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "PQR asignada exitosamente.", assignedToUserId = request.AssignedToUserId });
+    }
+
+    [HttpPut("{id}/priority")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> UpdatePriority(Guid id, [FromBody] UpdatePqrPriorityRequestDto request)
+    {
+        var tenantId = GetTenantId();
+
+        if (!Enum.TryParse<PQRPriority>(request.Priority, true, out var priority))
+        {
+            return BadRequest("Prioridad inválida. Use: High, Medium o Low.");
+        }
+
+        var pqr = await _context.PqrRecords
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+
+        if (pqr == null)
+        {
+            return NotFound("PQR no encontrada.");
+        }
+
+        pqr.Priority = priority;
+        pqr.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = $"Prioridad actualizada a {priority}.", priority = priority.ToString() });
+    }
+
+    [HttpPost("{id}/responses")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> AddResponse(Guid id, [FromBody] AddPqrResponseRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+        var userName = User.Identity?.Name ?? "Administrador";
+
+        if (string.IsNullOrWhiteSpace(request.ResponseText))
+        {
+            return BadRequest("El texto de la respuesta es obligatorio.");
+        }
+
+        var pqr = await _context.PqrRecords
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+
+        if (pqr == null)
+        {
+            return NotFound("PQR no encontrada.");
+        }
+
+        var response = new PqrResponse
+        {
+            Id = Guid.NewGuid(),
+            PQRId = pqr.Id,
+            ResponseText = request.ResponseText,
+            IsDefinitive = request.IsDefinitive,
+            IsPartialUpdate = request.IsPartialUpdate,
+            SentAt = DateTime.UtcNow,
+            SentByUserId = userId,
+            SentByUserName = userName,
+            RequiresConfirmation = request.RequiresConfirmation
+        };
+
+        _context.PqrResponses.Add(response);
+
+        var previousStatus = pqr.Status;
+        pqr.Status = PQRStatus.Responded;
+        pqr.UpdatedAt = DateTime.UtcNow;
+
+        var followUp = new PqrFollowUp
+        {
+            Id = Guid.NewGuid(),
+            PQRId = pqr.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = PQRStatus.Responded,
+            ChangedAt = DateTime.UtcNow,
+            ChangedByUserId = userId,
+            ChangedByUserName = userName,
+            Justification = request.IsDefinitive
+                ? "Respuesta definitiva emitida al radicante."
+                : "Actualización parcial enviada al radicante.",
+            IsAutomatic = false
+        };
+
+        _context.PqrFollowUps.Add(followUp);
+
+        if (request.IsDefinitive)
+        {
+            pqr.ClosedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            id = response.Id,
+            message = "Respuesta registrada exitosamente.",
+            isDefinitive = request.IsDefinitive,
+            requiresConfirmation = request.RequiresConfirmation
+        });
+    }
+
+    [HttpPost("{id}/responses/{responseId}/confirm")]
+    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
+    public async Task<IActionResult> ConfirmResponse(Guid id, Guid responseId, [FromBody] ConfirmResponseRequestDto request)
+    {
+        var tenantId = GetTenantId();
+
+        var response = await _context.PqrResponses
+            .Include(r => r.PQR)
+            .FirstOrDefaultAsync(r => r.Id == responseId && r.PQRId == id && r.PQR.TenantId == tenantId);
+
+        if (response == null)
+        {
+            return NotFound("Respuesta no encontrada.");
+        }
+
+        response.ConfirmedByRadiador = request.Confirmed;
+        response.ConfirmedAt = DateTime.UtcNow;
+
+        if (request.Confirmed && response.IsDefinitive)
+        {
+            response.PQR.Status = PQRStatus.Closed;
+            response.PQR.ClosedAt = DateTime.UtcNow;
+            response.PQR.ClosedDefinitivelyAt = DateTime.UtcNow.AddDays(10);
+            response.PQR.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+
+        var message = request.Confirmed
+            ? "Respuesta confirmada. PQR cerrada exitosamente."
+            : "Respuesta marcada como no conforme.";
+
+        return Ok(new { message });
+    }
+
+    [HttpPost("{id}/internal-notes")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    public async Task<IActionResult> AddInternalNote(Guid id, [FromBody] AddPqrInternalNoteRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+        var userName = User.Identity?.Name ?? "Administrador";
+
+        if (string.IsNullOrWhiteSpace(request.NoteText))
+        {
+            return BadRequest("El texto de la nota es obligatorio.");
+        }
+
+        var pqr = await _context.PqrRecords
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+
+        if (pqr == null)
+        {
+            return NotFound("PQR no encontrada.");
+        }
+
+        var note = new PqrInternalNote
+        {
+            Id = Guid.NewGuid(),
+            PQRId = pqr.Id,
+            NoteText = request.NoteText,
+            AuthorName = userName,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = userId
+        };
+
+        _context.PqrInternalNotes.Add(note);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { id = note.Id, message = "Nota interna agregada exitosamente." });
+    }
+
+    [HttpPost("{id}/reopen")]
+    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
+    public async Task<IActionResult> ReopenPqr(Guid id, [FromBody] ReopenPqrRequestDto request)
+    {
+        var tenantId = GetTenantId();
+
+        if (string.IsNullOrWhiteSpace(request.Justification))
+        {
+            return BadRequest("La justificación es obligatoria para reabrir la PQR.");
+        }
+
+        var pqr = await _context.PqrRecords
+            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
+
+        if (pqr == null)
+        {
+            return NotFound("PQR no encontrada.");
+        }
+
+        if (pqr.Status != PQRStatus.Closed)
+        {
+            return BadRequest("Solo las PQR en estado Cerrado pueden ser reabiertas.");
+        }
+
+        if (pqr.ClosedDefinitivelyAt.HasValue && pqr.ClosedDefinitivelyAt.Value < DateTime.UtcNow)
+        {
+            return BadRequest("El plazo de 10 días para reabrir la PQR ha vencido. Debe radicar una nueva PQR.");
+        }
+
+        var previousStatus = pqr.Status;
+        pqr.Status = PQRStatus.Reopened;
+        pqr.ClosedAt = null;
+        pqr.UpdatedAt = DateTime.UtcNow;
+
+        var followUp = new PqrFollowUp
+        {
+            Id = Guid.NewGuid(),
+            PQRId = pqr.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = PQRStatus.Reopened,
+            ChangedAt = DateTime.UtcNow,
+            ChangedByUserId = GetUserId(),
+            ChangedByUserName = User.Identity?.Name ?? "Radicante",
+            Justification = request.Justification,
+            IsAutomatic = false
+        };
+
+        _context.PqrFollowUps.Add(followUp);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "PQR reabierta exitosamente. La administración revisará su caso." });
+    }
 }
