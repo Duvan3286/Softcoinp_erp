@@ -89,10 +89,12 @@ builder.Services.AddScoped<ClaimResolutionService>();
 builder.Services.AddScoped<ProviderService>();
 builder.Services.AddScoped<ContractService>();
 builder.Services.AddScoped<RetentionService>();
+builder.Services.AddScoped<MaintenanceService>();
 
 // Register Background Services
 builder.Services.AddHostedService<PQRAlertEngineService>();
 builder.Services.AddHostedService<ContractAlertEngineService>();
+builder.Services.AddHostedService<PreventiveMaintenanceEngineService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.

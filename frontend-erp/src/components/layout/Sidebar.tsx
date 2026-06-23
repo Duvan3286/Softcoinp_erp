@@ -12,6 +12,7 @@ import {
   ChevronRight,
   MessageSquare,
   Truck,
+  Wrench,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -53,6 +54,7 @@ export const Sidebar = () => {
     else if (pathname.includes('users') || pathname.includes('integrations')) setOpenGroup('admin');
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
     else if (pathname.startsWith('/suppliers') || pathname.startsWith('/contracts')) setOpenGroup('proveedores');
+    else if (pathname.startsWith('/maintenance')) setOpenGroup('mantenimiento');
     else if (pathname.startsWith('/pqr')) setOpenGroup('pqr');
     // Close sidebar on mobile when navigating
     setIsOpen(false);
@@ -153,6 +155,22 @@ export const Sidebar = () => {
             <NavItem text="Contratos" path="/contracts" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Nuevo Contrato" path="/contracts/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Indicadores" path="/contracts/indicators" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
+
+          <NavGroup
+            icon={<Wrench className="w-5 h-5" />}
+            text="Mantenimiento"
+            isOpen={openGroup === 'mantenimiento'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('mantenimiento')}
+          >
+            <NavItem text="Inventario Bienes" path="/maintenance" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Nuevo Bien" path="/maintenance/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Órdenes de Trabajo" path="/maintenance/work-orders" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Nueva Orden" path="/maintenance/work-orders/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Fuera de Servicio" path="/maintenance/out-of-service" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Siniestros" path="/maintenance/incidents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Reportes" path="/maintenance/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup

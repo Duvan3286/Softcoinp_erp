@@ -117,6 +117,16 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<RetentionConfiguration> RetentionConfigurations => Set<RetentionConfiguration>();
     public DbSet<ApprovalThreshold> ApprovalThresholds => Set<ApprovalThreshold>();
 
+    // ── Módulo de Mantenimiento y Zonas Comunes ────────────────────────
+    public DbSet<CommonAsset> CommonAssets => Set<CommonAsset>();
+    public DbSet<AssetPhoto> AssetPhotos => Set<AssetPhoto>();
+    public DbSet<MaintenancePlan> MaintenancePlans => Set<MaintenancePlan>();
+    public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
+    public DbSet<WorkOrderEvidence> WorkOrderEvidences => Set<WorkOrderEvidence>();
+    public DbSet<Incident> Incidents => Set<Incident>();
+    public DbSet<IncidentWorkOrder> IncidentWorkOrders => Set<IncidentWorkOrder>();
+    public DbSet<AssetStatusHistory> AssetStatusHistories => Set<AssetStatusHistory>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Only resolve the tenant connection string when no provider has been configured.
@@ -1608,6 +1618,209 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
 
             entity.HasIndex(e => new { e.TenantId, e.ApprovalLevel }).IsUnique();
+        });
+
+        // ── Módulo de Mantenimiento y Zonas Comunes ──────────────────
+
+        modelBuilder.Entity<CommonAsset>(entity =>
+        {
+            entity.ToTable("erp_common_assets");
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Location).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Brand).HasMaxLength(150);
+            entity.Property(e => e.Model).HasMaxLength(150);
+            entity.Property(e => e.SerialNumber).HasMaxLength(100);
+            entity.Property(e => e.AcquisitionValue).HasPrecision(18, 2);
+            entity.Property(e => e.Manufacturer).HasMaxLength(200);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.StatusNotes).HasMaxLength(2000);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.ReferenceProvider)
+                  .WithMany()
+                  .HasForeignKey(e => e.ReferenceProviderId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.Category });
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+        });
+
+        modelBuilder.Entity<AssetPhoto>(entity =>
+        {
+            entity.ToTable("erp_asset_photos");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.FilePath).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CapturedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Asset)
+                  .WithMany(a => a.Photos)
+                  .HasForeignKey(e => e.AssetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssetId });
+        });
+
+        modelBuilder.Entity<MaintenancePlan>(entity =>
+        {
+            entity.ToTable("erp_maintenance_plans");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ActivityType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.FrequencyDays).IsRequired();
+            entity.Property(e => e.EstimatedCost).HasPrecision(18, 2);
+            entity.Property(e => e.EstimatedDowntimeHours).HasDefaultValue(0);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Asset)
+                  .WithMany(a => a.MaintenancePlans)
+                  .HasForeignKey(e => e.AssetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.PreferredProvider)
+                  .WithMany()
+                  .HasForeignKey(e => e.PreferredProviderId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssetId });
+            entity.HasIndex(e => new { e.TenantId, e.NextExecutionDate });
+        });
+
+        modelBuilder.Entity<WorkOrder>(entity =>
+        {
+            entity.ToTable("erp_work_orders");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.OrderType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.Priority).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Origin).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.RelatedPqrNumber).HasMaxLength(50);
+            entity.Property(e => e.EstimatedCost).HasPrecision(18, 2);
+            entity.Property(e => e.ActualCost).HasPrecision(18, 2);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Outcome).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.OutcomeNotes).HasMaxLength(2000);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Asset)
+                  .WithMany(a => a.WorkOrders)
+                  .HasForeignKey(e => e.AssetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AssignedProvider)
+                  .WithMany()
+                  .HasForeignKey(e => e.AssignedProviderId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.BudgetAccount)
+                  .WithMany()
+                  .HasForeignKey(e => e.BudgetAccountId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.AccountingEntry)
+                  .WithMany()
+                  .HasForeignKey(e => e.AccountingEntryId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.AssetId });
+            entity.HasIndex(e => new { e.TenantId, e.ScheduledDate });
+            entity.HasIndex(e => new { e.TenantId, e.AssignedProviderId });
+        });
+
+        modelBuilder.Entity<WorkOrderEvidence>(entity =>
+        {
+            entity.ToTable("erp_work_order_evidences");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.FilePath).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CapturedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.WorkOrder)
+                  .WithMany(w => w.Evidences)
+                  .HasForeignKey(e => e.WorkOrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.WorkOrderId });
+        });
+
+        modelBuilder.Entity<Incident>(entity =>
+        {
+            entity.ToTable("erp_incidents");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Description).HasMaxLength(4000);
+            entity.Property(e => e.IncidentType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.TotalDamageValue).HasPrecision(18, 2);
+            entity.Property(e => e.InsurancePolicyNumber).HasMaxLength(100);
+            entity.Property(e => e.InsuranceCompany).HasMaxLength(200);
+            entity.Property(e => e.PolicyFilePath).HasMaxLength(500);
+            entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.IncidentType });
+        });
+
+        modelBuilder.Entity<IncidentWorkOrder>(entity =>
+        {
+            entity.ToTable("erp_incident_work_orders");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+
+            entity.HasOne(e => e.Incident)
+                  .WithMany(i => i.IncidentWorkOrders)
+                  .HasForeignKey(e => e.IncidentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.WorkOrder)
+                  .WithMany()
+                  .HasForeignKey(e => e.WorkOrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.IncidentId }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.WorkOrderId });
+        });
+
+        modelBuilder.Entity<AssetStatusHistory>(entity =>
+        {
+            entity.ToTable("erp_asset_status_histories");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.PreviousStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.NewStatus).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Reason).HasMaxLength(1000);
+            entity.Property(e => e.ChangedByUserId).HasMaxLength(450);
+            entity.Property(e => e.ChangedByUserName).HasMaxLength(300);
+
+            entity.HasOne(e => e.Asset)
+                  .WithMany(a => a.StatusHistory)
+                  .HasForeignKey(e => e.AssetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssetId });
+            entity.HasIndex(e => new { e.TenantId, e.ChangedAt });
         });
     }
 
