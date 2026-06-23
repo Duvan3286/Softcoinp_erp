@@ -11,6 +11,7 @@ import {
   Settings,
   ChevronRight,
   MessageSquare,
+  Truck,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -51,6 +52,7 @@ export const Sidebar = () => {
     if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('accounting') || pathname.includes('budgets') || pathname.includes('contingency-fund')) setOpenGroup('finanzas');
     else if (pathname.includes('users') || pathname.includes('integrations')) setOpenGroup('admin');
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
+    else if (pathname.startsWith('/suppliers') || pathname.startsWith('/contracts')) setOpenGroup('proveedores');
     else if (pathname.startsWith('/pqr')) setOpenGroup('pqr');
     // Close sidebar on mobile when navigating
     setIsOpen(false);
@@ -137,6 +139,20 @@ export const Sidebar = () => {
           >
             <NavItem text="Propietarios" path="/residents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Arrendatarios" path="/residents/tenants" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
+
+          <NavGroup
+            icon={<Truck className="w-5 h-5" />}
+            text="Proveedores"
+            isOpen={openGroup === 'proveedores'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('proveedores')}
+          >
+            <NavItem text="Proveedores" path="/suppliers" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Nuevo Proveedor" path="/suppliers/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Contratos" path="/contracts" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Nuevo Contrato" path="/contracts/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Indicadores" path="/contracts/indicators" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup

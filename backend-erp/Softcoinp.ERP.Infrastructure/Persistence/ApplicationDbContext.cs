@@ -107,6 +107,16 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<PqrTimeConfig> PqrTimeConfigs => Set<PqrTimeConfig>();
     public DbSet<PqrAlert> PqrAlerts => Set<PqrAlert>();
 
+    // ── Módulo de Proveedores y Contratos ──────────────────────────────
+    public DbSet<Contract> Contracts => Set<Contract>();
+    public DbSet<ContractPolicy> ContractPolicies => Set<ContractPolicy>();
+    public DbSet<ContractAlert> ContractAlerts => Set<ContractAlert>();
+    public DbSet<ProviderInvoice> ProviderInvoices => Set<ProviderInvoice>();
+    public DbSet<ProviderPayment> ProviderPayments => Set<ProviderPayment>();
+    public DbSet<ProviderEvaluation> ProviderEvaluations => Set<ProviderEvaluation>();
+    public DbSet<RetentionConfiguration> RetentionConfigurations => Set<RetentionConfiguration>();
+    public DbSet<ApprovalThreshold> ApprovalThresholds => Set<ApprovalThreshold>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Only resolve the tenant connection string when no provider has been configured.
@@ -335,7 +345,34 @@ public class ApplicationDbContext : IdentityDbContext<User>
         modelBuilder.Entity<Provider>(entity =>
         {
             entity.ToTable("erp_providers");
+            entity.HasKey(e => e.Id);
             entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ProviderType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DocumentType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.DocumentNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.VerificationDigit).HasMaxLength(2);
+            entity.Property(e => e.BusinessName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.TradeName).HasMaxLength(300);
+            entity.Property(e => e.ContactName).HasMaxLength(300);
+            entity.Property(e => e.Email).HasMaxLength(256);
+            entity.Property(e => e.Phone).HasMaxLength(20);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.City).HasMaxLength(100);
+            entity.Property(e => e.EconomicActivity).HasMaxLength(200);
+            entity.Property(e => e.ServiceType).HasMaxLength(100);
+            entity.Property(e => e.RutFilePath).HasMaxLength(1000);
+            entity.Property(e => e.LegalRepDocumentType).HasMaxLength(20);
+            entity.Property(e => e.LegalRepDocumentNumber).HasMaxLength(50);
+            entity.Property(e => e.LegalRepName).HasMaxLength(300);
+            entity.Property(e => e.LegalRepEmail).HasMaxLength(256);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.DocumentNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.ServiceType });
         });
 
         // ── UserTenantRole ───────────────────────────────────────────
@@ -1366,6 +1403,211 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.PQRId, e.AlertType, e.IsActive });
             entity.HasIndex(e => new { e.IsActive, e.GeneratedAt });
+        });
+
+        // ── Módulo de Proveedores y Contratos ──────────────────────────
+
+        modelBuilder.Entity<Contract>(entity =>
+        {
+            entity.ToTable("erp_contracts");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ContractNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ContractType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.ObjectDescription).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.TotalValue).HasPrecision(18, 2);
+            entity.Property(e => e.MonthlyValue).HasPrecision(18, 2);
+            entity.Property(e => e.ApprovalLevel).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.CouncilMeetingActNumber).HasMaxLength(100);
+            entity.Property(e => e.AssemblyMeetingActNumber).HasMaxLength(100);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SignedContractFilePath).HasMaxLength(1000);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Provider)
+                  .WithMany(p => p.Contracts)
+                  .HasForeignKey(e => e.ProviderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.BudgetAccount)
+                  .WithMany()
+                  .HasForeignKey(e => e.BudgetAccountId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.ContractNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.ProviderId });
+            entity.HasIndex(e => new { e.TenantId, e.EndDate });
+        });
+
+        modelBuilder.Entity<ContractPolicy>(entity =>
+        {
+            entity.ToTable("erp_contract_policies");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.PolicyNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.InsuranceCompany).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.PolicyType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.InsuredAmount).HasPrecision(18, 2);
+            entity.Property(e => e.FilePath).HasMaxLength(1000);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Contract)
+                  .WithMany(c => c.Policies)
+                  .HasForeignKey(e => e.ContractId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.ContractId });
+            entity.HasIndex(e => new { e.TenantId, e.EndDate, e.IsActive });
+        });
+
+        modelBuilder.Entity<ContractAlert>(entity =>
+        {
+            entity.ToTable("erp_contract_alerts");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.AlertType).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.ResolvedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Contract)
+                  .WithMany(c => c.Alerts)
+                  .HasForeignKey(e => e.ContractId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.ContractId, e.IsActive });
+            entity.HasIndex(e => new { e.TenantId, e.IsActive, e.GeneratedAt });
+        });
+
+        modelBuilder.Entity<ProviderInvoice>(entity =>
+        {
+            entity.ToTable("erp_provider_invoices");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Subtotal).HasPrecision(18, 2);
+            entity.Property(e => e.IvaAmount).HasPrecision(18, 2);
+            entity.Property(e => e.RetentionFuelAmount).HasPrecision(18, 2);
+            entity.Property(e => e.RetentionIcaAmount).HasPrecision(18, 2);
+            entity.Property(e => e.NetAmount).HasPrecision(18, 2);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.InvoiceFilePath).HasMaxLength(1000);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Provider)
+                  .WithMany(p => p.Invoices)
+                  .HasForeignKey(e => e.ProviderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Contract)
+                  .WithMany(c => c.Invoices)
+                  .HasForeignKey(e => e.ContractId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.AccountingEntry)
+                  .WithMany()
+                  .HasForeignKey(e => e.AccountingEntryId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.InvoiceNumber });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.DueDate });
+            entity.HasIndex(e => new { e.TenantId, e.ProviderId });
+        });
+
+        modelBuilder.Entity<ProviderPayment>(entity =>
+        {
+            entity.ToTable("erp_provider_payments");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.PaymentMethod).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ReferenceNumber).HasMaxLength(100);
+            entity.Property(e => e.BankAccount).HasMaxLength(100);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.ReceiptFilePath).HasMaxLength(1000);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Invoice)
+                  .WithMany(i => i.Payments)
+                  .HasForeignKey(e => e.InvoiceId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.AccountingEntry)
+                  .WithMany()
+                  .HasForeignKey(e => e.AccountingEntryId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.InvoiceId });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+        });
+
+        modelBuilder.Entity<ProviderEvaluation>(entity =>
+        {
+            entity.ToTable("erp_provider_evaluations");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.EvaluationPeriod).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.AverageScore).HasPrecision(3, 2);
+            entity.Property(e => e.Comments).HasMaxLength(4000);
+            entity.Property(e => e.Recommendation).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.EvaluatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.EvaluatedByUserName).HasMaxLength(300);
+
+            entity.HasOne(e => e.Provider)
+                  .WithMany(p => p.Evaluations)
+                  .HasForeignKey(e => e.ProviderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Contract)
+                  .WithMany()
+                  .HasForeignKey(e => e.ContractId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.ProviderId });
+            entity.HasIndex(e => new { e.TenantId, e.ProviderId, e.EvaluationPeriod });
+        });
+
+        modelBuilder.Entity<RetentionConfiguration>(entity =>
+        {
+            entity.ToTable("erp_retention_configurations");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ServiceType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ServiceDescription).HasMaxLength(500);
+            entity.Property(e => e.RetentionFuelRate).HasPrecision(5, 4);
+            entity.Property(e => e.RetentionIcaRate).HasPrecision(5, 4);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.ServiceType }).IsUnique();
+        });
+
+        modelBuilder.Entity<ApprovalThreshold>(entity =>
+        {
+            entity.ToTable("erp_approval_thresholds");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ApprovalLevel).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.MinValue).HasPrecision(18, 2);
+            entity.Property(e => e.MaxValue).HasPrecision(18, 2);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.ApprovalLevel }).IsUnique();
         });
     }
 
