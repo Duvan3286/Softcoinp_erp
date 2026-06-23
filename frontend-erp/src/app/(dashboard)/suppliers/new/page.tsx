@@ -33,6 +33,34 @@ const serviceTypes = [
   { value: 'Otros', label: 'Otros' },
 ];
 
+const calculateDV = (nit: string): string => {
+  if (nit.length === 0) return '';
+  const vpri = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
+  let x = 0;
+  let y = 0;
+  const z = nit.length;
+  for (let i = 0; i < z; i++) {
+    y = parseInt(nit.charAt(i));
+    x += (y * vpri[z - 1 - i]);
+  }
+  y = x % 11;
+  return (y > 1) ? (11 - y).toString() : y.toString();
+};
+
+const toTitleCase = (val: string): string =>
+  val.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+
+const sanitizeDocNumber = (val: string, docType: string): string => {
+  const isNumeric = docType === 'CitizenshipCard' || docType === 'NIT';
+  const maxLen = isNumeric ? 10 : 50;
+  return isNumeric
+    ? val.replace(/\D/g, '').slice(0, maxLen)
+    : val.replace(/[^a-zA-Z0-9]/g, '').slice(0, maxLen);
+};
+
+const sanitizePhone = (val: string): string =>
+  val.replace(/[^0-9\-\+\s]/g, '').slice(0, 20);
+
 export default function NewSupplierPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -54,9 +82,55 @@ export default function NewSupplierPage() {
   const [serviceType, setServiceType] = useState('');
   const [legalRepDocumentType, setLegalRepDocumentType] = useState('');
   const [legalRepDocumentNumber, setLegalRepDocumentNumber] = useState('');
+  const [legalRepDv, setLegalRepDv] = useState('');
   const [legalRepName, setLegalRepName] = useState('');
   const [legalRepEmail, setLegalRepEmail] = useState('');
   const [isPreferred, setIsPreferred] = useState(false);
+
+  const handleDocTypeChange = (val: string) => {
+    setDocumentType(val);
+    setDocumentNumber('');
+    setVerificationDigit('');
+  };
+
+  const handleDocNumberChange = (val: string) => {
+    const cleaned = sanitizeDocNumber(val, documentType);
+    setDocumentNumber(cleaned);
+    if (documentType === 'NIT') {
+      setVerificationDigit(calculateDV(cleaned));
+    }
+  };
+
+  const handleLegalRepDocTypeChange = (val: string) => {
+    setLegalRepDocumentType(val);
+    setLegalRepDocumentNumber('');
+    setLegalRepDv('');
+  };
+
+  const handleLegalRepDocNumberChange = (val: string) => {
+    const cleaned = sanitizeDocNumber(val, legalRepDocumentType);
+    setLegalRepDocumentNumber(cleaned);
+    if (legalRepDocumentType === 'NIT') {
+      setLegalRepDv(calculateDV(cleaned));
+    }
+  };
+
+  const handleBusinessNameChange = (val: string) => {
+    setBusinessName(toTitleCase(val).slice(0, 300));
+  };
+
+  const handleContactNameChange = (val: string) => {
+    setContactName(toTitleCase(val).slice(0, 300));
+  };
+
+  const handlePhoneChange = (val: string) => {
+    setPhone(sanitizePhone(val));
+  };
+
+  const validateEmail = (emailVal: string): boolean => {
+    if (!emailVal) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +139,36 @@ export default function NewSupplierPage() {
     if (!documentType) { setError('Debe seleccionar un tipo de documento.'); return; }
     if (!documentNumber.trim()) { setError('El número de documento es requerido.'); return; }
     if (!businessName.trim()) { setError('La razón social es requerida.'); return; }
+
+    if (documentType === 'NIT' && documentNumber.length < 8) {
+      setError('El NIT debe tener al menos 8 dígitos.');
+      return;
+    }
+
+    if (documentType === 'CitizenshipCard' && documentNumber.length < 6) {
+      setError('La cédula de ciudadanía debe tener al menos 6 dígitos.');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setError('El correo electrónico no tiene un formato válido.');
+      return;
+    }
+
+    if (!validateEmail(legalRepEmail)) {
+      setError('El correo electrónico del representante legal no tiene un formato válido.');
+      return;
+    }
+
+    if (providerType === 'Legal') {
+      if (!legalRepDocumentType) { setError('Debe seleccionar el tipo de documento del representante legal.'); return; }
+      if (!legalRepDocumentNumber.trim()) { setError('El número de documento del representante legal es requerido.'); return; }
+      if (!legalRepName.trim()) { setError('El nombre del representante legal es requerido.'); return; }
+      if (legalRepDocumentType === 'NIT' && legalRepDocumentNumber.length < 8) {
+        setError('El NIT del representante legal debe tener al menos 8 dígitos.');
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -147,38 +251,41 @@ export default function NewSupplierPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Tipo de Documento</label>
-                  <select value={documentType} onChange={(e) => setDocumentType(e.target.value)}
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Tipo de Documento *</label>
+                  <select value={documentType} onChange={(e) => handleDocTypeChange(e.target.value)}
                     className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" required>
                     <option value="">Seleccione...</option>
                     {documentTypes.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nro. Documento</label>
-                  <input type="text" placeholder="Número de documento" value={documentNumber}
-                    onChange={(e) => setDocumentNumber(e.target.value.replace(/\D/g, '').slice(0, 20))}
-                    maxLength={20} required
-                    className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nro. Documento *</label>
+                  <input type="text" placeholder={documentType === 'NIT' ? 'Mínimo 8 dígitos' : 'Número de documento'}
+                    value={documentNumber} onChange={(e) => handleDocNumberChange(e.target.value)}
+                    maxLength={documentType === 'NIT' || documentType === 'CitizenshipCard' ? 10 : 50}
+                    disabled={!documentType}
+                    className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Dígito de Verificación</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+                    Dígito de Verificación
+                    {documentType === 'NIT' && <span className="text-emerald-600 ml-1">(Auto)</span>}
+                  </label>
                   <input type="text" value={verificationDigit}
-                    onChange={(e) => setVerificationDigit(e.target.value.replace(/\D/g, '').slice(0, 1))}
-                    maxLength={1}
-                    className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
+                    readOnly={documentType === 'NIT'}
+                    className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none read-only:opacity-70" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Razón Social *</label>
                   <input type="text" placeholder="Razón social del proveedor" value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value.slice(0, 300))}
+                    onChange={(e) => handleBusinessNameChange(e.target.value)}
                     maxLength={300} required
                     className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nombre Comercial</label>
                   <input type="text" placeholder="Nombre comercial" value={tradeName}
-                    onChange={(e) => setTradeName(e.target.value.slice(0, 300))}
+                    onChange={(e) => setTradeName(toTitleCase(e.target.value).slice(0, 300))}
                     maxLength={300}
                     className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                 </div>
@@ -218,7 +325,7 @@ export default function NewSupplierPage() {
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nombre del Contacto</label>
                   <input type="text" placeholder="Nombre del contacto" value={contactName}
-                    onChange={(e) => setContactName(e.target.value.slice(0, 300))}
+                    onChange={(e) => handleContactNameChange(e.target.value)}
                     maxLength={300}
                     className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                 </div>
@@ -231,8 +338,8 @@ export default function NewSupplierPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Teléfono</label>
-                  <input type="text" placeholder="Teléfono" value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/[^a-zA-Z0-9+\-\s]/g, '').slice(0, 20))}
+                  <input type="text" placeholder="Ej: 300 123 4567" value={phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
                     maxLength={20}
                     className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                 </div>
@@ -246,7 +353,7 @@ export default function NewSupplierPage() {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Ciudad</label>
                   <input type="text" placeholder="Ciudad" value={city}
-                    onChange={(e) => setCity(e.target.value.slice(0, 100))}
+                    onChange={(e) => setCity(toTitleCase(e.target.value).slice(0, 100))}
                     maxLength={100}
                     className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                 </div>
@@ -260,25 +367,35 @@ export default function NewSupplierPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Tipo de Documento</label>
-                    <select value={legalRepDocumentType} onChange={(e) => setLegalRepDocumentType(e.target.value)}
-                      className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Tipo de Documento *</label>
+                    <select value={legalRepDocumentType} onChange={(e) => handleLegalRepDocTypeChange(e.target.value)}
+                      className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" required>
                       <option value="">Seleccione...</option>
                       {documentTypes.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nro. Documento</label>
-                    <input type="text" placeholder="Número de documento" value={legalRepDocumentNumber}
-                      onChange={(e) => setLegalRepDocumentNumber(e.target.value.replace(/\D/g, '').slice(0, 20))}
-                      maxLength={20}
-                      className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nro. Documento *</label>
+                    <input type="text" placeholder={legalRepDocumentType === 'NIT' ? 'Mínimo 8 dígitos' : 'Número de documento'}
+                      value={legalRepDocumentNumber} onChange={(e) => handleLegalRepDocNumberChange(e.target.value)}
+                      maxLength={legalRepDocumentType === 'NIT' || legalRepDocumentType === 'CitizenshipCard' ? 10 : 50}
+                      disabled={!legalRepDocumentType}
+                      className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" required />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nombre Completo</label>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">
+                      Dígito de Verificación
+                      {legalRepDocumentType === 'NIT' && <span className="text-emerald-600 ml-1">(Auto)</span>}
+                    </label>
+                    <input type="text" value={legalRepDv}
+                      readOnly={legalRepDocumentType === 'NIT'}
+                      className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none read-only:opacity-70" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nombre Completo *</label>
                     <input type="text" placeholder="Nombre del representante" value={legalRepName}
-                      onChange={(e) => setLegalRepName(e.target.value.slice(0, 300))}
-                      maxLength={300}
+                      onChange={(e) => setLegalRepName(toTitleCase(e.target.value).slice(0, 300))}
+                      maxLength={300} required
                       className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                   </div>
                   <div>
