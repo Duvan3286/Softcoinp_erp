@@ -1072,6 +1072,190 @@ El sistema recorre los umbrales activos ordenados de menor a mayor valor. Si el 
 
 ---
 
+## 10. Módulo de Mantenimiento y Zonas Comunes
+
+Gestión del inventario físico de bienes comunes, planes de mantenimiento preventivo, órdenes de trabajo correctivo y registro de siniestros. Este módulo protege el patrimonio colectivo de los copropietarios y garantiza que las zonas comunes se conserven en condiciones óptimas.
+
+### 10.1 Bien Común (`CommonAsset`)
+
+Inventario físico de los bienes comunes del conjunto (ascensores, bombas de agua, piscinas, zonas verdes, etc.).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Nombre (`name`)** | `string` max 300 | Sí | Nombre descriptivo del bien. Ej. "Ascensor Torre A", "Piscina Comunal". |
+| **Categoría (`category`)** | `Enum` | Sí | `Structure` = Estructura · `ElectricalEquipment` = Equipos Eléctricos · `HydraulicEquipment` = Equipos Hidráulicos · `SafetyEquipment` = Equipos de Seguridad · `RecreationalAreas` = Zonas Recreativas · `GreenAreas` = Zonas Verdes. |
+| **Ubicación (`location`)** | `string` max 300 | Sí | Ubicación física dentro del conjunto. Ej. "Torre A, Piso 1", "Área común nivel 2". |
+| **Es Esencial (`isEssential`)** | `boolean` | Sí | `true` = bien cuya afectación compromete seguridad o habitabilidad (ascensores, bombas, sistemas de seguridad). `false` = bien cuya afectación reduce calidad de vida pero no compromete seguridad. Determina prioridad y nivel de aprobación para gastos. |
+| **Marca (`brand`)** | `string` max 150 | No | Marca del fabricante. |
+| **Modelo (`model`)** | `string` max 150 | No | Modelo del equipo. |
+| **Número de Serie (`serialNumber`)** | `string` max 100 | No | Número de serie del fabricante. |
+| **Fecha de Adquisición (`acquisitionDate`)** | `date` | No | Fecha en que se adquirió el bien. |
+| **Valor de Adquisición (`acquisitionValue`)** | `decimal(18,2)` | No | Costo de adquisición para efectos contables. |
+| **Vida Útil Estimada (`estimatedUsefulLifeMonths`)** | `int` | No | Vida útil en meses para efectos de depreciación. |
+| **Proveedor de Referencia (`referenceProviderId`)** | `Guid?` FK | No | Proveedor o fabricante de referencia para mantenimiento. FK a `erp_providers`. |
+| **Fabricante (`manufacturer`)** | `string` max 200 | No | Nombre del fabricante o marca de referencia. |
+| **Tiene Garantía (`hasWarranty`)** | `boolean` | Sí | Indica si el bien tiene garantía vigente. |
+| **Fecha Fin Garantía (`warrantyEndDate`)** | `date` | No | Fecha de vencimiento de la garantía. |
+| **Estado (`status`)** | `Enum` | Sí | `Operational` = Operativo · `OperationalWithObservations` = Operativo con Observaciones · `UnderMaintenance` = En Mantenimiento · `OutOfService` = Fuera de Servicio · `Decommissioned` = Dado de Baja. |
+| **Notas de Estado (`statusNotes`)** | `string` max 2000 | No | Observaciones sobre el estado actual del bien. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que registró el bien. |
+
+> [!IMPORTANT]
+> **Soft delete**: Los bienes se eliminan lógicamente (`isDeleted = true`). Los bienes dados de baja permanecen en el sistema con su historial pero marcados como inactivos. No se pueden eliminar bienes con órdenes de trabajo activas.
+
+### 10.2 Fotografía del Bien (`AssetPhoto`)
+
+Registro fotográfico del estado del bien en el tiempo. Permite seguimiento visual del deterioro o mejora.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Bien (`assetId`)** | `Guid` FK | Sí | Bien al que pertenece la fotografía. Cascade delete. |
+| **Ruta del Archivo (`filePath`)** | `string` max 500 | Sí | Ruta de almacenamiento de la imagen. |
+| **Descripción (`description`)** | `string` max 500 | No | Descripción de la fotografía. Ej. "Estado del ascensor antes de mantenimiento". |
+| **Fecha de Captura (`capturedAt`)** | `datetime` | Automático | Fecha y hora en que se tomó la fotografía. |
+| **Capturado Por (`capturedByUserId`)** | `string` max 450 | Automático | ID del usuario que subió la fotografía. |
+
+### 10.3 Plan de Mantenimiento (`MaintenancePlan`)
+
+Define la frecuencia y el tipo de actividad preventiva para cada bien. El motor del sistema genera órdenes de trabajo automáticamente según estos planes.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Bien (`assetId`)** | `Guid` FK | Sí | Bien al que aplica el plan. Cascade delete. |
+| **Tipo de Actividad (`activityType`)** | `Enum` | Sí | `Lubrication` · `Calibration` · `Inspection` · `Cleaning` · `FilterReplacement` · `OilChange` · `GeneralRevision` · `Testing` · `Painting` · `Landscaping` · `Other`. |
+| **Descripción (`description`)** | `string` max 2000 | Sí | Descripción detallada de la actividad a realizar. |
+| **Frecuencia en Días (`frequencyDays`)** | `int` | Sí | Intervalo en días entre cada mantenimiento. Determina la fecha del próximo mantenimiento. |
+| **Proveedor Preferido (`preferredProviderId`)** | `Guid?` FK | No | Proveedor preferido para ejecutar esta actividad. FK a `erp_providers`. |
+| **Costo Estimado (`estimatedCost`)** | `decimal(18,2)` | No | Costo estimado por intervención para efectos presupuestales. |
+| **Requiere Suspensión del Servicio (`requiresServiceSuspension`)** | `boolean` | Sí | Indica si el servicio debe suspenderse durante la ejecución. |
+| **Horas Fuera de Servicio (`estimatedDowntimeHours`)** | `int` | No | Estimado de tiempo fuera de servicio en horas. |
+| **Activo (`isActive`)** | `boolean` | Sí | `false` si el plan fue descontinuado. |
+| **Última Ejecución (`lastExecutionDate`)** | `datetime` | No | Fecha de la última ejecución del plan. Se actualiza automáticamente al completar una orden preventiva. |
+| **Próxima Ejecución (`nextExecutionDate`)** | `datetime` | No | Fecha programada del próximo mantenimiento. Se recalcula automáticamente: `fecha ejecución real + frequencyDays`. |
+
+> [!IMPORTANT]
+> **Cálculo de próxima fecha**: Al completar una orden de trabajo preventivo, el sistema suma `frequencyDays` a la **fecha de ejecución real** (no a la fecha programada) para evitar que los retrasos acumulen desfases en el calendario.
+
+### 10.4 Orden de Trabajo (`WorkOrder`)
+
+Registro de cada intervención de mantenimiento, ya sea preventivo (programado) o correctivo (atención de falla).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Tipo de Orden (`orderType`)** | `Enum` | Sí | `Preventive` = Generada por plan de mantenimiento · `Corrective` = Atención de falla o daño. |
+| **Bien (`assetId`)** | `Guid` FK | Sí | Bien afectado. Cascade delete. |
+| **Descripción (`description`)** | `string` max 4000 | Sí | Trabajo a realizar o falla detectada. |
+| **Prioridad (`priority`)** | `Enum` | Sí | `Emergency` = Emergencia (bien esencial dañado) · `High` = Alta · `Medium` = Media (default) · `Low` = Baja. |
+| **Origen (`origin`)** | `Enum` | Sí | `AutomaticScheduling` = Generada por el motor preventivo · `AdminReport` = Reporte del administrador · `ResidentPqr` = Originada desde una PQR de residente. |
+| **PQR Relacionada (`relatedPqrId`)** | `Guid?` FK | No | Referencia a la PQR que originó la orden (si aplica). |
+| **Nro. PQR (`relatedPqrNumber`)** | `string` max 50 | No | Número de radicado de la PQR relacionada. |
+| **Proveedor Asignado (`assignedProviderId`)** | `Guid?` FK | No | Proveedor encargado de ejecutar el trabajo. FK a `erp_providers`. |
+| **Fecha Programada (`scheduledDate`)** | `datetime` | No | Fecha programada de ejecución. |
+| **Fecha Inicio Ejecución (`executionStartDate`)** | `datetime` | No | Fecha real en que inició el trabajo. Se asigna automáticamente al cambiar estado a `InProgress`. |
+| **Fecha Fin Ejecución (`executionEndDate`)** | `datetime` | No | Fecha real de finalización. Se asigna automáticamente al cambiar estado a `Completed`. |
+| **Costo Estimado (`estimatedCost`)** | `decimal(18,2)` | No | Costo estimado de la intervención. |
+| **Costo Real (`actualCost`)** | `decimal(18,2)` | No | Costo real de la intervención. Si supera el estimado en >20%, se genera alerta. |
+| **Cuenta Presupuestal (`budgetAccountId`)** | `Guid?` FK | No | Cuenta del PUC a imputar el gasto. FK a `erp_accounting_accounts`. |
+| **Asiento Contable (`accountingEntryId`)** | `Guid?` FK | No | Asiento contable generado por la imputación del costo. FK a `erp_accounting_entries`. |
+| **Estado (`status`)** | `Enum` | Sí | `PendingAssignment` = Pendiente de asignación · `Assigned` = Asignada a proveedor · `InProgress` = En ejecución · `Completed` = Completada · `Cancelled` = Cancelada. |
+| **Resultado (`outcome`)** | `Enum` | No | `Resolved` = Resuelto · `PartiallyResolved` = Resuelto parcialmente · `NotResolved` = No resuelto. |
+| **Notas del Resultado (`outcomeNotes`)** | `string` max 2000 | No | Justificación del resultado de la intervención. |
+| **Alerta de Costo Enviada (`costAlertSent`)** | `boolean` | Sí | `true` si se envió alerta por desviación >20% en costo. Evita envíos duplicados. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó la orden. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó la orden. |
+
+#### Transiciones de Estado
+
+| Estado Origen | Estados Permitidos | Requisitos |
+|---------------|-------------------|------------|
+| `PendingAssignment` | `Assigned`, `Cancelled` | Para `Assigned`: debe tener proveedor asignado. |
+| `Assigned` | `InProgress`, `Cancelled` | Se asigna fecha de inicio automáticamente. |
+| `InProgress` | `Completed`, `Cancelled` | Se asigna fecha de fin automáticamente. |
+| `Completed` | — | Estado final. Se recalcula `nextExecutionDate` del plan si es preventivo. Se actualiza PQR si originó desde PQR. |
+| `Cancelled` | — | Estado final. |
+
+### 10.5 Evidencia de Orden de Trabajo (`WorkOrderEvidence`)
+
+Fotografías antes y después de cada intervención para evidenciar el trabajo realizado.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Orden de Trabajo (`workOrderId`)** | `Guid` FK | Sí | Orden a la que pertenece la evidencia. Cascade delete. |
+| **Ruta del Archivo (`filePath`)** | `string` max 500 | Sí | Ruta de almacenamiento de la imagen. |
+| **Descripción (`description`)** | `string` max 500 | No | Descripción de la evidencia. |
+| **Es Antes de la Intervención (`isBeforeIntervention`)** | `boolean` | Sí | `true` = foto antes del trabajo · `false` = foto después del trabajo. |
+| **Fecha de Captura (`capturedAt`)** | `datetime` | Automático | Fecha y hora de captura. |
+| **Capturado Por (`capturedByUserId`)** | `string` max 450 | Automático | ID del usuario. |
+
+### 10.6 Siniestro (`Incident`)
+
+Registro de eventos extraordinarios (inundación, incendio, daño estructural) que agrupan múltiples órdenes de trabajo relacionadas.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Nombre (`name`)** | `string` max 300 | Sí | Nombre descriptivo del siniestro. Ej. "Inundación Torre A Nivel 1". |
+| **Descripción (`description`)** | `string` max 4000 | No | Detalle del evento. |
+| **Tipo de Siniestro (`incidentType`)** | `Enum` | Sí | `Flood` = Inundación · `Fire` = Incendio · `StructuralDamage` = Daño Estructural · `ElectricalFailure` = Falla Eléctrica · `Other` = Otro. |
+| **Fecha de Ocurrencia (`occurredAt`)** | `datetime` | Sí | Fecha y hora en que ocurrió el siniestro. |
+| **Valor Total del Daño (`totalDamageValue`)** | `decimal(18,2)` | No | Valor total estimado del daño en COP. |
+| **Nro. Póliza de Seguro (`insurancePolicyNumber`)** | `string` max 100 | No | Número de la póliza de seguro del contrato de seguros registrado en el módulo de Proveedores. |
+| **Aseguradora (`insuranceCompany`)** | `string` max 200 | No | Nombre de la empresa aseguradora. |
+| **Archivo de Póliza (`policyFilePath`)** | `string` max 500 | No | Ruta del documento de la póliza digitalizada. |
+| **Estado (`status`)** | `string` max 30 | Sí | `"Open"` = Abierto · `"Closed"` = Cerrado. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que registró el siniestro. |
+
+### 10.7 Siniestro-Orden de Trabajo (`IncidentWorkOrder`)
+
+Tabla asociativa que vincula un siniestro con las órdenes de trabajo relacionadas.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Siniestro (`incidentId`)** | `Guid` FK | Sí | Siniestro al que pertenece la relación. Cascade delete. |
+| **Orden de Trabajo (`workOrderId`)** | `Guid` FK | Sí | Orden de trabajo vinculada. Cascade delete. |
+
+> [!NOTE]
+> Índice único por `(TenantId, IncidentId)` para garantizar que una orden solo pertenezca a un siniestro.
+
+### 10.8 Historial de Estado del Bien (`AssetStatusHistory`)
+
+Registro de cada cambio de estado de un bien con fecha, motivo y usuario responsable.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Bien (`assetId`)** | `Guid` FK | Sí | Bien que cambió de estado. Cascade delete. |
+| **Estado Anterior (`previousStatus`)** | `Enum` | Sí | Estado antes del cambio. |
+| **Estado Nuevo (`newStatus`)** | `Enum` | Sí | Estado después del cambio. |
+| **Motivo (`reason`)** | `string` max 1000 | No | Justificación del cambio de estado. |
+| **Cambiado Por (`changedByUserId`)** | `string` max 450 | Automático | ID del usuario que realizó el cambio. |
+| **Nombre del Usuario (`changedByUserName`)** | `string` max 300 | Automático | Nombre visible del usuario. |
+| **Fecha del Cambio (`changedAt`)** | `datetime` | Automático | Fecha y hora del cambio. |
+
+### 10.9 Reglas de Negocio del Módulo
+
+1. **Generación automática de órdenes preventivas**: El motor `PreventiveMaintenanceEngineService` ejecuta cada 6 horas y genera órdenes de trabajo preventivo con **7 días de anticipación** (configurable) según el plan de mantenimiento de cada bien. Las órdenes se crean en estado `PendingAssignment` o `Assigned` (si el plan tiene proveedor preferido).
+
+2. **Alerta de orden sin asignar**: Si una orden de trabajo preventivo llega a su fecha de ejecución sin haber sido asignada a un proveedor, el sistema genera una **alerta crítica** visible en el dashboard.
+
+3. **Recálculo de próxima fecha**: Al completar una orden de trabajo preventivo, el sistema calcula la fecha del próximo mantenimiento sumando la **frecuencia configurada** a la **fecha de ejecución real** (no a la fecha programada) para evitar que los retrasos acumulen desfases.
+
+4. **Bloqueo de bienes fuera de servicio**: Un bien marcado como `OutOfService` debe aparecer en el tablero de alertas y **impedir** que esa zona o equipo sea reservada en el módulo de Reservas. Si el bien es esencial, la alerta se **escala al Consejo de Administración**.
+
+5. **Imputación automática de costos**: El costo real de cada orden de trabajo debe imputarse a la cuenta presupuestal configurada, generando el asiento contable correspondiente sin intervención manual del contador.
+
+6. **Alerta de desviación de costo**: Si el costo real supera el costo estimado en más del **20%**, el sistema alerta al administrador y al consejo antes de confirmar el registro del gasto.
+
+7. **Actualización automática de PQR**: Una orden de trabajo originada desde una PQR de residente actualiza automáticamente el estado de esa PQR a `Responded` cuando la orden es completada, notificando al residente.
+
+8. **Historial inmutable**: El historial completo de mantenimientos de cada bien se conserva indefinidamente como evidencia ante posibles reclamaciones de responsabilidad civil.
+
+9. **Bienes dados de baja**: Los bienes en estado `Decommissioned` permanecen en el sistema con su historial pero marcados como inactivos. No pueden tener nuevos planes ni órdenes de trabajo.
+
+10. **Reporte de mantenimientos programados**: El administrador puede generar reportes para los próximos 30, 60 o 90 días mostrando el costo estimado total por período y comparándolo contra el saldo disponible en la cuenta presupuestal correspondiente.
+
+11. **Registro de siniestros**: Si el conjunto registra un siniestro (inundación, incendio, daño estructural), el administrador puede crear un evento que agrupe todas las órdenes de trabajo relacionadas, el valor total del daño y la referencia a la póliza de seguro del contrato registrado en el módulo de Proveedores.
+
+---
+
 ## 10. Estándar de Campos en Frontend
 
 Esta sección define el estándar visual y de validación para todos los formularios del sistema.

@@ -22,9 +22,10 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 10. [Módulo de Configuración](#10-módulo-de-configuración)
 11. [Módulo PQR](#11-módulo-pqr)
 12. [Módulo de Proveedores y Contratos](#12-módulo-de-proveedores-y-contratos)
-13. [Roles y Permisos](#13-roles-y-permisos)
-14. [Preguntas Frecuentes](#14-preguntas-frecuentes)
-15. [Glosario](#15-glosario)
+13. [Módulo de Mantenimiento y Zonas Comunes](#13-módulo-de-mantenimiento-y-zonas-comunes)
+14. [Roles y Permisos](#14-roles-y-permisos)
+15. [Preguntas Frecuentes](#15-preguntas-frecuentes)
+16. [Glosario](#16-glosario)
 
 ---
 
@@ -45,6 +46,9 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 - Gestionar proveedores, contratos, facturas y pagos
 - Evaluar el desempeño de proveedores con scoring
 - Configurar retenciones y umbrales de aprobación
+- Gestionar el inventario de bienes comunes y su mantenimiento
+- Programar planes de mantenimiento preventivo y generar órdenes de trabajo
+- Registrar y dar seguimiento a siniestros (inundaciones, incendios, daños estructurales)
 - Configurar los datos legales y financieros del conjunto
 
 ### 1.2 Requisitos técnicos
@@ -903,7 +907,219 @@ Si el valor del contrato no cae en ningún rango configurado, el nivel por defec
 
 ---
 
-## 13. Roles y Permisos
+## 13. Módulo de Mantenimiento y Zonas Comunes
+
+Gestión integral del inventario físico de bienes comunes, planes de mantenimiento preventivo, órdenes de trabajo correctivo y registro de siniestros. Este módulo protege el patrimonio colectivo de los copropietarios y garantiza que las zonas comunes se conserven en condiciones óptimas.
+
+### 13.1 Inventario de Bienes Comunes
+
+**Ruta:** `Mantenimiento > Inventario`
+
+Pantalla principal que muestra el inventario completo de bienes del conjunto. Permite buscar, filtrar y acceder al detalle de cada bien.
+
+**Indicadores en tarjetas:**
+- Total Bienes
+- Operativos
+- En Mantenimiento
+- Fuera de Servicio
+
+**Filtros:**
+- **Estado**: Todos, Operativos, En Mantenimiento, Fuera de Servicio, Dados de Baja.
+- **Categoría**: Estructura, Equipos Eléctricos, Equipos Hidráulicos, Equipos de Seguridad, Zonas Recreativas, Zonas Verdes.
+- **Es Esencial**: Filtrar solo bienes esenciales (cuya afectación compromete seguridad o habitabilidad).
+- **Búsqueda libre**: Por nombre, ubicación, marca o modelo.
+
+### 13.2 Registrar Nuevo Bien Común
+
+**Ruta:** `Mantenimiento > Nuevo Bien`
+
+| Sección | Campos Obligatorios | Descripción |
+|---------|---------------------|-------------|
+| **Información del Bien** | Nombre, Categoría, Ubicación, Es Esencial | Datos de identificación y clasificación del bien. |
+| **Especificaciones Técnicas** | (Ninguno obligatorio) | Marca, modelo, número de serie, fecha de adquisición, valor de adquisición, vida útil estimada. |
+| **Proveedor de Referencia** | (Ninguno obligatorio) | Proveedor o fabricante de referencia para mantenimiento. |
+| **Garantía** | (Ninguno obligatorio) | Indicador de garantía vigente y fecha de vencimiento. |
+| **Notas** | (Ninguno obligatorio) | Observaciones sobre el estado actual del bien. |
+
+**Reglas:**
+- Los bienes esenciales (ascensores, bombas, sistemas de seguridad) generan alertas de prioridad alta al dañarse.
+- Un bien fuera de servicio no puede ser reservado en el módulo de Reservas.
+- Si el bien es esencial y queda fuera de servicio, la alerta se escala al Consejo de Administración.
+
+### 13.3 Detalle del Bien Común
+
+**Ruta:** `Mantenimiento > [Bien]`
+
+Página de detalle del bien organizada en 5 pestañas:
+
+#### Información
+Datos completos del bien: categoría, ubicación, especificaciones, proveedor, garantía, estado actual. Incluye botón para cambiar el estado (con registro automático en el historial).
+
+#### Fotografías
+Galería de imágenes del bien en el tiempo. Permite subir nuevas fotografías con fecha de captura y descripción. Útil para documentar el deterioro o mejora progresiva.
+
+#### Planes de Mantenimiento
+Lista de planes preventivos activos para este bien. Cada plan muestra: tipo de actividad, frecuencia en días, costo estimado, proveedor preferido y fecha del próximo mantenimiento. Botón "Nuevo Plan" para crear uno vinculado.
+
+#### Órdenes de Trabajo
+Historial de todas las órdenes de trabajo (preventivas y correctivas) asociadas al bien. Incluye filtros por estado y tipo.
+
+#### Historial de Estados
+Registro cronológico de cada cambio de estado del bien con fecha, motivo y usuario responsable. Inmutable como evidencia ante reclamaciones.
+
+### 13.4 Planes de Mantenimiento Preventivo
+
+**Ruta:** `Mantenimiento > [Bien] > Planes > Nuevo Plan`
+
+| Campo | Obligatorio | Descripción |
+|-------|-------------|-------------|
+| **Tipo de Actividad** | Sí | Lubricación, Calibración, Inspección, Limpieza, Cambio de Filtro, Cambio de Aceite, Revisión General, Prueba, Pintura, Paisajismo, Otro. |
+| **Descripción** | Sí | Descripción detallada de la actividad a realizar. |
+| **Frecuencia (días)** | Sí | Intervalo en días entre cada mantenimiento. El sistema genera órdenes automáticamente. |
+| **Proveedor Preferido** | No | Proveedor preferido para ejecutar esta actividad. |
+| **Costo Estimado** | No | Costo estimado por intervención para efectos presupuestales. |
+| **Requiere Suspensión del Servicio** | Sí | Indica si el servicio debe suspenderse durante la ejecución. |
+| **Horas Fuera de Servicio** | No | Estimado de tiempo fuera de servicio en horas. |
+
+**Reglas:**
+- El motor del sistema genera órdenes de trabajo automáticamente 7 días antes de la fecha programada.
+- Al completar una orden preventiva, la próxima fecha se recalcula sumando la frecuencia a la fecha de ejecución real (no a la programada).
+- Solo los planes activos generan órdenes automáticas.
+
+### 13.5 Órdenes de Trabajo
+
+**Ruta:** `Mantenimiento > Órdenes de Trabajo`
+
+Lista de todas las órdenes de trabajo del conjunto con información resumida: número, tipo, bien, prioridad, proveedor, fechas, estado y costo.
+
+**Indicadores en tarjetas:**
+- Total Órdenes
+- Pendientes de Asignación
+- En Ejecución
+- Completadas
+
+**Filtros:**
+- **Estado**: Pendiente de Asignación, Asignada, En Ejecución, Completada, Cancelada.
+- **Tipo**: Preventivo, Correctivo.
+- **Prioridad**: Emergencia, Alta, Media, Baja.
+- **Origen**: Automática, Reporte del Administrador, PQR de Residente.
+- **Búsqueda libre**: Por descripción, bien o proveedor.
+
+### 13.6 Registrar Orden de Trabajo
+
+**Ruta:** `Mantenimiento > Nueva Orden de Trabajo`
+
+| Sección | Campos Obligatorios | Descripción |
+|---------|---------------------|-------------|
+| **Información de la Orden** | Tipo, Bien, Descripción, Prioridad | Seleccione si es preventiva o correctiva, el bien afectado y describa el trabajo. |
+| **Asignación** | (Ninguno obligatorio) | Proveedor asignado, fecha programada de ejecución. |
+| **Costos y Contabilidad** | (Ninguno obligatorio) | Costo estimado, cuenta presupuestal del PUC a imputar. |
+
+**Reglas:**
+- Si la orden es correctiva originada desde una PQR, seleccione la PQR en el campo correspondiente.
+- Las órdenes de emergencia aplican solo a bienes esenciales.
+- El sistema genera automáticamente órdenes preventivas según los planes configurados.
+
+### 13.7 Detalle de Orden de Trabajo
+
+**Ruta:** `Mantenimiento > [Orden]`
+
+Página de detalle con las siguientes secciones:
+
+**Actualizar Estado:** Cambia el estado de la orden según las transiciones permitidas:
+- Pendiente de Asignación → Asignada (requiere proveedor)
+- Asignada → En Ejecución (se asigna fecha de inicio automáticamente)
+- En Ejecución → Completada (se asigna fecha de fin automáticamente)
+- Cualquier estado → Cancelada
+
+**Asignación de Proveedor:** Seleccione o cambie el proveedor encargado de ejecutar el trabajo.
+
+**Registro de Costos:** Ingrese el costo real de la intervención. Si supera el costo estimado en más del 20%, el sistema genera una alerta de desviación.
+
+**Resultado:** Registre el resultado de la intervención (Resuelto, Resuelto Parcialmente, No Resuelto) con notas justificativas.
+
+**Evidencia Fotográfica:** Suba fotografías antes y después de la intervención para documentar el trabajo realizado.
+
+**Reglas de negocio:**
+- Al completar una orden preventiva, el sistema recalcula la próxima fecha del plan sumando la frecuencia a la fecha de ejecución real.
+- Al completar una orden originada desde una PQR, el sistema actualiza automáticamente el estado de la PQR a "Respondida".
+- Si el costo real supera el estimado en más del 20%, se alerta al administrador antes de confirmar.
+
+### 13.8 Panel de Fuera de Servicio
+
+**Ruta:** `Mantenimiento > Fuera de Servicio`
+
+Muestra todos los bienes con estado `Fuera de Servicio` organizados por prioridad. Este panel se actualiza automáticamente y sirve como tablero de alertas.
+
+**Indicadores:**
+- Total Fuera de Servicio
+- Bienes Esenciales Afectados
+- Promedio Días Fuera de Servicio
+
+**Funcionalidades:**
+- Acceso directo al detalle de cada bien para actualizar su estado.
+- Si un bien esencial está fuera de servicio, se muestra alerta destacada con escalación al Consejo de Administración.
+- Los bienes fuera de servicio aparecen bloqueados en el módulo de Reservas.
+
+### 13.9 Registro de Siniestros
+
+**Ruta:** `Mantenimiento > Siniestros`
+
+Lista de todos los siniestros registrados (inundaciones, incendios, daños estructurales, fallas eléctricas u otros).
+
+**Filtros:**
+- **Estado**: Abierto, Cerrado.
+- **Tipo**: Inundación, Incendio, Daño Estructural, Falla Eléctrica, Otro.
+- **Búsqueda libre**: Por nombre o descripción.
+
+### 13.10 Crear Siniestro
+
+**Ruta:** `Mantenimiento > Nuevo Siniestro`
+
+| Sección | Campos Obligatorios | Descripción |
+|---------|---------------------|-------------|
+| **Información del Siniestro** | Nombre, Tipo, Fecha de Ocurrencia | Datos básicos del evento. |
+| **Daño** | (Ninguno obligatorio) | Valor total estimado del daño en COP. |
+| **Seguro** | (Ninguno obligatorio) | Número de póliza, aseguradora, archivo de la póliza digitalizada. |
+| **Órdenes Vinculadas** | (Ninguno obligatorio) | Seleccione las órdenes de trabajo existentes que se relacionan con este siniestro. |
+
+**Reglas:**
+- Las órdenes de trabajo vinculadas deben pertenecer al mismo conjunto.
+- Una orden solo puede pertenecer a un siniestro a la vez.
+- El número de póliza se puede vincular con los contratos de seguros registrados en el módulo de Proveedores.
+
+### 13.11 Detalle de Siniestro
+
+**Ruta:** `Mantenimiento > [Siniestro]`
+
+Página de detalle con tres secciones:
+
+**Información:** Datos del siniestro, tipo, fecha, valor del daño y estado. Botón para cambiar el estado (Abierto/Cerrado).
+
+**Órdenes Vinculadas:** Lista de órdenes de trabajo asociadas al siniestro. Botón para vincular nuevas órdenes existentes.
+
+**Datos de Seguro:** Información de la póliza de seguro, aseguradora y archivo digitalizado de la póliza.
+
+### 13.12 Reportes de Mantenimiento
+
+**Ruta:** `Mantenimiento > Reportes`
+
+Permite generar reportes de mantenimientos programados para los próximos 30, 60 o 90 días.
+
+**Funcionalidades:**
+- Seleccione el período de proyección (30, 60 o 90 días).
+- El reporte muestra: bien, plan, actividad, fecha programada, costo estimado y proveedor.
+- Incluye el costo total estimado por período y la comparación con el saldo disponible en la cuenta presupuestal correspondiente.
+- Permite exportar el reporte para impresión o envío al Consejo de Administración.
+
+**Uso principal:**
+- Planificación presupuestal: Anticipar los costos de mantenimiento para los próximos meses.
+- Toma de decisiones: Evaluar si el saldo presupuestal es suficiente o si se requiere una cuota extraordinaria.
+- Reporte al Consejo: Presentar la proyección de gastos en la asamblea ordinaria.
+
+---
+
+## 14. Roles y Permisos
 
 El sistema cuenta con los siguientes roles:
 
@@ -916,7 +1132,7 @@ El sistema cuenta con los siguientes roles:
 | **Auditor** | Acceso de solo lectura a reportes financieros. |
 | **Resident** | Propietario o residente. Acceso solo a su unidad, su estado de cuenta y notificaciones. |
 
-### 13.1 Permisos por módulo
+### 14.1 Permisos por módulo
 
 | Módulo | Admin | Council | Accountant | Auditor | Resident |
 |--------|-------|---------|------------|---------|----------|
@@ -932,10 +1148,11 @@ El sistema cuenta con los siguientes roles:
 | PQR | CRUD | Responder, Alertas | Responder | Lectura | Radicar, Seguimiento |
 | Proveedores | CRUD | Lectura | CRUD | Lectura | — |
 | Contratos | CRUD | Aprobar, Alertas | CRUD | Lectura | — |
+| Mantenimiento | CRUD | Lectura | Lectura | Lectura | — |
 
 ---
 
-## 14. Preguntas Frecuentes
+## 15. Preguntas Frecuentes
 
 **¿Cómo recupero mi contraseña?**
 Actualmente debe contactar al administrador del sistema para restablecerla.
@@ -963,7 +1180,7 @@ Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes p
 
 ---
 
-## 15. Glosario
+## 16. Glosario
 
 | Término | Definición |
 |---------|------------|
@@ -987,6 +1204,12 @@ Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes p
 | **Retención ICA** | Retención del Impuesto de Industria, Comercio y Ocupación que aplica sobre pagos a proveedores. |
 | **Nivel de Aprobación** | Autoridad requerida para aprobar un contrato según su valor (Administrador, Consejo, Asamblea). |
 | **Evaluación de Proveedor** | Valoración periódica del desempeño de un proveedor en 4 criterios (calidad, cumplimiento, precio, post-venta). |
+| **Bien Común** | Activo físico del conjunto destinado al uso y goce de todos los copropietarios (ascensores, bombas, piscinas, zonas verdes, etc.). |
+| **Plan de Mantenimiento** | Definición periódica de actividades preventivas para conservar un bien común en óptimas condiciones. |
+| **Orden de Trabajo** | Registro formal de una intervención de mantenimiento (preventivo o correctivo) sobre un bien común. |
+| **Siniestro** | Evento extraordinario (inundación, incendio, daño estructural) que afecta bienes comunes del conjunto. |
+| **Fuera de Servicio** | Estado de un bien que impide su uso temporal o definitivamente, bloqueando reservas. |
+| **Evidencia Fotográfica** | Registro visual del estado de un bien antes y después de una intervención de mantenimiento. |
 
 ---
 
