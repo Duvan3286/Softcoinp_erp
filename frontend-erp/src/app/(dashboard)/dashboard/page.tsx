@@ -11,10 +11,11 @@ import dashboardService, {
   DashboardData, AlertDto, UpcomingEventDto, RecentActivityDto,
   UnitMoraDto, MonthlyCollectionDto, UnitSummaryDto
 } from '@/lib/dashboard-service';
+import pqrService from '@/lib/pqr-service';
 import {
   Loader2, AlertTriangle, DollarSign, Calendar, Activity,
   Building2, Users, TrendingUp, PiggyBank, FileText,
-  CheckCircle2, Clock, Wallet, RefreshCw, LogOut
+  CheckCircle2, Clock, Wallet, RefreshCw, LogOut, MessageSquare
 } from 'lucide-react';
 
 const formatCurrency = (val: number) =>
@@ -60,13 +61,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [pqrAlertCount, setPqrAlertCount] = useState(0);
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError('');
     try {
-      const result = await dashboardService.getDashboard();
+      const [result, pqrAlerts] = await Promise.all([
+        dashboardService.getDashboard(),
+        pqrService.getActiveAlerts().catch(() => [] as any[]),
+      ]);
       setData(result);
+      setPqrAlertCount(pqrAlerts.length);
     } catch {
       setError('Error al cargar datos del dashboard.');
     } finally {
@@ -135,8 +141,9 @@ export default function DashboardPage() {
             <div className="lg:col-span-2">
               <CollectionChart data={data.monthlyCollection} />
             </div>
-            <div>
+            <div className="space-y-4">
               <AlertsPanel alerts={data.alerts} />
+              <PqrAlertsCard alertCount={pqrAlertCount} />
             </div>
           </div>
 
@@ -284,6 +291,45 @@ function CollectionChart({ data }: { data: MonthlyCollectionDto[] }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PqrAlertsCard({ alertCount }: { alertCount: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg">Alertas PQR</h3>
+          <MessageSquare className="w-5 h-5 text-emerald-600" />
+        </div>
+      </CardHeader>
+      <CardContent className="p-4">
+        {alertCount > 0 ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-rose-600" />
+            </div>
+            <div>
+              <p className="text-xl font-black text-rose-600">{alertCount}</p>
+              <p className="text-xs text-muted-foreground">alerta{alertCount !== 1 ? 's' : ''} activa{alertCount !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-lg font-black text-emerald-600">Sin alertas</p>
+              <p className="text-xs text-muted-foreground">todas las PQR en término</p>
+            </div>
+          </div>
+        )}
+        <a href="/pqr" className="mt-3 block text-xs font-semibold text-emerald-600 hover:text-emerald-800 transition-colors">
+          Ir a Bandeja PQR →
+        </a>
       </CardContent>
     </Card>
   );

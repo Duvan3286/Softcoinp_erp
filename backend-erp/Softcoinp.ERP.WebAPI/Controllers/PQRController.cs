@@ -81,8 +81,6 @@ public class PQRController : BaseController
             query = query.Where(p => !p.IsInternal);
         }
 
-        var now = DateTime.UtcNow;
-
         var list = await query
             .OrderByDescending(p => p.Priority == PQRPriority.High ? 0 :
                                     p.Priority == PQRPriority.Medium ? 1 : 2)
@@ -100,13 +98,20 @@ public class PQRController : BaseController
                 RadiadorName = p.RadiadorName,
                 FiledAt = p.FiledAt,
                 Deadline = p.Deadline,
-                ElapsedPercent = p.Deadline != null
-                    ? (int)((now - p.FiledAt).TotalMinutes * 100 /
-                        Math.Max(1, (p.Deadline.Value - p.FiledAt).TotalMinutes))
-                    : 0,
                 IsInternal = p.IsInternal
             })
             .ToListAsync();
+
+        var now = DateTime.UtcNow;
+        foreach (var item in list)
+        {
+            if (item.Deadline.HasValue)
+            {
+                var elapsed = (now - item.FiledAt).TotalMinutes;
+                var total = (item.Deadline.Value - item.FiledAt).TotalMinutes;
+                item.ElapsedPercent = (int)(elapsed * 100 / Math.Max(1, total));
+            }
+        }
 
         return Ok(list);
     }

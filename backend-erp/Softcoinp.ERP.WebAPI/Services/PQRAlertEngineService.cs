@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
+using Softcoinp.ERP.Domain.Interfaces;
 using Softcoinp.ERP.Infrastructure.Persistence;
 
 namespace Softcoinp.ERP.WebAPI.Services;
@@ -32,7 +34,7 @@ public class PQRAlertEngineService : BackgroundService
         {
             try
             {
-                await ProcessAlertsAsync(stoppingToken);
+                await ProcessAllTenantsAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -43,11 +45,43 @@ public class PQRAlertEngineService : BackgroundService
         }
     }
 
-    private async Task ProcessAlertsAsync(CancellationToken stoppingToken)
+    private async Task ProcessAllTenantsAsync(CancellationToken stoppingToken)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        List<Tenant> tenants;
 
+        using (var masterScope = _scopeFactory.CreateScope())
+        {
+            var masterContext = masterScope.ServiceProvider.GetRequiredService<MasterDbContext>();
+            tenants = await masterContext.Tenants
+                .Where(t => t.IsActive)
+                .ToListAsync(stoppingToken);
+        }
+
+        var serverVersion = new MySqlServerVersion(new Version(8, 0, 0));
+
+        foreach (var tenant in tenants)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var tenantResolver = scope.ServiceProvider.GetRequiredService<ITenantResolver>();
+                tenantResolver.SetCurrentTenant(tenant);
+
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                optionsBuilder.UseMySql(tenant.ConnectionString, serverVersion);
+                using var context = new ApplicationDbContext(optionsBuilder.Options, tenantResolver);
+
+                await ProcessTenantAsync(context, stoppingToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error al procesar alertas para tenant {Tenant}.", tenant.Subdomain);
+            }
+        }
+    }
+
+    private async Task ProcessTenantAsync(ApplicationDbContext context, CancellationToken stoppingToken)
+    {
         var now = DateTime.UtcNow;
 
         var activePqrs = await context.PqrRecords
@@ -76,7 +110,7 @@ public class PQRAlertEngineService : BackgroundService
                 continue;
             }
 
-            var percent = elapsed / total * 100m;
+            var percent = elapsed / total * 100.0;
 
             var hasFiftyAlert = pqr.Alerts.Any(a => a.AlertType == PQRAlertType.FiftyPercent);
             var hasEightyAlert = pqr.Alerts.Any(a => a.AlertType == PQRAlertType.EightyPercent);
@@ -84,7 +118,7 @@ public class PQRAlertEngineService : BackgroundService
 
             bool statusChanged = false;
 
-            if (percent >= 100m && !hasOverdueAlert)
+            if (percent >= 100.0 && !hasOverdueAlert)
             {
                 var alert = new PqrAlert
                 {
@@ -121,7 +155,7 @@ public class PQRAlertEngineService : BackgroundService
                     "PQR {Radicado} vencida. Escalada automáticamente al Consejo.",
                     pqr.RadicadoNumber);
             }
-            else if (percent >= 80m && !hasEightyAlert)
+            else if (percent >= 80.0 && !hasEightyAlert)
             {
                 var alert = new PqrAlert
                 {
@@ -139,7 +173,7 @@ public class PQRAlertEngineService : BackgroundService
                     "PQR {Radicado} al 80% del plazo. Escalada al Consejo de Administración.",
                     pqr.RadicadoNumber);
             }
-            else if (percent >= 50m && !hasFiftyAlert)
+            else if (percent >= 50.0 && !hasFiftyAlert)
             {
                 if (pqr.Status == PQRStatus.Filed || pqr.Status == PQRStatus.UnderReview)
                 {

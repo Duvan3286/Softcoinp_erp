@@ -653,7 +653,7 @@ Acceda a la lista de PQR activas ordenadas por urgencia. Cada PQR muestra:
 - **Número de radicado**, tipo, estado y unidad.
 
 Puede filtrar por:
-- Estado (Radicada, En Revisión, En Gestión, Respondida, Cerrada, Reabierta, Escalada)
+- Estado (Radicada, En Revisión, En Trámite, Respondida, Cerrada, Reabierta, Escalada)
 - Tipo (Petición, Queja, Reclamo)
 - Internas (mostrar/ocultar)
 
@@ -682,7 +682,7 @@ Al abrir una PQR, encuentra:
 | Acción | Nuevo Estado | Cuándo usarlo |
 |--------|-------------|---------------|
 | Revisar | En Revisión | Cuando el administrador abre la PQR para analizarla. |
-| Asignar | En Gestión | Cuando se asigna a un responsable interno. |
+| Asignar | En Trámite | Cuando se asigna a un responsable interno. |
 | Responder | Respondida | Cuando se emite una respuesta formal. |
 | Cerrar | Cerrada | Cuando el radicante confirmó o venció el plazo de confirmación. |
 | Reabrir | Reabierta | Cuando el radicante considera insatisfactoria la respuesta (dentro de 10 días). |

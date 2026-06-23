@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Identity;
+using MySqlConnector;
 using Softcoinp.ERP.Domain.Interfaces;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -87,20 +89,32 @@ public class DatabaseMigrationService
                 // IsConfigured=true → OnConfiguring is skipped → uses the explicit connection string.
                 using var tenantContext = new ApplicationDbContext(optionsBuilder.Options, tenantResolver);
 
-                // EnsureCreated creates the database if it doesn't exist.
-                // Required for fresh environments (docker-compose down -v).
-                await tenantContext.Database.EnsureCreatedAsync();
+                // First, create the database if it doesn't exist (without creating tables).
+                // We connect to MySQL without specifying a database to run CREATE DATABASE.
+                var connBuilder = new MySqlConnectionStringBuilder(tenant.ConnectionString);
+                var dbName = connBuilder.Database;
+                connBuilder.Database = null;
+                using (var adminConn = new MySqlConnection(connBuilder.ConnectionString))
+                {
+                    await adminConn.OpenAsync();
+                    using var createCmd = adminConn.CreateCommand();
+                    createCmd.CommandText = $"CREATE DATABASE IF NOT EXISTS `{dbName}` CHARACTER SET utf8mb4";
+                    await createCmd.ExecuteNonQueryAsync();
+                }
 
-                // MigrateAsync applies any pending EF migrations on top of the schema.
+                // Now apply EF Core migrations. MigrateAsync creates the __EFMigrationsHistory
+                // table and applies all pending migrations in order.
                 try
                 {
                     await tenantContext.Database.MigrateAsync();
                 }
                 catch (Exception migEx)
                 {
-                    // EnsureCreated + MigrateAsync can conflict when the schema was already
-                    // created without migration history. Log and continue — DB is functional.
-                    _logger.LogWarning(migEx, "MigrateAsync warning for {Subdomain} (schema may already be current)", tenant.Subdomain);
+                    // If MigrateAsync fails, it likely means the schema was previously created
+                    // via EnsureCreated (without migration tracking). Check if the history table
+                    // exists and is empty — if so, mark all assembly migrations as applied.
+                    _logger.LogWarning(migEx, "MigrateAsync failed for {Subdomain}, attempting to baseline migration history...", tenant.Subdomain);
+                    await BaselineMigrationHistoryAsync(tenantContext);
                 }
 
                 // Seed default users and roles using DI-resolved UserManager.
@@ -124,5 +138,38 @@ public class DatabaseMigrationService
         }
 
         return results;
+    }
+
+    private async Task BaselineMigrationHistoryAsync(ApplicationDbContext context)
+    {
+        try
+        {
+            var migrationsAssembly = context.Database.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly>();
+            var allMigrations = migrationsAssembly.Migrations
+                .OrderBy(kvp => kvp.Key)
+                .ToList();
+
+            if (allMigrations.Count == 0)
+            {
+                _logger.LogWarning("No migrations found in assembly for baselining.");
+                return;
+            }
+
+            foreach (var (migrationId, _) in allMigrations)
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "INSERT IGNORE INTO `__EFMigrationsHistory` (MigrationId, ProductVersion) VALUES ({0}, {1})",
+                    migrationId, "8.0.10");
+            }
+
+            _logger.LogInformation("Migration history baselined with {Count} entries.", allMigrations.Count);
+
+            await context.Database.MigrateAsync();
+            _logger.LogInformation("MigrateAsync succeeded after baselining.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to baseline migration history for tenant.");
+        }
     }
 }

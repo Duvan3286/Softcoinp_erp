@@ -671,7 +671,7 @@ Solicitud formal dirigida a la administración del conjunto. Clasificada en Peti
 | **Tipo (`pqrType`)** | `Enum` string | Sí | `Request` (Petición) · `Complaint` (Queja) · `Claim` (Reclamo). |
 | **Categoría (`category`)** | `Enum` string | Sí | `Billing` · `Maintenance` · `Coexistence` · `CommonAreas` · `Administration` · `Other`. |
 | **Estado (`status`)** | `Enum` string | Sí | `Filed` · `UnderReview` · `InManagement` · `Responded` · `Closed` · `Reopened` · `Escalated`. |
-| **Prioridad (`priority`)** | `Enum` string | Sí | `High` · `Medium` · `Low`. Por defecto `Medium`. |
+| **Prioridad (`priority`)** | `Enum` string | Sí | `Low` · `Normal` · `High` · `Urgent`. Por defecto `Normal`. |
 | **Asunto (`subject`)** | `string` max 300 | Sí | Título breve de la solicitud. |
 | **Descripción (`description`)** | `string` max 4000 | Sí | Texto libre con el detalle de la solicitud. |
 | **Nombre del Radicante (`radiadorName`)** | `string` max 300 | Sí | Nombre de la persona que radica la PQR. |
@@ -681,7 +681,7 @@ Solicitud formal dirigida a la administración del conjunto. Clasificada en Peti
 | **Propietario (`ownerId`)** | `Guid?` FK | No | Referencia al propietario si está registrado. |
 | **Arrendatario (`tenantResidentId`)** | `Guid?` FK | No | Referencia al arrendatario si está registrado. |
 | **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad desde la cual se radica la PQR. |
-| **Canal (`channel`)** | `Enum` string | Sí | `WebPortal` · `Email` · `InPerson` · `Verbal`. |
+| **Canal (`channel`)** | `Enum` string | Sí | `InPerson` · `Email` · `Phone` · `Web` · `WhatsApp` · `Letter` · `Other`. |
 | **PQR Relacionada (`relatedPQRId`)** | `Guid?` FK | No | Referencia a otra PQR anterior relacionada. |
 | **Asignado A (`assignedToUserId`)** | `string` max 450 | No | ID del usuario interno responsable de atender la PQR. |
 | **Fecha Límite (`deadline`)** | `datetime` | No | Fecha límite de respuesta calculada en días hábiles según configuración. |
@@ -854,3 +854,64 @@ Alertas generadas automáticamente por el motor de vencimiento de tiempos.
 | `erp_pqr_files` | PQR | Archivos adjuntos de PQR, respuestas y notas internas |
 | `erp_pqr_time_configs` | PQR | Configuración de días hábiles por tipo de PQR |
 | `erp_pqr_alerts` | PQR | Alertas generadas por vencimiento de tiempos |
+
+---
+
+## 9. Estándar de Campos en Frontend
+
+Esta sección define el estándar visual y de validación para todos los formularios del sistema.
+
+### 9.1 Estilo de Inputs de Texto y Selects
+
+Todos los campos de texto y selects deben usar la siguiente clase base:
+
+```
+w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none
+```
+
+- **`border-b border-emerald-600/30`**: Borde inferior tenue (30% opacidad) para un diseño limpio.
+- **`focus:border-emerald-600`**: Al enfocar, el borde inferior se vuelve sólido.
+- **`text-sm font-medium`**: Texto pequeño con peso medio.
+- **`py-2`**: Espaciado vertical estándar.
+- **`outline-none`**: Sin contorno nativo del navegador.
+
+### 9.2 Estilo de Textareas
+
+```
+w-full bg-slate-50 dark:bg-slate-900 border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none resize-none
+```
+
+### 9.3 Etiquetas
+
+```
+block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5
+```
+
+- Texto pequeño (`text-xs`), bold, mayúsculas sostenidas, color secundario.
+
+### 9.4 Restricciones por Tipo de Campo
+
+| Tipo de Campo | Atributos HTML | Uso |
+|---------------|----------------|-----|
+| **Texto corto** (nombre, asunto) | `maxLength={200}` | Nombres, asuntos breves |
+| **Texto mediano** (asunto largo) | `maxLength={500}` | Asuntos de PQR, títulos |
+| **Texto largo** (descripción) | `maxLength={4000}` | Cuerpo de descripciones |
+| **Número de documento** | `maxLength={20}` | IDs, números de documento |
+| **Contacto** (tel/email) | `maxLength={200}` | Correos, teléfonos |
+| **Select obligatorio** | `required` + option vacío con "Seleccione..." | Cuando el usuario debe escoger un valor |
+| **Checkbox** | `className="accent-emerald-600 w-5 h-5"` | Palancas de opción binaria |
+
+### 9.5 Botones
+
+| Variante | Clase | Uso |
+|----------|-------|-----|
+| Primario | `<Button variant="primary">` | Acción principal del formulario |
+| Secundario | `<Button variant="secondary">` | Acción secundaria (ej. simular) |
+| Ghost | `<Button variant="ghost">` | Cancelar, acciones de baja jerarquía |
+
+### 9.6 Validación en Formularios
+
+1. **Validación cliente**: Siempre validar campos obligatorios antes de enviar con `if (!campo) { setError('Mensaje'); return; }`.
+2. **Errores**: Mostrar en un contenedor `bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2` con icono `AlertTriangle`.
+3. **Carga**: Usar `<Loader2 className="w-6 h-6 animate-spin text-emerald-600" />` centrado.
+4. **Deshabilitado**: Botón de submit debe mostrar `disabled={submitting}` y spinner mientras se envía.

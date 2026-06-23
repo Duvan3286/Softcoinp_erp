@@ -10,6 +10,7 @@ import {
   Database,
   Settings,
   ChevronRight,
+  MessageSquare,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -50,6 +51,7 @@ export const Sidebar = () => {
     if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('accounting') || pathname.includes('budgets') || pathname.includes('contingency-fund')) setOpenGroup('finanzas');
     else if (pathname.includes('users') || pathname.includes('integrations')) setOpenGroup('admin');
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
+    else if (pathname.startsWith('/pqr')) setOpenGroup('pqr');
     // Close sidebar on mobile when navigating
     setIsOpen(false);
   }, [pathname, setIsOpen]);
@@ -113,6 +115,18 @@ export const Sidebar = () => {
             isExpanded={isExpanded}
             router={router}
           />
+
+          <NavGroup
+            icon={<MessageSquare className="w-5 h-5" />}
+            text="PQR"
+            isOpen={openGroup === 'pqr'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('pqr')}
+          >
+            <NavItem text="Bandeja PQR" path="/pqr" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Radicar PQR" path="/pqr/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Indicadores" path="/pqr/indicators" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
 
           <NavGroup
             icon={<Users className="w-5 h-5" />}
