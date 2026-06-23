@@ -21,9 +21,10 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 9. [Módulo de Cuotas y Cartera](#9-módulo-de-cuotas-y-cartera)
 10. [Módulo de Configuración](#10-módulo-de-configuración)
 11. [Módulo PQR](#11-módulo-pqr)
-12. [Roles y Permisos](#12-roles-y-permisos)
-13. [Preguntas Frecuentes](#13-preguntas-frecuentes)
-14. [Glosario](#14-glosario)
+12. [Módulo de Proveedores y Contratos](#12-módulo-de-proveedores-y-contratos)
+13. [Roles y Permisos](#13-roles-y-permisos)
+14. [Preguntas Frecuentes](#14-preguntas-frecuentes)
+15. [Glosario](#15-glosario)
 
 ---
 
@@ -41,6 +42,9 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 - Registrar asientos contables y generar reportes financieros
 - Administrar el presupuesto anual y el fondo de imprevistos (Ley 675 de 2001)
 - Expedir paz y salvos y estados de cuenta
+- Gestionar proveedores, contratos, facturas y pagos
+- Evaluar el desempeño de proveedores con scoring
+- Configurar retenciones y umbrales de aprobación
 - Configurar los datos legales y financieros del conjunto
 
 ### 1.2 Requisitos técnicos
@@ -741,7 +745,165 @@ Los residentes pueden:
 
 ---
 
-## 12. Roles y Permisos
+## 12. Módulo de Proveedores y Contratos
+
+Gestión integral de proveedores, contratos, facturas, pagos, evaluaciones de desempeño y configuración de retenciones.
+
+### 12.1 Bandeja de Proveedores
+
+**Ruta:** `Proveedores > Proveedores`
+
+La bandeja muestra todos los proveedores registrados con filtros por estado, tipo y búsqueda por nombre o documento.
+
+**Acciones disponibles:**
+- **Nuevo Proveedor**: Crea un nuevo proveedor con toda su información.
+- **Ver**: Accede al detalle del proveedor con sus contratos y evaluaciones.
+
+**Filtros:**
+- **Estado**: Todos, Activos, Inactivos.
+- **Tipo**: Todos, Natural, Jurídica.
+- **Búsqueda libre**: Por nombre, documento o contacto.
+
+### 12.2 Crear Proveedor
+
+**Ruta:** `Proveedores > Nuevo Proveedor`
+
+| Sección | Campos Obligatorios | Descripción |
+|---------|---------------------|-------------|
+| **Información del Proveedor** | Tipo, Tipo Documento, Nro. Documento, Razón Social | Datos básicos de identificación. Si el tipo es "Jurídica", se habilitan los campos de Representante Legal. |
+| **Contacto** | (Ninguno obligatorio) | Nombre del contacto, email, teléfono, dirección, ciudad. |
+| **Representante Legal** | (Solo si Tipo = Jurídica) | Tipo y número de documento, nombre, email del representante. |
+
+**Reglas:**
+- El número de documento debe ser único por conjunto.
+- Para tipos numéricos (CC, NIT), solo se permiten dígitos.
+- Se puede marcar como "Proveedor Preferido" para identificación rápida.
+
+### 12.3 Detalle del Proveedor
+
+**Ruta:** `Proveedores > [Proveedor]`
+
+Muestra toda la información del proveedor organizada en secciones:
+
+- **Información del Proveedor**: Datos básicos, tipo, documento, actividad económica.
+- **Contacto**: Email, teléfono, dirección, ciudad.
+- **Representante Legal**: Solo si el tipo es Jurídica.
+- **Contratos**: Lista de contratos asociados con valor, fechas y estado. Botón "Nuevo Contrato" para crear uno vinculado.
+- **Evaluaciones**: Historial de evaluaciones con puntaje promedio y recomendación. Botón "Evaluar" para crear una nueva evaluación con scoring del 1-5 en 4 criterios.
+
+### 12.4 Bandeja de Contratos
+
+**Ruta:** `Proveedores > Contratos`
+
+ Lista de todos los contratos con información resumida: número, proveedor, tipo, valor, fechas, nivel de aprobación, estado y días hasta vencimiento.
+
+**Indicadores en tarjetas:**
+- Total Contratos
+- Activos
+- Por Vencer (90 días)
+- Con Alertas
+
+**Filtros:**
+- **Estado**: Borrador, Activo, Suspendido, Completado, Terminado, Cancelado.
+- **Tipo**: Contrato de Servicios, Suministro, Obra Civil, Arrendamiento.
+- **Búsqueda libre**: Por número, objeto o proveedor.
+
+### 12.5 Crear Contrato
+
+**Ruta:** `Proveedores > Nuevo Contrato`
+
+| Sección | Campos Obligatorios | Descripción |
+|---------|---------------------|-------------|
+| **Información del Contrato** | Proveedor, Nro. Contrato, Tipo, Objeto | Seleccione el proveedor, defina el tipo y describa el objeto del contrato. |
+| **Vigencia y Valores** | Valor Total, Fecha Inicio, Fecha Fin | Defina el valor, las fechas de vigencia y si es recurrente o tiene renovación automática. |
+
+**Reglas:**
+- El nivel de aprobación se determina automáticamente según los umbrales configurados.
+- Para contratos con aprobación de Consejo o Asamblea, se requiere el número de acta al activar.
+- Solo los contratos en estado Borrador pueden editarse o eliminarse.
+
+### 12.6 Detalle del Contrato
+
+**Ruta:** `Proveedores > [Contrato]`
+
+Muestra toda la información del contrato:
+
+- **Información del Contrato**: Proveedor, tipo, objeto, valor total, mensual, fechas, nivel de aprobación, actas.
+- **Alertas**: Alertas activas de vencimiento, pólizas o renovación. Cada alerta puede resolverse individualmente.
+- **Pólizas de Seguro**: Lista de pólizas asociadas. Botón "Agregar Póliza" para registrar una nueva.
+- **Facturas**: Lista de facturas del proveedor con retenciones, pagos y estado.
+- **Resumen**: Estado, valores, cantidad de pólizas, facturas y alertas.
+
+**Acciones de estado:**
+- **Activar** (desde Borrador): Valida que se tenga el acta de aprobación si aplica.
+- **Suspender** (desde Activo): Requiere justificación.
+- **Terminar** (desde Activo/Suspendido): Requiere justificación.
+- **Eliminar** (solo Borrador): Elimina el contrato permanentemente.
+
+### 12.7 Indicadores de Proveedores
+
+**Ruta:** `Proveedores > Indicadores`
+
+Dashboard ejecutivo con 10 KPIs:
+
+| Indicador | Descripción |
+|-----------|-------------|
+| Total Proveedores | Cantidad total de proveedores registrados |
+| Proveedores Activos | Proveedores con estado Activo |
+| Proveedores Preferidos | Proveedores marcados como preferidos |
+| Total Contratos | Cantidad total de contratos |
+| Contratos Activos | Contratos en estado Activo |
+| Contratos por Vencer | Contratos activos con ≤90 días para vencer |
+| Facturas Pendientes | Facturas en estado Pendiente |
+| Facturas Vencidas | Facturas con estado Vencida |
+| Pólizas por Vencer | Pólizas con ≤30 días para vencer |
+| Alertas Activas | Alertas de contratos sin resolver |
+
+También muestra valores monetarios: Valor total de contratos activos, valor mensual, y monto de facturas pendientes.
+
+### 12.8 Motor de Alertas de Contratos
+
+El sistema ejecuta un servicio en segundo plano cada 6 horas que genera automáticamente:
+
+| Tipo de Alerta | Condición | Escalada al Consejo |
+|----------------|-----------|---------------------|
+| Vencimiento 90 días | Contrato activo con ≤90 días para vencer | No |
+| Vencimiento 30 días | Contrato activo con ≤30 días para vencer | No |
+| Vencimiento 15 días | Contrato activo con ≤15 días para vencer | Sí |
+| Renovación Automática | Contrato con renovación automática a punto de vencer | No |
+| Póliza por Vencer | Póliza activa con ≤30 días para vencer | No |
+
+Las alertas se pueden resolver manualmente desde el detalle del contrato. Las alertas resueltas con más de 30 días se limpian automáticamente.
+
+### 12.9 Configuración de Retenciones
+
+**Ruta:** `Proveedores > Contratos > Configuración de Retenciones`
+
+Permite configurar las tarifas de retención por tipo de servicio:
+
+| Campo | Descripción |
+|-------|-------------|
+| **Tipo de Servicio** | Categoría del servicio (Mantenimiento, Aseo, etc.) |
+| **Tarifa Retención Fuente** | Porcentaje de retención en la fuente (ej. 2.5%) |
+| **Tarifa Retención ICA** | Porcentaje de retención ICA (ej. 0.28%) |
+
+### 12.10 Umbrales de Aprobación
+
+**Ruta:** `Proveedores > Contratos > Umbrales de Aprobación`
+
+Configura los rangos de valor para determinar qué nivel aprueba un contrato:
+
+| Nivel | Descripción |
+|-------|-------------|
+| **Administrador** | Contratos menores al umbral mínimo del Consejo |
+| **Consejo** | Contratos dentro del rango del Consejo de Administración |
+| **Asamblea** | Contratos superiores al umbral del Consejo |
+
+Si el valor del contrato no cae en ningún rango configurado, el nivel por defecto es Administrador.
+
+---
+
+## 13. Roles y Permisos
 
 El sistema cuenta con los siguientes roles:
 
@@ -754,7 +916,7 @@ El sistema cuenta con los siguientes roles:
 | **Auditor** | Acceso de solo lectura a reportes financieros. |
 | **Resident** | Propietario o residente. Acceso solo a su unidad, su estado de cuenta y notificaciones. |
 
-### 11.1 Permisos por módulo
+### 13.1 Permisos por módulo
 
 | Módulo | Admin | Council | Accountant | Auditor | Resident |
 |--------|-------|---------|------------|---------|----------|
@@ -768,10 +930,12 @@ El sistema cuenta con los siguientes roles:
 | Cuotas y Cartera | CRUD | — | CRUD | Lectura | Su estado de cuenta |
 | Configuración | CRUD | — | — | — | — |
 | PQR | CRUD | Responder, Alertas | Responder | Lectura | Radicar, Seguimiento |
+| Proveedores | CRUD | Lectura | CRUD | Lectura | — |
+| Contratos | CRUD | Aprobar, Alertas | CRUD | Lectura | — |
 
 ---
 
-## 13. Preguntas Frecuentes
+## 14. Preguntas Frecuentes
 
 **¿Cómo recupero mi contraseña?**
 Actualmente debe contactar al administrador del sistema para restablecerla.
@@ -799,7 +963,7 @@ Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes p
 
 ---
 
-## 14. Glosario
+## 15. Glosario
 
 | Término | Definición |
 |---------|------------|
@@ -816,6 +980,13 @@ Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes p
 | **PQR** | Petición, Queja o Reclamo. Solicitud formal del residente a la administración. |
 | **Radicado** | Número único de identificación de una PQR. Formato `PQR-YYYY-MM-NNNNN`. |
 | **Escalada** | Estado de una PQR que superó su plazo de respuesta o fue elevada al Consejo de Administración. |
+| **Proveedor** | Persona natural o jurídica que presta servicios o suministra bienes al conjunto. |
+| **Contrato** | Acuerdo formal entre el conjunto y un proveedor para la prestación de servicios. |
+| **Póliza de Seguro** | Documento que ampara riesgos asociados a un contrato (cumplimiento, responsabilidad civil). |
+| **Retención en la Fuente** | Descuento que retiene el conjunto sobre los pagos a proveedores, conforme a la normativa tributaria. |
+| **Retención ICA** | Retención del Impuesto de Industria, Comercio y Ocupación que aplica sobre pagos a proveedores. |
+| **Nivel de Aprobación** | Autoridad requerida para aprobar un contrato según su valor (Administrador, Consejo, Asamblea). |
+| **Evaluación de Proveedor** | Valoración periódica del desempeño de un proveedor en 4 criterios (calidad, cumplimiento, precio, post-venta). |
 
 ---
 

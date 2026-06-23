@@ -854,10 +854,225 @@ Alertas generadas automáticamente por el motor de vencimiento de tiempos.
 | `erp_pqr_files` | PQR | Archivos adjuntos de PQR, respuestas y notas internas |
 | `erp_pqr_time_configs` | PQR | Configuración de días hábiles por tipo de PQR |
 | `erp_pqr_alerts` | PQR | Alertas generadas por vencimiento de tiempos |
+| `erp_contracts` | Proveedores y Contratos | Contratos con proveedores |
+| `erp_contract_policies` | Proveedores y Contratos | Pólizas de seguro de contratos |
+| `erp_contract_alerts` | Proveedores y Contratos | Alertas de vencimiento y renovación de contratos |
+| `erp_provider_invoices` | Proveedores y Contratos | Facturas registradas por proveedores |
+| `erp_provider_payments` | Proveedores y Contratos | Pagos realizados a proveedores |
+| `erp_provider_evaluations` | Proveedores y Contratos | Evaluaciones de desempeño de proveedores |
+| `erp_retention_configurations` | Proveedores y Contratos | Configuración de retenciones por tipo de servicio |
+| `erp_approval_thresholds` | Proveedores y Contratos | Umbrales de aprobación por nivel (Admin/Consejo/Asamblea) |
 
 ---
 
-## 9. Estándar de Campos en Frontend
+## 9. Módulo de Proveedores y Contratos
+
+Gestión integral de proveedores, contratos, facturas, pagos, evaluaciones y configuración de retenciones. Este módulo permite administrar el ciclo de vida completo de las relaciones contractuales con proveedores y contratistas del conjunto.
+
+### 9.1 Proveedor (`Provider`)
+
+Persona natural o jurídica que presta servicios o suministra bienes al conjunto.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Tenant (`tenantId`)** | `string` max 255 | Automático | Identificador del conjunto. Se hereda del contexto. |
+| **Tipo de Proveedor (`providerType`)** | `Enum` | Sí | `Natural` = Persona Natural · `Legal` = Persona Jurídica. Determina si se muestran campos de representante legal. |
+| **Tipo de Documento (`documentType`)** | `string` max 20 | Sí | Tipo de identificación del proveedor (CC, NIT, CE, Pasaporte). |
+| **Número de Documento (`documentNumber`)** | `string` max 50 | Sí | Número de identificación. Único por tenant. |
+| **Dígito de Verificación (`verificationDigit`)** | `string` max 2 | No | Solo aplica para NIT. Se calcula con módulo 11. |
+| **Razón Social (`businessName`)** | `string` max 300 | Sí | Nombre completo o razón social del proveedor. |
+| **Nombre Comercial (`tradeName`)** | `string` max 300 | No | Nombre comercial o nombre corto. |
+| **Nombre del Contacto (`contactName`)** | `string` max 300 | No | Nombre de la persona de contacto principal. |
+| **Correo Electrónico (`email`)** | `string` max 256 | No | Correo de contacto del proveedor. |
+| **Teléfono (`phone`)** | `string` max 20 | No | Teléfono de contacto. |
+| **Dirección (`address`)** | `string` max 500 | No | Dirección física del proveedor. |
+| **Ciudad (`city`)** | `string` max 100 | No | Ciudad de residencia o sede. |
+| **Actividad Económica (`economicActivity`)** | `string` max 200 | No | Descripción de la actividad económica principal. |
+| **Tipo de Servicio (`serviceType`)** | `string` max 100 | No | Categoría del servicio que presta. Ej. "Mantenimiento", "Aseo", "Seguridad". |
+| **Archivo RUT (`rutFilePath`)** | `string` max 1000 | No | Ruta del archivo del RUT escaneado. |
+| **Tipo Doc. Rep. Legal (`legalRepDocumentType`)** | `string` max 20 | Cond. | Solo si `providerType = Legal`. Tipo de documento del representante. |
+| **Nro. Doc. Rep. Legal (`legalRepDocumentNumber`)** | `string` max 50 | Cond. | Solo si `providerType = Legal`. Número de documento del representante. |
+| **Nombre Rep. Legal (`legalRepName`)** | `string` max 300 | Cond. | Solo si `providerType = Legal`. Nombre completo del representante legal. |
+| **Email Rep. Legal (`legalRepEmail`)** | `string` max 256 | Cond. | Solo si `providerType = Legal`. Correo del representante legal. |
+| **Es Preferido (`isPreferred`)** | `boolean` | Sí | Marca al proveedor como preferido para búsquedas rápidas. |
+| **Estado (`status`)** | `Enum` | Sí | `Active` = Activo · `Inactive` = Inactivo. Los proveedores inactivos no pueden ser asignados a nuevos contratos. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que registró el proveedor. |
+
+> [!IMPORTANT]
+> **Soft delete**: Los proveedores se eliminan lógicamente (`isDeleted = true`). No se borran físicamente de la base de datos para preservar la integridad referencial con contratos, facturas y evaluaciones existentes.
+
+### 9.2 Contrato (`Contract`)
+
+Acuerdo formal entre el conjunto y un proveedor para la prestación de servicios o suministro de bienes.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Proveedor (`providerId`)** | `Guid` FK | Sí | Proveedor asociado al contrato. No se puede cambiar después de creado. |
+| **Número de Contrato (`contractNumber`)** | `string` max 50 | Sí | Código único de identificación del contrato. Único por tenant. |
+| **Tipo de Contrato (`contractType`)** | `Enum` | Sí | `ServiceAgreement` = Contrato de Servicios · `Supply` = Suministro · `CivilWorks` = Obra Civil · `Lease` = Arrendamiento. |
+| **Objeto del Contrato (`objectDescription`)** | `string` max 2000 | Sí | Descripción detallada del objeto, alcance y condiciones del contrato. |
+| **Valor Total (`totalValue`)** | `decimal(18,2)` | Sí | Valor total del contrato en COP. |
+| **Valor Mensual (`monthlyValue`)** | `decimal(18,2)` | Sí | Valor mensual del contrato (para contratos recurrentes). |
+| **Es Recurrente (`isRecurrent`)** | `boolean` | Sí | Indica si el contrato genera obligaciones mensuales periódicas. |
+| **Fecha de Inicio (`startDate`)** | `date` | Sí | Fecha de inicio de vigencia del contrato. |
+| **Fecha de Fin (`endDate`)** | `date` | Sí | Fecha de terminación del contrato. El sistema calcula automáticamente los días restantes. |
+| **Renovación Automática (`hasAutoRenewal`)** | `boolean` | Sí | Si es `true`, el sistema genera alertas antes del vencimiento para revisar la renovación. |
+| **Días de Aviso Renovación (`autoRenewalNoticeDays`)** | `int` | Sí | Días de antelación para generar alerta de renovación automática. Default: 30. |
+| **Nivel de Aprobación (`approvalLevel`)** | `Enum` | Sí | `Administrator` = Administrador · `Council` = Consejo de Administración · `Assembly` = Asamblea. Se determina automáticamente según los umbrales configurados. |
+| **Nro. Acta Consejo (`councilMeetingActNumber`)** | `string` max 100 | Cond. | Obligatorio si `approvalLevel = Council`. Número del acta de aprobación del Consejo. |
+| **Nro. Acta Asamblea (`assemblyMeetingActNumber`)** | `string` max 100 | Cond. | Obligatorio si `approvalLevel = Assembly`. Número del acta de aprobación de la Asamblea. |
+| **Cuenta Presupuestal (`budgetAccountId`)** | `Guid?` FK | No | Cuenta del PUC asociada al contrato (para integración contable). |
+| **Estado (`status`)** | `Enum` | Sí | `Draft` = Borrador · `Active` = Activo · `Suspended` = Suspendido · `Completed` = Completado · `Terminated` = Terminado · `Cancelled` = Cancelado. |
+| **Archivo Contrato Firmado (`signedContractFilePath`)** | `string` max 1000 | No | Ruta del archivo del contrato firmado digitalmente. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó el contrato. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó el contrato. |
+
+#### Transiciones de Estado
+
+| Estado Origen | Estados Permitidos | Requisitos |
+|---------------|-------------------|------------|
+| `Draft` | `Active`, `Cancelled` | Para `Active`: si aprobación es Consejo/Asamblea, debe tener número de acta. |
+| `Active` | `Suspended`, `Terminated` | Requiere justificación del cambio. |
+| `Suspended` | `Active`, `Terminated` | Requiere justificación para reactivar o terminar. |
+| Cualquier otro | — | Estados `Completed`, `Terminated`, `Cancelled` son finales. |
+
+### 9.3 Póliza de Seguro (`ContractPolicy`)
+
+Registro de pólizas de seguro asociadas a un contrato (seguro de cumplimiento, seguro de vida, etc.).
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Contrato (`contractId`)** | `Guid` FK | Sí | Contrato al que pertenece la póliza. |
+| **Número de Póliza (`policyNumber`)** | `string` max 100 | Sí | Número de identificación de la póliza. |
+| **Aseguradora (`insuranceCompany`)** | `string` max 300 | Sí | Nombre de la empresa aseguradora. |
+| **Tipo de Póliza (`policyType`)** | `string` max 100 | Sí | Tipo de cobertura. Ej. "Cumplimiento", "Responsabilidad Civil". |
+| **Valor Asegurado (`insuredAmount`)** | `decimal(18,2)` | Sí | Monto asegurado en COP. |
+| **Fecha de Inicio (`startDate`)** | `date` | Sí | Fecha de inicio de vigencia de la póliza. |
+| **Fecha de Fin (`endDate`)** | `date` | Sí | Fecha de vencimiento de la póliza. El sistema genera alertas cuando faltan 30 días o menos. |
+| **Archivo de Póliza (`filePath`)** | `string` max 1000 | No | Ruta del archivo digitalizado de la póliza. |
+| **Activa (`isActive`)** | `boolean` | Sí | `false` cuando la póliza ha sido reemplazada o vencida. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que registró la póliza. |
+
+### 9.4 Alerta de Contrato (`ContractAlert`)
+
+Alertas generadas automáticamente por el motor de alertas cada 6 horas.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Contrato (`contractId`)** | `Guid` FK | Sí | Contrato asociado a la alerta. |
+| **Tipo de Alerta (`alertType`)** | `Enum` | Sí | `NinetyDaysToExpiration` = Vence en 90 días · `ThirtyDaysToExpiration` = Vence en 30 días · `FifteenDaysToExpiration` = Vence en 15 días · `AutoRenewalWarning` = Renovación Automática · `PolicyExpiring` = Póliza por Vencer. |
+| **Mensaje (`message`)** | `string` max 1000 | Sí | Descripción legible de la alerta. |
+| **Fecha de Generación (`generatedAt`)** | `datetime` | Automático | Fecha y hora en que se generó la alerta. |
+| **Activa (`isActive`)** | `boolean` | Sí | `false` cuando la alerta ha sido resuelta. |
+| **Fecha de Resolución (`resolvedAt`)** | `datetime` | No | Fecha y hora en que se resolvió la alerta. |
+| **Resuelta Por (`resolvedByUserId`)** | `string` max 450 | No | ID del usuario que resolvió la alerta. |
+| **Escalada al Consejo (`escalatedToCouncil`)** | `boolean` | Sí | `true` cuando la alerta requiere intervención del Consejo de Administración (contratos con ≤15 días). |
+
+### 9.5 Factura de Proveedor (`ProviderInvoice`)
+
+Registro de facturas recibidas de proveedores asociadas a contratos.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Proveedor (`providerId`)** | `Guid` FK | Sí | Proveedor emisor de la factura. |
+| **Contrato (`contractId`)** | `Guid?` FK | No | Contrato asociado (si la factura corresponde a un contrato específico). |
+| **Número de Factura (`invoiceNumber`)** | `string` max 100 | Sí | Número de la factura proveedor. |
+| **Fecha de Factura (`invoiceDate`)** | `date` | Sí | Fecha de emisión de la factura. |
+| **Fecha de Vencimiento (`dueDate`)** | `date` | Sí | Fecha límite de pago. |
+| **Subtotal (`subtotal`)** | `decimal(18,2)` | Sí | Valor base antes de impuestos. |
+| **IVA (`ivaAmount`)** | `decimal(18,2)` | Sí | Valor del IVA (19%). |
+| **Retención en la Fuente (`retentionFuelAmount`)** | `decimal(18,2)` | Sí | Valor de retención en la fuente calculado según la configuración del servicio. |
+| **Retención ICA (`retentionIcaAmount`)** | `decimal(18,2)` | Sí | Valor de retención de ICA calculado según la configuración del servicio. |
+| **Valor Neto (`netAmount`)** | `decimal(18,2)` | Sí | `subtotal + ivaAmount - retentionFuelAmount - retentionIcaAmount`. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` = Pendiente · `Paid` = Pagada · `Overdue` = Vencida · `Cancelada`. |
+| **Descripción (`description`)** | `string` max 2000 | No | Detalle de los servicios o productos facturados. |
+| **Archivo Factura (`invoiceFilePath`)** | `string` max 1000 | No | Ruta del archivo digitalizado de la factura. |
+| **Asiento Contable (`accountingEntryId`)** | `Guid?` FK | No | Referencia al asiento contable generado al contabilizar la factura. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que registró la factura. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó la factura. |
+
+### 9.6 Pago a Proveedor (`ProviderPayment`)
+
+Registro de pagos realizados a proveedores para cubrir facturas.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Factura (`invoiceId`)** | `Guid` FK | Sí | Factura a la que se aplica el pago. |
+| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor pagado. No puede superar el saldo pendiente de la factura. |
+| **Fecha de Pago (`paymentDate`)** | `date` | Sí | Fecha en que se realizó el pago. |
+| **Medio de Pago (`paymentMethod`)** | `Enum` | Sí | `Cash` = Efectivo · `BankTransfer` = Transferencia · `Check` = Cheque · `CreditCard` = Tarjeta de Crédito. |
+| **Número de Referencia (`referenceNumber`)** | `string` max 100 | No | Número de consignación, cheque o transacción. |
+| **Cuenta Bancaria (`bankAccount`)** | `string` max 100 | No | Cuenta bancaria desde la que se realizó el pago. |
+| **Notas (`notes`)** | `string` max 1000 | No | Observaciones sobre el pago. |
+| **Comprobante (`receiptFilePath`)** | `string` max 1000 | No | Ruta del comprobante de pago digitalizado. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` = Pendiente · `Completed` = Completado · `Cancelled` = Cancelado. |
+| **Asiento Contable (`accountingEntryId`)** | `Guid?` FK | No | Referencia al asiento contable generado al registrar el pago. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que registró el pago. |
+
+### 9.7 Evaluación de Proveedor (`ProviderEvaluation`)
+
+Evaluación periódica del desempeño de un proveedor en 4 criterios escalados del 1 al 5.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Proveedor (`providerId`)** | `Guid` FK | Sí | Proveedor evaluado. |
+| **Contrato (`contractId`)** | `Guid?` FK | No | Contrato específico evaluado (si aplica). |
+| **Periodo de Evaluación (`evaluationPeriod`)** | `string` max 20 | Sí | Período evaluado. Ej. "2026-Q1", "2026-S1". |
+| **Calidad del Servicio (`serviceQualityScore`)** | `int` | Sí | Puntuación del 1 al 5. Evalúa la calidad técnica del servicio prestado. |
+| **Cumplimiento (`complianceScore`)** | `int` | Sí | Puntuación del 1 al 5. Evalúa el cumplimiento de plazos y condiciones contractuales. |
+| **Fairness del Precio (`priceFairnessScore`)** | `int` | Sí | Puntuación del 1 al 5. Evalúa la razonabilidad de los precios respecto al mercado. |
+| **Post-Venta (`afterSalesScore`)** | `int` | Sí | Puntuación del 1 al 5. Evalúa la calidad del servicio post-venta y garantías. |
+| **Puntaje Promedio (`averageScore`)** | `decimal(3,2)` | Automático | Promedio de los 4 criterios. Se calcula automáticamente: `(suma / 4)`. |
+| **Comentarios (`comments`)** | `string` max 4000 | No | Observaciones adicionales sobre la evaluación. |
+| **Recomendación (`recommendation`)** | `Enum` | Automático | `Renew` (promedio ≥ 4.0) · `EvaluateOtherOptions` (promedio ≥ 2.5) · `DoNotRenew` (promedio < 2.5). Se calcula automáticamente. |
+| **Evaluado Por (`evaluatedByUserId`)** | `string` max 450 | Automático | ID del usuario que realizó la evaluación. |
+| **Nombre Evaluador (`evaluatedByUserName`)** | `string` max 300 | Automático | Nombre del evaluador para display. |
+
+### 9.8 Configuración de Retenciones (`RetentionConfiguration`)
+
+Configuración de las tarifas de retención aplicables a cada tipo de servicio de proveedor.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Tipo de Servicio (`serviceType`)** | `string` max 100 | Sí | Categoría del servicio. Ej. "Mantenimiento", "Aseo". Único por tenant. |
+| **Descripción del Servicio (`serviceDescription`)** | `string` max 500 | No | Descripción detallada del tipo de servicio. |
+| **Tarifa Retención Fuente (`retentionFuelRate`)** | `decimal(5,4)` | Sí | Porcentaje de retención en la fuente. Ej. `0.0250` = 2.5%. |
+| **Tarifa Retención ICA (`retentionIcaRate`)** | `decimal(5,4)` | Sí | Porcentaje de retención de ICA. Ej. `0.0028` = 0.28%. |
+| **Activa (`isActive`)** | `boolean` | Sí | `false` si la configuración fue descontinuada. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó la configuración. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó la configuración. |
+
+### 9.9 Umbral de Aprobación (`ApprovalThreshold`)
+
+Configuración de los rangos de valor para determinar qué nivel de aprobación requiere un contrato.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Nivel de Aprobación (`approvalLevel`)** | `Enum` | Sí | `Administrator` = Administrador · `Council` = Consejo · `Assembly` = Asamblea. Único por tenant. |
+| **Valor Mínimo (`minValue`)** | `decimal(18,2)` | Sí | Límite inferior del rango en COP. |
+| **Valor Máximo (`maxValue`)** | `decimal(18,2)` | Sí | Límite superior del rango en COP. Debe ser mayor que `minValue`. |
+| **Descripción (`description`)** | `string` max 500 | No | Descripción del umbral. Ej. "Contratos menores a 10 SMLMV". |
+| **Activo (`isActive`)** | `boolean` | Sí | `false` si el umbral fue descontinuado. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó el umbral. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó el umbral. |
+
+#### Lógica de Determinación del Nivel
+
+El sistema recorre los umbrales activos ordenados de menor a mayor valor. Si el valor del contrato cae dentro de un rango, se asigna el nivel correspondiente. Si no cae en ningún rango, el nivel por defecto es `Administrator`.
+
+### 9.10 Reglas de Negocio del Módulo
+
+1. **Soft delete en Proveedores**: Los proveedores se eliminan lógicamente. No se pueden eliminar proveedores con contratos activos o en borrador.
+2. **Contratos en Borrador**: Solo los contratos en estado `Draft` pueden editarse o eliminarse. Un contrato activo solo puede suspenderse o terminarse.
+3. **Aprobación de Contratos**: El nivel de aprobación se determina automáticamente al crear el contrato según los umbrales configurados. Para activar un contrato con aprobación de Consejo o Asamblea, se requiere el número de acta correspondiente.
+4. **Renovación Automática**: El motor de alertas genera avisos a los `autoRenewalNoticeDays` días del vencimiento. La renovación no es automática; requiere acción manual del administrador.
+5. **Cálculo de Retenciones**: Las retenciones se calculan sobre el subtotal de la factura usando las tarifas configuradas para el tipo de servicio del contrato.
+6. **Evaluaciones**: El puntaje promedio se calcula como `(calidad + cumplimiento + fairness + post-venta) / 4`. La recomendación se asigna automáticamente: ≥ 4.0 = Renovar, ≥ 2.5 = Evaluar Otras Opciones, < 2.5 = No Renovar.
+7. **Motor de Alertas**: Ejecuta cada 6 horas. Genera alertas de vencimiento (90/30/15 días), pólizas por vencer (30 días), y renovación automática. Limpia alertas resueltas con más de 30 días.
+
+---
+
+## 10. Estándar de Campos en Frontend
 
 Esta sección define el estándar visual y de validación para todos los formularios del sistema.
 
