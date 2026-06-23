@@ -46,7 +46,9 @@ public class InvitationController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         
         // Verificar permisos del usuario actual (SuperAdmin o Admin)
-        var userRoles = await _userManager.GetRolesAsync(await _userManager.FindByIdAsync(userId!));
+        var currentUser = await _userManager.FindByIdAsync(userId!);
+        if (currentUser == null) return BadRequest("Usuario no encontrado.");
+        var userRoles = await _userManager.GetRolesAsync(currentUser);
         var tenantRole = await _db.UserTenantRoles
             .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenant.Id.ToString() && r.IsActive);
 
@@ -208,7 +210,7 @@ public class InvitationController : ControllerBase
         {
             Timestamp = DateTime.UtcNow,
             UserId = user.Id,
-            Email = user.Email,
+            Email = user.Email ?? string.Empty,
             TenantId = invitation.TenantId,
             EventType = AuditEventType.InvitationAccepted,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),

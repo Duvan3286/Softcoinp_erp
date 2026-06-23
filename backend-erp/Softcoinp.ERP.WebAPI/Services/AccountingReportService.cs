@@ -26,13 +26,13 @@ public class AccountingReportService
             .AsQueryable();
 
         if (periodId.HasValue)
-            linesQuery = linesQuery.Where(l => l.AccountingEntry.AccountingPeriodId == periodId.Value);
+            linesQuery = linesQuery.Where(l => l.AccountingEntry!.AccountingPeriodId == periodId.Value);
 
         if (fromDate.HasValue)
-            linesQuery = linesQuery.Where(l => l.AccountingEntry.EntryDate >= fromDate.Value);
+            linesQuery = linesQuery.Where(l => l.AccountingEntry!.EntryDate >= fromDate.Value);
 
         if (toDate.HasValue)
-            linesQuery = linesQuery.Where(l => l.AccountingEntry.EntryDate <= toDate.Value);
+            linesQuery = linesQuery.Where(l => l.AccountingEntry!.EntryDate <= toDate.Value);
 
         var lines = await linesQuery
             .GroupBy(l => l.AccountingAccountId)
@@ -85,17 +85,17 @@ public class AccountingReportService
             .AsQueryable();
 
         if (fromDate.HasValue)
-            linesQuery = linesQuery.Where(l => l.AccountingEntry.EntryDate >= fromDate.Value);
+            linesQuery = linesQuery.Where(l => l.AccountingEntry!.EntryDate >= fromDate.Value);
 
         if (toDate.HasValue)
-            linesQuery = linesQuery.Where(l => l.AccountingEntry.EntryDate <= toDate.Value);
+            linesQuery = linesQuery.Where(l => l.AccountingEntry!.EntryDate <= toDate.Value);
 
         var lines = await linesQuery
-            .OrderBy(l => l.AccountingEntry.EntryDate)
-            .ThenBy(l => l.AccountingEntry.EntryNumber)
+            .OrderBy(l => l.AccountingEntry!.EntryDate)
+            .ThenBy(l => l.AccountingEntry!.EntryNumber)
             .Select(l => new
             {
-                l.AccountingEntry.EntryDate,
+                l.AccountingEntry!.EntryDate,
                 l.AccountingEntry.EntryNumber,
                 l.AccountingEntry.Description,
                 l.AccountingEntry.ExternalReference,
@@ -139,14 +139,14 @@ public class AccountingReportService
         var linesQuery = _context.EntryLines
             .Where(l => l.AccountingEntry!.TenantId == tenantId
                      && l.AccountingEntry.Status == EntryStatus.Final
-                     && l.AccountingAccount.Category == AccountingAccountCategory.Income)
+                     && l.AccountingAccount!.Category == AccountingAccountCategory.Income)
             .AsQueryable();
 
         if (periodId.HasValue)
-            linesQuery = linesQuery.Where(l => l.AccountingEntry.AccountingPeriodId == periodId.Value);
+            linesQuery = linesQuery.Where(l => l.AccountingEntry!.AccountingPeriodId == periodId.Value);
 
         var incomeData = await linesQuery
-            .GroupBy(l => new { l.AccountingAccountId, l.AccountingAccount.Code, l.AccountingAccount.Name })
+            .GroupBy(l => new { l.AccountingAccountId, l.AccountingAccount!.Code, l.AccountingAccount.Name })
             .Select(g => new IncomeStatementItemDto
             {
                 AccountCode = g.Key.Code,
@@ -164,16 +164,16 @@ public class AccountingReportService
         var linesQuery = _context.EntryLines
             .Where(l => l.AccountingEntry!.TenantId == tenantId
                      && l.AccountingEntry.Status == EntryStatus.Final
-                     && (l.AccountingAccount.Category == AccountingAccountCategory.Asset
+                     && (l.AccountingAccount!.Category == AccountingAccountCategory.Asset
                       || l.AccountingAccount.Category == AccountingAccountCategory.Liability
                       || l.AccountingAccount.Category == AccountingAccountCategory.Equity))
             .AsQueryable();
 
         if (periodId.HasValue)
-            linesQuery = linesQuery.Where(l => l.AccountingEntry.AccountingPeriodId == periodId.Value);
+            linesQuery = linesQuery.Where(l => l.AccountingEntry!.AccountingPeriodId == periodId.Value);
 
         var balanceData = await linesQuery
-            .GroupBy(l => new { l.AccountingAccountId, l.AccountingAccount.Code, l.AccountingAccount.Name, l.AccountingAccount.Nature })
+            .GroupBy(l => new { l.AccountingAccountId, l.AccountingAccount!.Code, l.AccountingAccount.Name, l.AccountingAccount.Nature })
             .Select(g => new BalanceSheetItemDto
             {
                 AccountCode = g.Key.Code,

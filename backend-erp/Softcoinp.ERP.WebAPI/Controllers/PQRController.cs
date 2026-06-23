@@ -94,7 +94,7 @@ public class PQRController : BaseController
                 Status = p.Status.ToString(),
                 Priority = p.Priority.ToString(),
                 Subject = p.Subject,
-                UnitIdentifier = p.Unit.Identifier,
+                UnitIdentifier = p.Unit!.Identifier,
                 RadiadorName = p.RadiadorName,
                 FiledAt = p.FiledAt,
                 Deadline = p.Deadline,
@@ -337,7 +337,7 @@ public class PQRController : BaseController
                 Status = p.Status.ToString(),
                 Priority = p.Priority.ToString(),
                 Subject = p.Subject,
-                UnitIdentifier = p.Unit.Identifier,
+                UnitIdentifier = p.Unit!.Identifier,
                 FiledAt = p.FiledAt,
                 Deadline = p.Deadline,
                 IsInternal = p.IsInternal
@@ -355,8 +355,10 @@ public class PQRController : BaseController
 
         var alerts = await _context.PqrAlerts
             .Include(a => a.PQR)
-                .ThenInclude(p => p.Unit)
-            .Where(a => a.IsActive && a.PQR.TenantId == tenantId)
+#pragma warning disable CS8602 // EF Core Include guarantees navigation is loaded
+                .ThenInclude(p => p.Unit!)
+#pragma warning restore CS8602
+            .Where(a => a.IsActive && a.PQR!.TenantId == tenantId)
             .OrderByDescending(a => a.AlertType == PQRAlertType.Overdue ? 0 :
                                     a.AlertType == PQRAlertType.EightyPercent ? 1 : 2)
             .ThenBy(a => a.GeneratedAt)
@@ -368,12 +370,12 @@ public class PQRController : BaseController
                 a.EscalatedToCouncil,
                 PQR = new
                 {
-                    a.PQR.Id,
+                    a.PQR!.Id,
                     a.PQR.RadicadoNumber,
                     a.PQR.PQRType,
                     a.PQR.Status,
                     a.PQR.Subject,
-                    UnitIdentifier = a.PQR.Unit.Identifier,
+                    UnitIdentifier = a.PQR!.Unit!.Identifier,
                     a.PQR.Deadline,
                     a.PQR.FiledAt
                 }
@@ -391,7 +393,7 @@ public class PQRController : BaseController
 
         var alert = await _context.PqrAlerts
             .Include(a => a.PQR)
-            .FirstOrDefaultAsync(a => a.Id == alertId && a.PQR.TenantId == tenantId);
+            .FirstOrDefaultAsync(a => a.Id == alertId && a.PQR!.TenantId == tenantId);
 
         if (alert == null)
         {
@@ -422,7 +424,7 @@ public class PQRController : BaseController
         var closedPqrs = pqrs.Where(p => p.Status == PQRStatus.Closed).ToList();
         var escalatedPqrs = pqrs.Where(p => p.Status == PQRStatus.Escalated).ToList();
         var activeAlerts = await _context.PqrAlerts
-            .CountAsync(a => a.IsActive && a.PQR.TenantId == tenantId);
+            .CountAsync(a => a.IsActive && a.PQR!.TenantId == tenantId);
 
         var byType = pqrs.GroupBy(p => p.PQRType)
             .Select(g => new
@@ -767,7 +769,7 @@ public class PQRController : BaseController
 
         var response = await _context.PqrResponses
             .Include(r => r.PQR)
-            .FirstOrDefaultAsync(r => r.Id == responseId && r.PQRId == id && r.PQR.TenantId == tenantId);
+            .FirstOrDefaultAsync(r => r.Id == responseId && r.PQRId == id && r.PQR!.TenantId == tenantId);
 
         if (response == null)
         {
@@ -779,7 +781,7 @@ public class PQRController : BaseController
 
         if (request.Confirmed && response.IsDefinitive)
         {
-            response.PQR.Status = PQRStatus.Closed;
+            response.PQR!.Status = PQRStatus.Closed;
             response.PQR.ClosedAt = DateTime.UtcNow;
             response.PQR.ClosedDefinitivelyAt = DateTime.UtcNow.AddDays(10);
             response.PQR.UpdatedAt = DateTime.UtcNow;

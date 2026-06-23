@@ -521,7 +521,9 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
 
             // Add Check Constraint for Coefficient
+#pragma warning disable CS0618 // HasCheckConstraint is obsolete in newer EF Core
             entity.HasCheckConstraint("CK_Unit_CoproprietyCoefficient_Positive", "`CoproprietyCoefficient` > 0");
+#pragma warning restore CS0618
 
             entity.HasOne(e => e.UnitType)
                   .WithMany()

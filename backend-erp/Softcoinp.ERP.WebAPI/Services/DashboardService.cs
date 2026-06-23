@@ -965,9 +965,10 @@ public class DashboardService
         return data;
     }
 
-    public async Task InvalidateMoraMapCacheAsync(string tenantId)
+    public Task InvalidateMoraMapCacheAsync(string tenantId)
     {
-        _memoryCache.Remove($"mora_map_{tenantId}");
+        _memoryCache?.Remove($"mora_map_{tenantId}");
+        return Task.CompletedTask;
     }
 
     public async Task InitializeDefaultAlertConfigurationsAsync(string tenantId)

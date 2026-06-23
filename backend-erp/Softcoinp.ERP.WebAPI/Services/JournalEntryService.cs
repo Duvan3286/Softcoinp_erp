@@ -143,7 +143,7 @@ public class JournalEntryService
                 {
                     Id = l.Id,
                     AccountingAccountId = l.AccountingAccountId,
-                    AccountCode = l.AccountingAccount.Code,
+                    AccountCode = l.AccountingAccount!.Code,
                     AccountName = l.AccountingAccount.Name,
                     ThirdPartyId = l.ThirdPartyId,
                     Debit = l.Debit,
@@ -209,7 +209,7 @@ public class JournalEntryService
                 {
                     Id = l.Id,
                     AccountingAccountId = l.AccountingAccountId,
-                    AccountCode = l.AccountingAccount.Code,
+                    AccountCode = l.AccountingAccount!.Code,
                     AccountName = l.AccountingAccount.Name,
                     ThirdPartyId = l.ThirdPartyId,
                     Debit = l.Debit,

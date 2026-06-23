@@ -287,7 +287,7 @@ public class TenantConfigController : BaseController
         return File(bytes, doc.ContentType, Path.GetFileName(doc.FilePath));
     }
 
-    private async Task AuditFinancialChange(string tenantId, TenantConfiguration oldConfig, UpdateTenantConfigDto newConfig, string userId)
+    private Task AuditFinancialChange(string tenantId, TenantConfiguration oldConfig, UpdateTenantConfigDto newConfig, string userId)
     {
         if (oldConfig.LatePaymentInterestRate != newConfig.LatePaymentInterestRate)
             _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "LatePaymentInterestRate", oldConfig.LatePaymentInterestRate, newConfig.LatePaymentInterestRate, userId));
@@ -312,6 +312,8 @@ public class TenantConfigController : BaseController
 
         if (oldConfig.RoundingPolicy != newConfig.RoundingPolicy)
             _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "RoundingPolicy", oldConfig.RoundingPolicy, newConfig.RoundingPolicy, userId));
+
+        return Task.CompletedTask;
     }
 
     private ConfigurationAuditLog CreateAudit(string tenantId, string paramName, object oldVal, object newVal, string userId)

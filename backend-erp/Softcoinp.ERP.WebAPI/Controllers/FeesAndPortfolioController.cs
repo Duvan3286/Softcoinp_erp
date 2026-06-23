@@ -721,7 +721,7 @@ public class FeesAndPortfolioController : BaseController
             {
                 Id = d.Id,
                 UnitId = d.UnitId,
-                UnitIdentifier = d.Unit.Identifier,
+                UnitIdentifier = d.Unit?.Identifier ?? string.Empty,
                 Amount = d.Amount,
                 InstallmentNumber = d.InstallmentNumber,
                 DueDate = d.DueDate,
@@ -839,7 +839,7 @@ public class FeesAndPortfolioController : BaseController
         {
             Id = c.Id,
             UnitId = c.UnitId,
-            UnitIdentifier = c.Unit.Identifier,
+            UnitIdentifier = c.Unit?.Identifier ?? string.Empty,
             ChargeType = c.ChargeType.ToString(),
             Amount = c.Amount,
             BalanceAmount = c.BalanceAmount,
@@ -868,7 +868,7 @@ public class FeesAndPortfolioController : BaseController
         {
             Id = c.Id,
             UnitId = c.UnitId,
-            UnitIdentifier = c.Unit.Identifier,
+            UnitIdentifier = c.Unit?.Identifier ?? string.Empty,
             ChargeType = c.ChargeType.ToString(),
             Amount = c.Amount,
             BalanceAmount = c.BalanceAmount,

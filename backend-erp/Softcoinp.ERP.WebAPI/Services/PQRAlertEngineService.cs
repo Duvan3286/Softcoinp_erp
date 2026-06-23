@@ -102,6 +102,8 @@ public class PQRAlertEngineService : BackgroundService
 
         foreach (var pqr in activePqrs)
         {
+            if (!pqr.Deadline.HasValue) continue;
+
             var elapsed = (now - pqr.FiledAt).TotalMinutes;
             var total = (pqr.Deadline.Value - pqr.FiledAt).TotalMinutes;
 
