@@ -53,6 +53,7 @@ services:
       - JWT__Audience=SoftcoinpERP
     volumes:
       - erp-uploads:/app/wwwroot/uploads
+      - erp-reports:/app/wwwroot/reports
     depends_on:
       erp-db:
         condition: service_healthy
@@ -91,3 +92,4 @@ networks:
 volumes:
   erp-db-data:
   erp-uploads:
+  erp-reports:
