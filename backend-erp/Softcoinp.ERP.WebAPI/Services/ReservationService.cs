@@ -6,9 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
-using Softcoinp.ERP.WebAPI.DTOs;
-
-namespace Softcoinp.ERP.WebAPI.Services;
+using Softcoinp.ERP.WebAPI.DTOs;namespace Softcoinp.ERP.WebAPI.Services;
 
 public class ReservationService
 {
@@ -133,7 +131,15 @@ public class ReservationService
         };
 
         _context.ReservableSpaces.Add(space);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("Duplicate entry") == true ||
+                                            ex.InnerException?.Message.Contains("IX_erp_reservable_spaces") == true)
+        {
+            throw new InvalidOperationException($"Ya existe un espacio reservable con el nombre '{request.Name}'. Por favor elige un nombre diferente.");
+        }
 
         return await GetSpaceByIdAsync(space.Id, tenantId);
     }
@@ -169,7 +175,15 @@ public class ReservationService
         if (request.IsActive.HasValue) space.IsActive = request.IsActive.Value;
 
         space.UpdatedByUserId = userId;
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("Duplicate entry") == true ||
+                                            ex.InnerException?.Message.Contains("IX_erp_reservable_spaces") == true)
+        {
+            throw new InvalidOperationException($"Ya existe un espacio reservable con el nombre '{space.Name}'. Por favor elige un nombre diferente.");
+        }
 
         return await GetSpaceByIdAsync(id, tenantId);
     }
