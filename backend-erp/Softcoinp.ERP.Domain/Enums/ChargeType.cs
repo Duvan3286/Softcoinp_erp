@@ -5,5 +5,7 @@ public enum ChargeType
     Fine,
     Damage,
     ParkingFee,
-    Other
+    Other,
+    PerHour,
+    PerEvent
 }

@@ -95,6 +95,9 @@ builder.Services.AddScoped<AssemblyVotingEngine>();
 builder.Services.AddScoped<AssemblyMinutesGenerator>();
 builder.Services.AddScoped<AssemblyDecisionPropagationService>();
 builder.Services.AddScoped<AssemblyService>();
+builder.Services.AddScoped<ReservationAvailabilityEngine>();
+builder.Services.AddScoped<ReservationReminderEngine>();
+builder.Services.AddScoped<ReservationService>();
 
 // Register Background Services
 builder.Services.AddHostedService<PQRAlertEngineService>();

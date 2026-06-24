@@ -14,6 +14,7 @@ import {
   Truck,
   Wrench,
   Gavel,
+  Calendar,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -57,6 +58,7 @@ export const Sidebar = () => {
     else if (pathname.startsWith('/suppliers') || pathname.startsWith('/contracts')) setOpenGroup('proveedores');
     else if (pathname.startsWith('/maintenance')) setOpenGroup('mantenimiento');
     else if (pathname.startsWith('/pqr')) setOpenGroup('pqr');
+    else if (pathname.startsWith('/reservation')) setOpenGroup('reservas');
     // Close sidebar on mobile when navigating
     setIsOpen(false);
   }, [pathname, setIsOpen]);
@@ -183,6 +185,19 @@ export const Sidebar = () => {
           >
             <NavItem text="Asambleas" path="/assembly" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Nueva Asamblea" path="/assembly/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
+
+          <NavGroup
+            icon={<Calendar className="w-5 h-5" />}
+            text="Reservas"
+            isOpen={openGroup === 'reservas'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('reservas')}
+          >
+            <NavItem text="Espacios" path="/reservation/spaces" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Calendario" path="/reservation/calendar" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Reservas" path="/reservation" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Bandeja Admin" path="/reservation/admin" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup

@@ -138,6 +138,15 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<AssemblyMinutes> AssemblyMinutes => Set<AssemblyMinutes>();
     public DbSet<AssemblyDecisionPropagation> AssemblyDecisionPropagations => Set<AssemblyDecisionPropagation>();
 
+    // ── Módulo de Reservas de Zonas Comunes ───────────────────────
+    public DbSet<ReservableSpace> ReservableSpaces => Set<ReservableSpace>();
+    public DbSet<SpaceSchedule> SpaceSchedules => Set<SpaceSchedule>();
+    public DbSet<SpaceBlock> SpaceBlocks => Set<SpaceBlock>();
+    public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<ReservationDeposit> ReservationDeposits => Set<ReservationDeposit>();
+    public DbSet<ReservationIncident> ReservationIncidents => Set<ReservationIncident>();
+    public DbSet<ReservationReminder> ReservationReminders => Set<ReservationReminder>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Only resolve the tenant connection string when no provider has been configured.
@@ -2092,6 +2101,186 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.AssemblyId });
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.TargetModule, e.Status });
+        });
+
+        // ── Módulo de Reservas de Zonas Comunes ─────────────────────
+
+        modelBuilder.Entity<ReservableSpace>(entity =>
+        {
+            entity.ToTable("erp_reservable_spaces");
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.Location).HasMaxLength(300);
+            entity.Property(e => e.DepositAmount).HasPrecision(18, 2);
+            entity.Property(e => e.HourlyRate).HasPrecision(18, 2);
+            entity.Property(e => e.EventRate).HasPrecision(18, 2);
+            entity.Property(e => e.ChargeType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ApprovalMode).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ArrearsPolicy).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.RulesFilePath).HasMaxLength(500);
+            entity.Property(e => e.ImageFilePath).HasMaxLength(500);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.Name }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.IsActive });
+        });
+
+        modelBuilder.Entity<SpaceSchedule>(entity =>
+        {
+            entity.ToTable("erp_space_schedules");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.DayOfWeek).IsRequired();
+            entity.Property(e => e.StartTime).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.EndTime).IsRequired().HasMaxLength(10);
+
+            entity.HasOne(e => e.Space)
+                  .WithMany(s => s.Schedules)
+                  .HasForeignKey(e => e.SpaceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.SpaceId });
+            entity.HasIndex(e => new { e.TenantId, e.SpaceId, e.DayOfWeek });
+        });
+
+        modelBuilder.Entity<SpaceBlock>(entity =>
+        {
+            entity.ToTable("erp_space_blocks");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.StartTime).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.EndTime).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Origin).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Reason).HasMaxLength(1000);
+            entity.Property(e => e.RelatedWorkOrderNumber).HasMaxLength(100);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Space)
+                  .WithMany(s => s.Blocks)
+                  .HasForeignKey(e => e.SpaceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.SpaceId });
+            entity.HasIndex(e => new { e.TenantId, e.SpaceId, e.StartDate, e.EndDate });
+        });
+
+        modelBuilder.Entity<Reservation>(entity =>
+        {
+            entity.ToTable("erp_reservations");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ReservationNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EstimatedAttendees).IsRequired();
+            entity.Property(e => e.EventDescription).HasMaxLength(2000);
+            entity.Property(e => e.MusicEndTime).HasMaxLength(10);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.RejectionReason).HasMaxLength(1000);
+            entity.Property(e => e.TotalCost).HasPrecision(18, 2);
+            entity.Property(e => e.DepositStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DepositAmount).HasPrecision(18, 2);
+            entity.Property(e => e.AdminNotes).HasMaxLength(2000);
+            entity.Property(e => e.AdminUserId).HasMaxLength(450);
+            entity.Property(e => e.CheckoutSignaturePath).HasMaxLength(500);
+            entity.Property(e => e.ExceptionReason).HasMaxLength(1000);
+            entity.Property(e => e.ExceptionGrantedByUserId).HasMaxLength(450);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Space)
+                  .WithMany(s => s.Reservations)
+                  .HasForeignKey(e => e.SpaceId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.SpaceId, e.StartDateTime, e.EndDateTime });
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.ReservationNumber }).IsUnique();
+        });
+
+        modelBuilder.Entity<ReservationDeposit>(entity =>
+        {
+            entity.ToTable("erp_reservation_deposits");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.ChargeNumber).HasMaxLength(100);
+            entity.Property(e => e.ReturnChargeNumber).HasMaxLength(100);
+            entity.Property(e => e.DamageAmount).HasPrecision(18, 2);
+            entity.Property(e => e.DamageDescription).HasMaxLength(2000);
+            entity.Property(e => e.ProcessedByUserId).HasMaxLength(450);
+            entity.Property(e => e.Notes).HasMaxLength(2000);
+
+            entity.HasOne(e => e.Reservation)
+                  .WithMany(r => r.Deposits)
+                  .HasForeignKey(e => e.ReservationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.ReservationId });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+        });
+
+        modelBuilder.Entity<ReservationIncident>(entity =>
+        {
+            entity.ToTable("erp_reservation_incidents");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.Severity).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DamageAmount).HasPrecision(18, 2);
+            entity.Property(e => e.EvidenceFilePath).HasMaxLength(500);
+            entity.Property(e => e.ReportedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ReportedByName).HasMaxLength(300);
+
+            entity.HasOne(e => e.Reservation)
+                  .WithMany(r => r.Incidents)
+                  .HasForeignKey(e => e.ReservationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.ReservationId });
+        });
+
+        modelBuilder.Entity<ReservationReminder>(entity =>
+        {
+            entity.ToTable("erp_reservation_reminders");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ReminderType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Channel).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.RecipientEmail).HasMaxLength(300);
+            entity.Property(e => e.RecipientPhone).HasMaxLength(50);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Reservation)
+                  .WithMany(r => r.Reminders)
+                  .HasForeignKey(e => e.ReservationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.ReservationId });
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.ScheduledFor });
         });
     }
 
