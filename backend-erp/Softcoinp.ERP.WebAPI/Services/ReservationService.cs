@@ -979,7 +979,7 @@ public class ReservationService
         return $"RES-{DateTime.UtcNow:yyyy-MM}-{nextNumber:D5}";
     }
 
-    private string GetDayName(int dayOfWeek)
+    private static string GetDayName(int dayOfWeek)
     {
         var days = new[] { "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado" };
         return days[dayOfWeek];
