@@ -147,6 +147,16 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<ReservationIncident> ReservationIncidents => Set<ReservationIncident>();
     public DbSet<ReservationReminder> ReservationReminders => Set<ReservationReminder>();
 
+    // ── Módulo de Comunicados y Notificaciones ─────────────────────
+    public DbSet<Communication> Communications => Set<Communication>();
+    public DbSet<CommunicationRecipient> CommunicationRecipients => Set<CommunicationRecipient>();
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<AutomaticNotification> AutomaticNotifications => Set<AutomaticNotification>();
+    public DbSet<CommunicationPreference> CommunicationPreferences => Set<CommunicationPreference>();
+    public DbSet<BulletinBoardPost> BulletinBoardPosts => Set<BulletinBoardPost>();
+    public DbSet<DelinquencySequenceConfig> DelinquencySequenceConfigs => Set<DelinquencySequenceConfig>();
+    public DbSet<DelinquencySequencePause> DelinquencySequencePauses => Set<DelinquencySequencePause>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Only resolve the tenant connection string when no provider has been configured.
@@ -2281,6 +2291,201 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.ReservationId });
             entity.HasIndex(e => new { e.TenantId, e.Status, e.ScheduledFor });
+        });
+
+        // ── Módulo de Comunicados y Notificaciones ─────────────────────
+
+        modelBuilder.Entity<Communication>(entity =>
+        {
+            entity.ToTable("erp_communications");
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Body).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.AudienceType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SelectedChannels).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.FilePaths).HasMaxLength(2000);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.RelatedCommunication)
+                  .WithMany()
+                  .HasForeignKey(e => e.RelatedCommunicationId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.SendAt });
+            entity.HasIndex(e => new { e.TenantId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<CommunicationRecipient>(entity =>
+        {
+            entity.ToTable("erp_communication_recipients");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.RecipientEmail).HasMaxLength(300);
+            entity.Property(e => e.RecipientPhone).HasMaxLength(50);
+            entity.Property(e => e.EmailStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SmsStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PushStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.BulletinBoardStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Communication)
+                  .WithMany(c => c.Recipients)
+                  .HasForeignKey(e => e.CommunicationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.TenantResident)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantResidentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.CommunicationId });
+            entity.HasIndex(e => new { e.TenantId, e.EmailStatus });
+            entity.HasIndex(e => new { e.TenantId, e.ReadConfirmedAt });
+        });
+
+        modelBuilder.Entity<NotificationTemplate>(entity =>
+        {
+            entity.ToTable("erp_notification_templates");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.EventType).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(e => e.ForRecipientType).HasConversion<string>().HasMaxLength(10).IsRequired();
+            entity.Property(e => e.EmailSubject).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.EmailBody).IsRequired();
+            entity.Property(e => e.SmsBody).IsRequired().HasMaxLength(160);
+            entity.Property(e => e.DynamicVariables).HasMaxLength(2000);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.EventType, e.IsActive });
+            entity.HasIndex(e => new { e.TenantId, e.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<AutomaticNotification>(entity =>
+        {
+            entity.ToTable("erp_automatic_notifications");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.EventType).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(e => e.RecipientEmail).HasMaxLength(300);
+            entity.Property(e => e.RecipientPhone).HasMaxLength(50);
+            entity.Property(e => e.Channel).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SourceModule).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SourceEntityId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SourceEntityType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Communication)
+                  .WithMany()
+                  .HasForeignKey(e => e.CommunicationId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.TenantResident)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantResidentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.EventType });
+            entity.HasIndex(e => new { e.TenantId, e.SourceModule, e.SourceEntityId });
+            entity.HasIndex(e => new { e.TenantId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<CommunicationPreference>(entity =>
+        {
+            entity.ToTable("erp_communication_preferences");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.UnsubscribedEventTypes).HasMaxLength(2000);
+            entity.Property(e => e.Notes).HasMaxLength(2000);
+            entity.Property(e => e.ChangedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.TenantResident)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantResidentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.OwnerId }).IsUnique().HasFilter("[OwnerId] IS NOT NULL");
+            entity.HasIndex(e => new { e.TenantId, e.TenantResidentId }).IsUnique().HasFilter("[TenantResidentId] IS NOT NULL");
+        });
+
+        modelBuilder.Entity<BulletinBoardPost>(entity =>
+        {
+            entity.ToTable("erp_bulletin_board_posts");
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.IsPinned, e.PublishedAt });
+            entity.HasIndex(e => new { e.TenantId, e.Category });
+            entity.HasIndex(e => new { e.TenantId, e.ExpiresAt });
+        });
+
+        modelBuilder.Entity<DelinquencySequenceConfig>(entity =>
+        {
+            entity.ToTable("erp_delinquency_sequence_configs");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.StepNumber).IsRequired();
+
+            entity.HasOne(e => e.Template)
+                  .WithMany()
+                  .HasForeignKey(e => e.TemplateId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.StepNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.IsActive });
+        });
+
+        modelBuilder.Entity<DelinquencySequencePause>(entity =>
+        {
+            entity.ToTable("erp_delinquency_sequence_pauses");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Reason).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.UnitId });
+            entity.HasIndex(e => new { e.TenantId, e.StartDate, e.EndDate });
         });
     }
 

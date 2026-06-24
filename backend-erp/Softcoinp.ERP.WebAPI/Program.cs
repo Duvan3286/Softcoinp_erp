@@ -99,10 +99,20 @@ builder.Services.AddScoped<ReservationAvailabilityEngine>();
 builder.Services.AddScoped<ReservationReminderEngine>();
 builder.Services.AddScoped<ReservationService>();
 
+// ── Comunicados y Notificaciones ──────────────────────────────
+builder.Services.AddScoped<DeliveryTrackerEngine>();
+builder.Services.AddScoped<NotificationEngine>();
+builder.Services.AddScoped<CommunicationService>();
+builder.Services.AddScoped<NotificationTemplateService>();
+builder.Services.AddScoped<BulletinBoardService>();
+builder.Services.AddScoped<CommunicationPreferenceService>();
+builder.Services.AddScoped<DelinquencySequenceEngine>();
+
 // Register Background Services
 builder.Services.AddHostedService<PQRAlertEngineService>();
 builder.Services.AddHostedService<ContractAlertEngineService>();
 builder.Services.AddHostedService<PreventiveMaintenanceEngineService>();
+builder.Services.AddHostedService<ScheduledCommunicationService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.

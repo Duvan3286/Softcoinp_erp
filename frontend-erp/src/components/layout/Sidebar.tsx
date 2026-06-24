@@ -15,6 +15,7 @@ import {
   Wrench,
   Gavel,
   Calendar,
+  Megaphone,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -59,6 +60,7 @@ export const Sidebar = () => {
     else if (pathname.startsWith('/maintenance')) setOpenGroup('mantenimiento');
     else if (pathname.startsWith('/pqr')) setOpenGroup('pqr');
     else if (pathname.startsWith('/reservation')) setOpenGroup('reservas');
+    else if (pathname.startsWith('/communications')) setOpenGroup('comunicaciones');
     // Close sidebar on mobile when navigating
     setIsOpen(false);
   }, [pathname, setIsOpen]);
@@ -198,6 +200,21 @@ export const Sidebar = () => {
             <NavItem text="Calendario" path="/reservation/calendar" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Reservas" path="/reservation" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Bandeja Admin" path="/reservation/admin" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
+
+          <NavGroup
+            icon={<Megaphone className="w-5 h-5" />}
+            text="Comunicaciones"
+            isOpen={openGroup === 'comunicaciones'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('comunicaciones')}
+          >
+            <NavItem text="Comunicados" path="/communications" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Nuevo Comunicado" path="/communications/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Plantillas" path="/communications/templates" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Cartelera" path="/communications/bulletin-board" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Preferencias" path="/communications/preferences" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Secuencia Mora" path="/communications/delinquency" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup
