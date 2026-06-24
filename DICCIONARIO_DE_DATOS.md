@@ -1488,3 +1488,146 @@ block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5
 2. **Errores**: Mostrar en un contenedor `bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2` con icono `AlertTriangle`.
 3. **Carga**: Usar `<Loader2 className="w-6 h-6 animate-spin text-emerald-600" />` centrado.
 4. **Deshabilitado**: Botón de submit debe mostrar `disabled={submitting}` y spinner mientras se envía.
+
+---
+
+## 13. Módulo de Reportes y Exportaciones
+
+Gestión integral de reportes predefinidos, exportaciones generadas, configuración de reportes recurrentes, secciones del generador de informes anuales y plantillas de personalización PDF para la copropiedad.
+
+### 13.1 Tabla: `erp_report_types`
+
+Catálogo de tipos de reporte disponibles en el sistema. Se siembran 26 reportes estándar en la primera migración.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Id** | `Guid` | PK | Identificador único del tipo de reporte. |
+| **TenantId** | `string` max 255 | FK | Identificador del conjunto. FK a `erp_tenant_configuration`. |
+| **ReportTypeCode** | `string` max 40 | Sí | Código único del tipo de reporte. Enum: `ReportTypeEnum`. |
+| **Name** | `string` max 200 | Sí | Nombre legible del reporte. |
+| **Description** | `string` max 1000 | No | Descripción detallada del contenido y propósito del reporte. |
+| **Category** | `string` max 20 | Sí | Categoría del reporte. Enum: `ReportCategory` — `Financial` · `Portfolio` · `Operational` · `Assembly` · `Annual`. |
+| **SourceModules** | `string` max 500 | No | Módulos del sistema que alimentan el reporte, separados por coma. |
+| **AllowedRoles** | `string` max 500 | No | Roles autorizados para ver este reporte, separados por coma. Controla la visibilidad basada en roles. |
+| **ContainsPersonalData** | `boolean` | Sí | `true` si el reporte incluye datos personales de propietarios/residentes. Activa nota de confidencialidad en el pie de página del PDF. |
+| **IsActive** | `boolean` | Sí | `false` si el tipo de reporte fue desactivado y no debe ofrecerse en la UI. |
+
+> [!IMPORTANT]
+> **Índices**: Único `(TenantId, ReportTypeCode)` · Compuesto `(TenantId, Category)`.
+>
+> **Reportes estándar**: Se siembran 26 tipos de reporte en la primera migración del sistema cubriendo las categorías Financial, Portfolio, Operational, Assembly y Annual. No pueden eliminarse, solo desactivarse.
+
+### 13.2 Tabla: `erp_generated_reports`
+
+Registro de cada reporte generado y exportado por los usuarios, con su formato, archivo resultante y metadatos de generación.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Id** | `Guid` | PK | Identificador único del reporte generado. |
+| **TenantId** | `string` max 255 | Sí | Identificador del conjunto. |
+| **ReportTypeId** | `Guid` | FK | Tipo de reporte generado. FK a `erp_report_types`. |
+| **Format** | `string` max 10 | Sí | Formato de exportación. Enum: `ReportFormat` — `Pdf` · `Excel` · `Csv`. |
+| **PeriodFrom** | `DateTime?` | No | Fecha inicial del período filtrado en el reporte. |
+| **PeriodTo** | `DateTime?` | No | Fecha final del período filtrado en el reporte. |
+| **FileName** | `string` max 500 | Sí | Nombre del archivo generado (sin ruta). |
+| **FilePath** | `string` max 1000 | Sí | Ruta física completa del archivo almacenado. |
+| **FileSizeBytes** | `long` | Sí | Tamaño del archivo en bytes. |
+| **GeneratedByUserId** | `string` max 450 | Sí | ID del usuario que generó el reporte. FK a `AspNetUsers`. |
+| **GeneratedAt** | `DateTime` | Automático | Fecha y hora de generación del reporte. |
+| **Parameters** | `text` | No | Parámetros usados para la generación serializados en JSON. |
+| **Notes** | `text` | No | Notas u observaciones sobre el reporte generado. |
+| **RecurringConfigId** | `Guid?` | FK | Configuración recurrente que originó esta generación (si aplica). FK a `erp_recurring_report_configs`. |
+
+> [!IMPORTANT]
+> **Índices**: Compuesto `(TenantId, ReportTypeId)`.
+>
+> **Almacenamiento**: Los archivos se guardan en `wwwroot/reports/{tenantId}/{reportTypeCode}/{fileName}`. `FileSizeBytes` almacena el tamaño en bytes. `GeneratedByUserId` referencia a la tabla `AspNetUsers` del identity.
+
+### 13.3 Tabla: `erp_recurring_report_configs`
+
+Configuración de reportes programados para generación automática y recurrente según una frecuencia definida.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Id** | `Guid` | PK | Identificador único de la configuración recurrente. |
+| **TenantId** | `string` max 255 | Sí | Identificador del conjunto. |
+| **ReportTypeId** | `Guid` | FK | Tipo de reporte a generar recurrentemente. FK a `erp_report_types`. |
+| **Name** | `string` max 200 | Sí | Nombre descriptivo de la configuración. Ej. "Cartera mensual a tesorería". |
+| **Frequency** | `string` max 15 | Sí | Frecuencia de generación. Enum: `ReportFrequency` — `Daily` · `Weekly` · `Monthly` · `Quarterly` · `Annual`. |
+| **Format** | `string` max 10 | Sí | Formato de exportación. Enum: `ReportFormat` — `Pdf` · `Excel` · `Csv`. |
+| **RecipientEmails** | `text` | No | Lista de correos electrónicos destinatarios, separados por coma o punto y coma. |
+| **SubjectTemplate** | `string` max 500 | No | Plantilla del asunto del correo de envío. Puede incluir variables como `{ReportName}`, `{Period}`. |
+| **BodyTemplate** | `text` | No | Plantilla del cuerpo del correo de envío. |
+| **LastExecutionAt** | `DateTime?` | No | Fecha y hora de la última ejecución. |
+| **NextExecutionAt** | `DateTime?` | No | Fecha y hora calculada para la próxima ejecución. Se recalcula automáticamente según la frecuencia. |
+| **Status** | `string` max 10 | Sí | Estado de la configuración. Enum: `ReportRecurrentStatus` — `Active` · `Paused` · `Completed`. |
+| **CreatedAt** | `DateTime` | Automático | Fecha de creación de la configuración. |
+| **CreatedByUserId** | `string` max 450 | Sí | ID del usuario que creó la configuración. |
+
+> [!IMPORTANT]
+> El motor `RecurringReportEngine` ejecuta cada 5 minutos consultando configuraciones activas con `NextExecutionAt ≤ now`. Al ejecutarse, recalcula `NextExecutionAt` sumando la frecuencia a la fecha actual.
+
+### 13.4 Tabla: `erp_management_report_sections`
+
+Secciones del generador de informes incrementales para el reporte anual de gestión. Permite construir el informe de forma colaborativa combinando secciones autogeneradas con edición manual.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Id** | `Guid` | PK | Identificador único de la sección. |
+| **TenantId** | `string` max 255 | Sí | Identificador del conjunto. |
+| **ReportTypeCode** | `string` max 40 | Sí | Código del tipo de reporte al que pertenece la sección. |
+| **SectionOrder** | `int` | Sí | Orden de aparición de la sección en el informe. |
+| **Title** | `string` max 200 | Sí | Título de la sección. |
+| **Content** | `text` | Sí | Contenido de la sección en formato enriquecido. |
+| **Status** | `string` max 20 | Sí | Estado de la sección. Enum: `SectionStatus` — `Pending` · `AutoGenerated` · `ManuallyEdited`. |
+| **AutoGeneratedQuery** | `text` | No | Consulta o configuración utilizada para la autogeneración del contenido. |
+| **LastAutoGeneratedAt** | `DateTime?` | No | Fecha de la última autogeneración. |
+| **LastManualEditAt** | `DateTime?` | No | Fecha de la última edición manual. |
+| **LastEditedByUserId** | `string` max 450 | No | ID del usuario que realizó la última edición manual. |
+| **CreatedAt** | `DateTime` | Automático | Fecha de creación de la sección. |
+| **UpdatedAt** | `DateTime?` | No | Fecha de la última actualización. |
+
+> [!NOTE]
+> Esta tabla soporta el **Incremental Annual Report Builder**. Las secciones pueden regenerarse automáticamente mediante consultas predefinidas (`AutoGeneratedQuery`) o ser editadas manualmente para el informe anual de gestión.
+
+### 13.5 Tabla: `erp_pdf_templates`
+
+Personalización visual de los reportes PDF generados por el sistema. Cada conjunto puede definir su propia plantilla con logo, colores corporativos, firmas y notas legales.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Id** | `Guid` | PK | Identificador único de la plantilla. |
+| **TenantId** | `string` max 255 | Sí | Identificador del conjunto. |
+| **ReportTypeCode** | `string` max 40 | Sí | Código del tipo de reporte al que aplica esta plantilla. |
+| **LogoFilePath** | `string` max 500 | No | Ruta del archivo de imagen del logo del conjunto. |
+| **HeaderText** | `string` max 500 | Sí | Texto del encabezado visible en cada página del PDF. |
+| **FooterText** | `string` max 500 | Sí | Texto del pie de página. |
+| **SignatureName** | `string` max 200 | Sí | Nombre de la persona que firma el reporte (ej. representante legal). |
+| **SignatureRole** | `string` max 200 | Sí | Cargo de la persona que firma. Ej. "Representante Legal". |
+| **ConfidentialityNote** | `text` | No | Nota de confidencialidad mostrada en reportes con datos personales (`ContainsPersonalData = true`). |
+| **DisclaimerNote** | `text` | No | Nota de descargo mostrada en reportes financieros. |
+| **PrimaryColor** | `string` max 7 | Sí | Color primario corporativo en formato hex. Default: `#059669` (verde esmeralda) para líneas de acento. |
+| **SecondaryColor** | `string` max 7 | Sí | Color secundario corporativo en formato hex. Default: `#1e293b` (azul oscuro). |
+| **IsDefault** | `boolean` | Sí | `true` si esta plantilla es la predeterminada para el tipo de reporte. |
+| **CreatedAt** | `DateTime` | Automático | Fecha de creación de la plantilla. |
+| **UpdatedAt** | `DateTime?` | No | Fecha de la última modificación. |
+| **CreatedByUserId** | `string` max 450 | Sí | ID del usuario que creó la plantilla. |
+
+> [!IMPORTANT]
+> **Índices**: Compuesto `(TenantId, ReportTypeCode)`.
+>
+> **Colores**: `PrimaryColor` = verde esmeralda (`#059669`) usado para líneas de acento y bordes en el PDF. `SecondaryColor` = azul oscuro (`#1e293b`) usado para textos secundarios.
+>
+> **Notas condicionales**: `ConfidentialityNote` se muestra en el footer cuando el reporte contiene datos personales (`ContainsPersonalData = true`). `DisclaimerNote` se muestra en reportes de categoría financiera.
+
+### 13.6 Reglas de Negocio Transversales
+
+1. **Control de acceso basado en roles**: `AllowedRoles` determina qué roles pueden acceder a cada reporte. SuperAdmin y Admin ven los 26 reportes completos. Council excluye `OwnerRegistry` y reportes con datos personales. Accountant y Auditor ven reportes financieros, de cartera y `OwnerRegistry`. Resident solo accede a `PortfolioByUnit` de su propia unidad.
+
+2. **Generación PDF**: Se utiliza QuestPDF. El header incluye logo del conjunto (si configurado), nombre del conjunto, NIT y dirección. El footer contiene nombre y cargo del firmante, fecha de generación, notas de confidencialidad (si aplica) y disclaimer (si aplica).
+
+3. **Generación Excel**: Se utiliza ClosedXML con formato profesional: números en notación `#,##0.00`, auto-filtro en la primera fila, colores alternos en filas y fila de totales al final.
+
+4. **Almacenamiento de archivos**: Los reportes generados se almacenan en `wwwroot/reports/{tenantId}/{reportTypeCode}/{fileName}`.
+
+5. **Motor recurrente**: El `RecurringReportEngine` ejecuta cada 5 minutos consultando todas las configuraciones activas con `NextExecutionAt ≤ now`. Genera el reporte, lo almacena y lo envía por correo a los destinatarios configurados. Luego recalcula `NextExecutionAt` según la frecuencia definida.

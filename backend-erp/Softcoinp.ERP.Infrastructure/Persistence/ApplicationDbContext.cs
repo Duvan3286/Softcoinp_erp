@@ -157,6 +157,13 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<DelinquencySequenceConfig> DelinquencySequenceConfigs => Set<DelinquencySequenceConfig>();
     public DbSet<DelinquencySequencePause> DelinquencySequencePauses => Set<DelinquencySequencePause>();
 
+    // ── Módulo de Reportes y Exportaciones ─────────────────────────
+    public DbSet<ReportType> ReportTypes => Set<ReportType>();
+    public DbSet<GeneratedReport> GeneratedReports => Set<GeneratedReport>();
+    public DbSet<RecurringReportConfig> RecurringReportConfigs => Set<RecurringReportConfig>();
+    public DbSet<ManagementReportSection> ManagementReportSections => Set<ManagementReportSection>();
+    public DbSet<PDFTemplate> PDFTemplates => Set<PDFTemplate>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Only resolve the tenant connection string when no provider has been configured.
@@ -2291,6 +2298,115 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.ReservationId });
             entity.HasIndex(e => new { e.TenantId, e.Status, e.ScheduledFor });
+        });
+
+        // ── Módulo de Reportes y Exportaciones ─────────────────────────
+
+        modelBuilder.Entity<ReportType>(entity =>
+        {
+            entity.ToTable("erp_report_types");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ReportTypeCode).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.SourceModules).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.AllowedRoles).IsRequired().HasMaxLength(500);
+
+            entity.HasIndex(e => new { e.TenantId, e.ReportTypeCode }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Category });
+        });
+
+        modelBuilder.Entity<GeneratedReport>(entity =>
+        {
+            entity.ToTable("erp_generated_reports");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Format).HasConversion<string>().HasMaxLength(10).IsRequired();
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.FilePath).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.GeneratedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Parameters).HasMaxLength(4000);
+            entity.Property(e => e.Notes).HasMaxLength(2000);
+
+            entity.HasOne(e => e.ReportType)
+                  .WithMany(r => r.GeneratedReports)
+                  .HasForeignKey(e => e.ReportTypeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.RecurringConfig)
+                  .WithMany(r => r.GeneratedReports)
+                  .HasForeignKey(e => e.RecurringConfigId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.ReportTypeId });
+            entity.HasIndex(e => new { e.TenantId, e.GeneratedAt });
+            entity.HasIndex(e => new { e.TenantId, e.GeneratedByUserId });
+            entity.HasIndex(e => new { e.TenantId, e.RecurringConfigId });
+        });
+
+        modelBuilder.Entity<RecurringReportConfig>(entity =>
+        {
+            entity.ToTable("erp_recurring_report_configs");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Frequency).HasConversion<string>().HasMaxLength(15).IsRequired();
+            entity.Property(e => e.Format).HasConversion<string>().HasMaxLength(10).IsRequired();
+            entity.Property(e => e.RecipientEmails).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.SubjectTemplate).HasMaxLength(500);
+            entity.Property(e => e.BodyTemplate).HasMaxLength(2000);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.ReportType)
+                  .WithMany()
+                  .HasForeignKey(e => e.ReportTypeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.NextExecutionAt });
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+        });
+
+        modelBuilder.Entity<ManagementReportSection>(entity =>
+        {
+            entity.ToTable("erp_management_report_sections");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.AutoGeneratedQuery).HasMaxLength(4000);
+            entity.Property(e => e.LastEditedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.SectionOrder });
+        });
+
+        modelBuilder.Entity<PDFTemplate>(entity =>
+        {
+            entity.ToTable("erp_pdf_templates");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ReportTypeCode).IsRequired().HasMaxLength(40);
+            entity.Property(e => e.LogoFilePath).HasMaxLength(1000);
+            entity.Property(e => e.HeaderText).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.FooterText).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.SignatureName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.SignatureRole).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.ConfidentialityNote).HasMaxLength(2000);
+            entity.Property(e => e.DisclaimerNote).HasMaxLength(2000);
+            entity.Property(e => e.PrimaryColor).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.SecondaryColor).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.ReportTypeCode });
         });
 
         // ── Módulo de Comunicados y Notificaciones ─────────────────────

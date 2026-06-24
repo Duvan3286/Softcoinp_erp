@@ -108,7 +108,13 @@ builder.Services.AddScoped<BulletinBoardService>();
 builder.Services.AddScoped<CommunicationPreferenceService>();
 builder.Services.AddScoped<DelinquencySequenceEngine>();
 
+// ── Reportes y Exportaciones ───────────────────────────────────
+builder.Services.AddScoped<PDFGenerationEngine>();
+builder.Services.AddScoped<ExcelGenerationEngine>();
+builder.Services.AddScoped<ReportAccessControlService>();
+
 // Register Background Services
+builder.Services.AddHostedService<RecurringReportEngine>();
 builder.Services.AddHostedService<PQRAlertEngineService>();
 builder.Services.AddHostedService<ContractAlertEngineService>();
 builder.Services.AddHostedService<PreventiveMaintenanceEngineService>();

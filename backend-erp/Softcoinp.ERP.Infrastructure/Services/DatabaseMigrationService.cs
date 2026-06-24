@@ -126,6 +126,9 @@ public class DatabaseMigrationService
                 
                 // Seed Resolution 029 standard chart of accounts
                 await DbInitializer.SeedChartOfAccountsAsync(tenantContext, tenant.Id.ToString());
+
+                // Seed 26 standard report types and default PDF templates
+                await DbInitializer.SeedReportTypesAsync(tenantContext, tenant.Id.ToString());
                 
                 results.Add(tenant.Subdomain, "Success");
                 _logger.LogInformation("Successfully migrated tenant: {Subdomain}", tenant.Subdomain);

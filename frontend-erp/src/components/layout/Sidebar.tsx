@@ -16,6 +16,7 @@ import {
   Gavel,
   Calendar,
   Megaphone,
+  FileText,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -61,6 +62,7 @@ export const Sidebar = () => {
     else if (pathname.startsWith('/pqr')) setOpenGroup('pqr');
     else if (pathname.startsWith('/reservation')) setOpenGroup('reservas');
     else if (pathname.startsWith('/communications')) setOpenGroup('comunicaciones');
+    else if (pathname.startsWith('/reports')) setOpenGroup('reportes');
     // Close sidebar on mobile when navigating
     setIsOpen(false);
   }, [pathname, setIsOpen]);
@@ -215,6 +217,20 @@ export const Sidebar = () => {
             <NavItem text="Cartelera" path="/communications/bulletin-board" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Preferencias" path="/communications/preferences" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Secuencia Mora" path="/communications/delinquency" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
+
+          <NavGroup
+            icon={<FileText className="w-5 h-5" />}
+            text="Reportes"
+            isOpen={openGroup === 'reportes'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('reportes')}
+          >
+            <NavItem text="Catálogo" path="/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Historial" path="/reports/history" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Recurrentes" path="/reports/recurring" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Informe Anual" path="/reports/annual" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Plantillas PDF" path="/reports/templates" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup

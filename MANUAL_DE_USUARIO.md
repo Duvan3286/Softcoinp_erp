@@ -1361,3 +1361,255 @@ El administrador puede reenviar el comunicado solo a los no confirmantes desde l
 
 ---
 *Documento generado el Junio 2026 — Softcoinp ERP*
+
+---
+
+## 18. Módulo de Reportes y Exportaciones
+
+Este módulo centraliza todos los reportes del sistema. Podrá generar informes financieros, de cartera, operativos, de asamblea y anuales, consultar el historial de reportes generados, configurar reportes recurrentes, construir el informe anual de gestión, personalizar la apariencia de los PDF y controlar el acceso según su rol.
+
+### 18.1 Catálogo de Reportes (página /reports)
+
+Acceda desde el menú lateral: **Reportes → Catálogo**.
+
+Aquí encontrará la lista completa de todos los tipos de reporte disponibles en el sistema. La página se adapta según su rol: solo verá los reportes que puede generar.
+
+**La pantalla muestra:**
+- **Filtros por categoría**: Todos, Financieros, Cartera, Operativos, Asamblea, Anuales.
+- **Barra de búsqueda**: Busque por nombre o descripción del reporte.
+- **Tarjetas de reporte**: Cada reporte muestra su nombre, una descripción breve, uno o dos badges de formato (PDF, Excel) y un badge adicional de color rojo si el reporte **contiene datos personales** (marcado como "Datos Personales").
+- **Botón "Generar"**: Abre un modal para configurar la generación del reporte.
+
+**Modal de generación:**
+1. Haga clic en **Generar** en el reporte deseado.
+2. Seleccione el **período**:
+   - **Desde** (fecha de inicio).
+   - **Hasta** (fecha de fin).
+3. Seleccione el **Formato**: PDF o Excel.
+4. Opcional: agregue **Notas** que aparecerán en el reporte.
+5. Haga clic en **Generar**. El reporte pasará a la cola de generación y aparecerá en el historial cuando esté listo.
+
+> Los reportes con datos personales solo pueden ser generados por usuarios con permisos suficientes. Al generarlos, el sistema aplica las restricciones de la Ley 1581 de 2012.
+
+#### Reportes disponibles por categoría
+
+**Financieros (7 reportes):**
+
+| Reporte | Descripción | Formatos |
+|---------|-------------|----------|
+| Balance General | Activos, pasivos y patrimonio a una fecha determinada. | PDF, Excel |
+| Estado de Resultados | Ingresos y egresos del período seleccionado. | PDF, Excel |
+| Balance de Comprobación | Listado de cuentas con movimientos débito/crédito y saldos. | PDF, Excel |
+| Mayor Contable | Historial detallado de movimientos de una cuenta específica con saldo corrido. | PDF, Excel |
+| Libro Diario | Listado cronológico de todos los asientos contables del período. | PDF, Excel |
+| Ejecución Presupuestal | Comparativo entre presupuesto ajustado y ejecutado por rubro. | PDF, Excel |
+| Detalle de Adiciones y Traslados | Movimientos presupuestales (adiciones y traslados) del período. | PDF, Excel |
+
+**Cartera (6 reportes):**
+
+| Reporte | Descripción | Formatos |
+|---------|-------------|----------|
+| Cartera por Unidad | Saldo pendiente de cada unidad, incluye días de mora y etapa de cobro. | PDF, Excel |
+| Cartera por Etapa | Desglose de cartera agrupada por etapa: Preventivo, Prejurídico, Jurídico. | PDF, Excel |
+| Estado de Cuenta Individual | Movimientos y saldo de una unidad específica. | PDF |
+| Intereses de Mora | Cálculo detallado de intereses generados por unidad. | PDF, Excel |
+| Acuerdos de Pago | Listado de acuerdos de pago activos e históricos. | PDF, Excel |
+| Paz y Salvo | Certificado de paz y salvo por unidad. | PDF |
+
+> Los reportes "Estado de Cuenta Individual" y "Paz y Salvo" contienen datos personales y están restringidos según el rol del usuario.
+
+**Operativos (5 reportes):**
+
+| Reporte | Descripción | Formatos |
+|---------|-------------|----------|
+| Padrón de Propietarios | Listado completo de propietarios con datos de contacto y unidades vinculadas. | PDF, Excel |
+| Padrón de Arrendatarios | Listado de arrendatarios activos con datos de contacto y vigencia del contrato. | PDF, Excel |
+| Inventario de Bienes Comunes | Listado de activos físicos del conjunto con estado y ubicación. | PDF, Excel |
+| Órdenes de Trabajo | Historial de órdenes de trabajo del período seleccionado. | PDF, Excel |
+| Proveedores y Contratos | Listado de proveedores y contratos activos. | PDF, Excel |
+
+> Los reportes "Padrón de Propietarios" y "Padrón de Arrendatarios" contienen datos personales.
+
+**Asamblea (4 reportes):**
+
+| Reporte | Descripción | Formatos |
+|---------|-------------|----------|
+| Convocatoria a Asamblea | Documento formal de convocatoria con orden del día. | PDF |
+| Acta de Asamblea | Acta generada a partir de la información registrada en el sistema. | PDF |
+| Lista de Asistentes | Registro de asistentes a la asamblea con unidades y coeficientes. | PDF, Excel |
+| Certificación de Deuda | Certificado de deuda para ejercicio del derecho al voto. | PDF |
+
+> El reporte "Lista de Asistentes" contiene datos personales.
+
+**Anuales (4 reportes):**
+
+| Reporte | Descripción | Formatos |
+|---------|-------------|----------|
+| Informe de Gestión del Consejo | Informe anual de actividades del Consejo de Administración. | PDF |
+| Informe Financiero Anual | Resumen financiero del año fiscal con indicadores clave. | PDF |
+| Informe de Recaudo Anual | Comparativo mensual de recaudo vs. facturado del año. | PDF, Excel |
+| Informe de Morosidad | Análisis anual de morosidad con tendencias. | PDF, Excel |
+
+### 18.2 Historial de Reportes (página /reports/history)
+
+Acceda desde el menú lateral: **Reportes → Historial**.
+
+Aquí encontrará todos los reportes que han sido generados en el sistema, ordenados del más reciente al más antiguo.
+
+**La tabla muestra las siguientes columnas:**
+
+| Columna | Descripción |
+|---------|-------------|
+| Reporte | Nombre del tipo de reporte generado. |
+| Formato | PDF o Excel. |
+| Período | Rango de fechas seleccionado al generar. |
+| Generado por | Usuario que solicitó la generación. |
+| Fecha | Fecha y hora de generación. |
+| Tamaño | Tamaño del archivo generado. |
+
+**Filtros disponibles:**
+- **Tipo de reporte**: Seleccione un reporte específico para filtrar.
+- **Rango de fechas**: Desde / Hasta para filtrar por fecha de generación.
+
+**Acciones:**
+- **Descargar**: Haga clic en el botón **Descargar** de la fila correspondiente para abrir o guardar el archivo generado.
+
+> Si no hay reportes generados, la página mostrará el mensaje: *"Aún no se han generado reportes. Vaya al catálogo de reportes para generar su primer reporte."*
+
+### 18.3 Reportes Recurrentes (página /reports/recurring)
+
+Acceda desde el menú lateral: **Reportes → Recurrentes**.
+
+Esta sección le permite configurar reportes que se generan automáticamente según una frecuencia definida.
+
+#### Crear una nueva configuración recurrente
+
+1. Haga clic en **Nueva Configuración**.
+2. Complete los campos del modal:
+
+| Campo | Descripción |
+|-------|-------------|
+| **Tipo de Reporte** | Seleccione el reporte a generar automáticamente. |
+| **Nombre** | Asigne un nombre descriptivo a esta configuración. |
+| **Frecuencia** | Diario, Semanal, Mensual, Trimestral o Anual. |
+| **Formato** | PDF o Excel. |
+| **Correos Destinatarios** | Uno o más correos electrónicos separados por coma. |
+| **Asunto del Correo** | Asunto personalizado para el envío. |
+
+3. Haga clic en **Guardar**.
+
+**Lista de configuraciones:**
+
+Cada configuración en la lista muestra:
+- **Nombre** de la configuración.
+- **Tipo de reporte** y **Formato**.
+- **Frecuencia** programada.
+- **Estado**: Activo (generándose normalmente), Pausado (temporalmente detenido) o Completado (configuración finalizada).
+- **Próxima ejecución**: Fecha y hora estimada de la próxima generación automática.
+- **Destinatarios**: Correos configurados.
+
+**Botones por configuración:**
+- **Pausar**: Detiene temporalmente la generación automática. El estado cambia a "Pausado".
+- **Reanudar**: Reactiva la generación automática. El estado vuelve a "Activo".
+
+> El motor de recurrencia ejecuta cada **5 minutos** para verificar si hay configuraciones que deban generar un reporte en ese momento. Si encuentra una configuración cuya próxima ejecución ya venció, la procesa inmediatamente.
+
+### 18.4 Informe Anual de Gestión (página /reports/annual)
+
+Acceda desde el menú lateral: **Reportes → Informe Anual**.
+
+Este módulo le permite construir el **Informe Anual de Gestión del Consejo de Administración** de forma incremental. El informe se compone de varias secciones que puede auto-generar, revisar, editar manualmente y finalmente consolidar en un PDF.
+
+#### Flujo de trabajo
+
+El proceso recomendado es:
+
+1. **Auto-generar secciones**: Use el botón **Regenerar** en cada sección para que el sistema la complete con datos reales del período.
+2. **Revisar y editar**: Modifique el título y el contenido de cada sección según sea necesario.
+3. **Consolidar**: Una vez todas las secciones estén listas, haga clic en **Consolidar Informe** para generar el PDF final.
+
+#### Barra de progreso
+
+En la parte superior de la página verá una barra de progreso que muestra el **porcentaje de completitud** del informe. Cada sección completada (en estado "Auto-generado" o "Editado manualmente") incrementa el progreso. Las secciones en "Pendiente" no cuentan.
+
+#### Lista de secciones
+
+Cada sección del informe se muestra como un panel expandible con la siguiente información:
+
+- **Título de la sección** (editable).
+- **Estado**: Uno de tres estados:
+  - **Auto-generado**: El sistema completó la sección con datos del sistema. Puede revisarla y editarla.
+  - **Editado manualmente**: Usted modificó el contenido después de la auto-generación, o escribió el contenido desde cero.
+  - **Pendiente**: La sección aún no ha sido generada ni editada.
+
+**Acciones por sección:**
+- **Expandir/Colapsar**: Haga clic en la sección para ver su contenido.
+- **Editar título**: Haga clic sobre el título y escríbalo directamente.
+- **Editar contenido**: En el área de texto de la sección, modifique el contenido según necesite.
+- **Regenerar Sección**: Disponible solo para secciones auto-generables. El sistema vuelve a generar el contenido con los datos más actualizados del período.
+
+> Si edita manualmente una sección que previamente fue auto-generada, el estado cambia a "Editado manualmente". Si desea volver a la versión auto-generada, use el botón **Regenerar Sección**.
+
+#### Consolidar Informe
+
+Cuando todas las secciones estén completas:
+
+1. Haga clic en **Consolidar Informe**.
+2. Seleccione el **año fiscal** del informe.
+3. El sistema genera un PDF profesional con todas las secciones, numeración automática y portada.
+4. El PDF se guarda en el historial de reportes y puede descargarse desde allí.
+
+> Puede consolidar el informe aunque haya secciones en estado "Pendiente", pero el sistema le mostrará una advertencia antes de proceder.
+
+### 18.5 Plantillas PDF (página /reports/templates)
+
+Acceda desde el menú lateral: **Reportes → Plantillas PDF**.
+
+Esta página le permite personalizar la apariencia de los reportes que se generan en formato PDF. Cada tipo de reporte que soporta PDF tiene su propia plantilla.
+
+#### Lista de plantillas
+
+La página muestra una lista con una entrada por cada tipo de reporte que genera PDF. Cada plantilla se puede editar de forma independiente.
+
+#### Personalización disponible
+
+Al hacer clic en una plantilla, se despliegan los siguientes campos editables:
+
+| Campo | Descripción |
+|-------|-------------|
+| **Texto de Encabezado** | Texto que aparece en la parte superior de cada página del reporte. |
+| **Texto de Pie de Página** | Texto que aparece en la parte inferior de cada página. |
+| **Nombre del Firmante** | Nombre de la persona que firma el reporte (ej. el administrador). |
+| **Cargo del Firmante** | Cargo del firmante (ej. Administrador, Presidente del Consejo). |
+| **Color Primario** | Selector de color para los títulos y bordes del reporte. |
+| **Color Secundario** | Selector de color para las tablas y detalles decorativos. |
+| **Nota de Confidencialidad** | Texto legal de confidencialidad. Se muestra solo en reportes marcados con "Datos Personales". |
+| **Nota de Descargo** | Texto de descargo de responsabilidad. Se muestra solo en reportes financieros. |
+| **Logo** | Subida de imagen (PNG o SVG) para el membrete del reporte. |
+
+#### Cómo personalizar una plantilla
+
+1. Busque el reporte en la lista y haga clic sobre él.
+2. Edite los campos que desee modificar.
+3. Los cambios se guardan automáticamente al salir del campo.
+
+> Los cambios aplican **inmediatamente** a todos los nuevos reportes que se generen. Los reportes ya generados no se ven afectados.
+
+### 18.6 Roles y Permisos
+
+El acceso al módulo de Reportes y Exportaciones está controlado por rol, tanto para la generación de reportes como para la visualización de datos personales.
+
+| Rol | Acceso |
+|-----|--------|
+| **SuperAdmin** | Acceso completo a los 26 reportes, historial, reportes recurrentes, informe anual y plantillas PDF. Sin restricciones de datos personales. |
+| **Admin** | Acceso completo a los 26 reportes, historial, reportes recurrentes, informe anual y plantillas PDF. Sin restricciones de datos personales. |
+| **Council** | Acceso a reportes financieros (7), operativos (5), asamblea (4) y anuales (4). **No puede generar** reportes que contengan datos personales (Estado de Cuenta Individual, Paz y Salvo, Padrón de Propietarios, Padrón de Arrendatarios, Lista de Asistentes). |
+| **Accountant** | Acceso a reportes financieros (7), cartera seleccionada (Cartera por Unidad, Cartera por Etapa, Intereses de Mora, Acuerdos de Pago) y padrón de propietarios. No puede ver Estado de Cuenta Individual ni Paz y Salvo de unidades que no administra. |
+| **Auditor** | Acceso de solo lectura a reportes financieros, cartera seleccionada y padrón de propietarios. Puede descargar reportes generados por otros usuarios, pero no generar nuevos reportes. |
+| **Resident** | Solo puede generar su propio **Estado de Cuenta Individual** (cartera por unidad). No tiene acceso al catálogo completo, historial, reportes recurrentes, informe anual ni plantillas PDF. |
+
+> **Nota sobre datos personales:** Los reportes que incluyen información de personas naturales (propietarios, arrendatarios, residentes) están sujetos a la Ley 1581 de 2012. El sistema restringe su generación según el rol y registra en el historial de auditoría cada vez que se genera uno de estos reportes.
+
+---
+
+*Documento generado el Junio 2026 — Softcoinp ERP*
