@@ -217,6 +217,11 @@ public class AnnualReportStatusDto
     public DateTime? LastConsolidatedAt { get; set; }
 }
 
+public class ConsolidateAnnualReportRequestDto
+{
+    public int FiscalYear { get; set; }
+}
+
 public class AnnualReportConsolidatedDto
 {
     public string TenantName { get; set; } = string.Empty;

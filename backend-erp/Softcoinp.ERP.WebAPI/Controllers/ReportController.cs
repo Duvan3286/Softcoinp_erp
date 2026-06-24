@@ -193,7 +193,7 @@ public class ReportController : ControllerBase
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var configs = await _context.RecurringReportConfigs
@@ -228,7 +228,7 @@ public class ReportController : ControllerBase
         var userId = GetUserId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var reportType = await _context.ReportTypes.FindAsync(request.ReportTypeId);
@@ -282,7 +282,7 @@ public class ReportController : ControllerBase
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var config = await _context.RecurringReportConfigs
@@ -304,7 +304,7 @@ public class ReportController : ControllerBase
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var config = await _context.RecurringReportConfigs
@@ -323,13 +323,13 @@ public class ReportController : ControllerBase
 
     // ── Secciones del Informe de Gestion Anual ───────────────────
 
-    [HttpGet("annual-report/sections")]
+    [HttpGet("annual/sections")]
     public async Task<ActionResult<List<ManagementReportSectionDto>>> GetAnnualReportSections()
     {
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var sections = await _context.ManagementReportSections
@@ -353,7 +353,7 @@ public class ReportController : ControllerBase
         }).ToList());
     }
 
-    [HttpPut("annual-report/sections/{id}")]
+    [HttpPut("annual/sections/{id}")]
     public async Task<ActionResult<ManagementReportSectionDto>> UpdateAnnualReportSection(
         Guid id, [FromBody] UpdateManagementReportSectionDto request)
     {
@@ -361,7 +361,7 @@ public class ReportController : ControllerBase
         var role = GetUserRole();
         var userId = GetUserId();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var section = await _context.ManagementReportSections
@@ -403,13 +403,13 @@ public class ReportController : ControllerBase
         });
     }
 
-    [HttpPost("annual-report/regenerate-section/{id}")]
+    [HttpPost("annual/sections/{id}/regenerate")]
     public async Task<IActionResult> RegenerateSection(Guid id)
     {
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var section = await _context.ManagementReportSections
@@ -430,13 +430,13 @@ public class ReportController : ControllerBase
         return Ok();
     }
 
-    [HttpGet("annual-report/status")]
+    [HttpGet("annual/status")]
     public async Task<ActionResult<AnnualReportStatusDto>> GetAnnualReportStatus()
     {
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var sections = await _context.ManagementReportSections
@@ -459,14 +459,14 @@ public class ReportController : ControllerBase
         });
     }
 
-    [HttpPost("annual-report/consolidate/{fiscalYear}")]
-    public async Task<ActionResult<GeneratedReportDto>> ConsolidateAnnualReport(int fiscalYear)
+    [HttpPost("annual/consolidate")]
+    public async Task<ActionResult<GeneratedReportDto>> ConsolidateAnnualReport([FromBody] ConsolidateAnnualReportRequestDto request)
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var sections = await _context.ManagementReportSections
@@ -476,12 +476,12 @@ public class ReportController : ControllerBase
 
         var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync();
 
-        var periodFrom = new DateTime(fiscalYear, 1, 1);
-        var periodTo = new DateTime(fiscalYear, 12, 31);
+        var periodFrom = new DateTime(request.FiscalYear, 1, 1);
+        var periodTo = new DateTime(request.FiscalYear, 12, 31);
 
         var result = await _pdfEngine.GenerateReportAsync(
             tenantId, "AnnualManagementReport", "Pdf", userId,
-            periodFrom, periodTo, null, "Informe de Gestion Anual " + fiscalYear);
+            periodFrom, periodTo, null, "Informe de Gestion Anual " + request.FiscalYear);
 
         return Ok(new GeneratedReportDto
         {
@@ -510,7 +510,7 @@ public class ReportController : ControllerBase
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var templates = await _context.PDFTemplates
@@ -541,7 +541,7 @@ public class ReportController : ControllerBase
         var tenantId = GetTenantId();
         var role = GetUserRole();
 
-        if (role != "Admin")
+        if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
         var template = await _context.PDFTemplates
