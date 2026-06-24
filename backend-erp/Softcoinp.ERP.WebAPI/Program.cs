@@ -90,6 +90,11 @@ builder.Services.AddScoped<ProviderService>();
 builder.Services.AddScoped<ContractService>();
 builder.Services.AddScoped<RetentionService>();
 builder.Services.AddScoped<MaintenanceService>();
+builder.Services.AddScoped<AssemblyQuorumEngine>();
+builder.Services.AddScoped<AssemblyVotingEngine>();
+builder.Services.AddScoped<AssemblyMinutesGenerator>();
+builder.Services.AddScoped<AssemblyDecisionPropagationService>();
+builder.Services.AddScoped<AssemblyService>();
 
 // Register Background Services
 builder.Services.AddHostedService<PQRAlertEngineService>();

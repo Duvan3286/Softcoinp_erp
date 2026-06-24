@@ -127,6 +127,17 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<IncidentWorkOrder> IncidentWorkOrders => Set<IncidentWorkOrder>();
     public DbSet<AssetStatusHistory> AssetStatusHistories => Set<AssetStatusHistory>();
 
+    // ── Módulo de Asambleas y Votaciones ─────────────────────────────
+    public DbSet<Assembly> Assemblies => Set<Assembly>();
+    public DbSet<AssemblyConvocation> AssemblyConvocations => Set<AssemblyConvocation>();
+    public DbSet<ConvocationDocument> ConvocationDocuments => Set<ConvocationDocument>();
+    public DbSet<ConvocationRecipient> ConvocationRecipients => Set<ConvocationRecipient>();
+    public DbSet<AssemblyAttendance> AssemblyAttendances => Set<AssemblyAttendance>();
+    public DbSet<AssemblyAgendaItem> AssemblyAgendaItems => Set<AssemblyAgendaItem>();
+    public DbSet<AssemblyConstancy> AssemblyConstancies => Set<AssemblyConstancy>();
+    public DbSet<AssemblyMinutes> AssemblyMinutes => Set<AssemblyMinutes>();
+    public DbSet<AssemblyDecisionPropagation> AssemblyDecisionPropagations => Set<AssemblyDecisionPropagation>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Only resolve the tenant connection string when no provider has been configured.
@@ -1821,6 +1832,266 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.AssetId });
             entity.HasIndex(e => new { e.TenantId, e.ChangedAt });
+        });
+
+        // ── Módulo de Asambleas y Votaciones ─────────────────────────
+
+        modelBuilder.Entity<Assembly>(entity =>
+        {
+            entity.ToTable("erp_assemblies");
+            entity.HasKey(e => e.Id);
+            entity.HasQueryFilter(e => !e.IsDeleted);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Type).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ParticipationType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(4000);
+            entity.Property(e => e.ScheduledTime).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Location).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.SecondConvocationTime).HasMaxLength(10);
+            entity.Property(e => e.SecondConvocationLocation).HasMaxLength(300);
+            entity.Property(e => e.TotalCoefficients).HasPrecision(18, 4);
+            entity.Property(e => e.QuorumThresholdFirstCall).HasPrecision(18, 4);
+            entity.Property(e => e.QuorumThresholdSecondCall).HasPrecision(18, 4);
+            entity.Property(e => e.PresidentName).HasMaxLength(300);
+            entity.Property(e => e.SecretaryName).HasMaxLength(300);
+            entity.Property(e => e.PresidentOwnerId).HasMaxLength(100);
+            entity.Property(e => e.SecretaryOwnerId).HasMaxLength(100);
+            entity.Property(e => e.ConvocationSentAt).HasMaxLength(50);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.ScheduledDate });
+            entity.HasIndex(e => new { e.TenantId, e.Type });
+        });
+
+        modelBuilder.Entity<AssemblyConvocation>(entity =>
+        {
+            entity.ToTable("erp_assembly_convocations");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Subject).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Notes).HasMaxLength(4000);
+            entity.Property(e => e.SentByUserId).HasMaxLength(450);
+            entity.Property(e => e.Channel).IsRequired().HasMaxLength(30);
+
+            entity.HasOne(e => e.Assembly)
+                  .WithMany(a => a.Convocations)
+                  .HasForeignKey(e => e.AssemblyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId });
+        });
+
+        modelBuilder.Entity<ConvocationDocument>(entity =>
+        {
+            entity.ToTable("erp_convocation_documents");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.DocumentName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.DocumentType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.FilePath).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(500);
+
+            entity.HasOne(e => e.Convocation)
+                  .WithMany(c => c.Documents)
+                  .HasForeignKey(e => e.ConvocationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.ConvocationId });
+        });
+
+        modelBuilder.Entity<ConvocationRecipient>(entity =>
+        {
+            entity.ToTable("erp_convocation_recipients");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.OwnerName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.OwnerEmail).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.OwnerPhone).HasMaxLength(50);
+            entity.Property(e => e.DeliveryError).HasMaxLength(500);
+
+            entity.HasOne(e => e.Convocation)
+                  .WithMany(c => c.Recipients)
+                  .HasForeignKey(e => e.ConvocationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.ConvocationId });
+            entity.HasIndex(e => new { e.TenantId, e.OwnerId });
+        });
+
+        modelBuilder.Entity<AssemblyAttendance>(entity =>
+        {
+            entity.ToTable("erp_assembly_attendances");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Coefficient).HasPrecision(18, 4);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.RepresentativeName).HasMaxLength(300);
+            entity.Property(e => e.RepresentativeDocumentNumber).HasMaxLength(50);
+            entity.Property(e => e.PowerOfAttorneyFilePath).HasMaxLength(500);
+            entity.Property(e => e.VotingRestrictionReason).HasMaxLength(1000);
+            entity.Property(e => e.VotingRestrictionLiftedByUserId).HasMaxLength(450);
+            entity.Property(e => e.VotingRestrictionLiftedReason).HasMaxLength(1000);
+            entity.Property(e => e.CommissionRole).HasMaxLength(100);
+            entity.Property(e => e.Notes).HasMaxLength(2000);
+            entity.Property(e => e.RegisteredByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Assembly)
+                  .WithMany(a => a.Attendances)
+                  .HasForeignKey(e => e.AssemblyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.RepresentativeOwner)
+                  .WithMany()
+                  .HasForeignKey(e => e.RepresentativeOwnerId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId });
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId, e.UnitId }).IsUnique();
+        });
+
+        modelBuilder.Entity<AssemblyAgendaItem>(entity =>
+        {
+            entity.ToTable("erp_assembly_agenda_items");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(4000);
+            entity.Property(e => e.PresenterName).HasMaxLength(300);
+            entity.Property(e => e.MajorityRequired).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.VotingMode).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TotalCoefficientsForVote).HasPrecision(18, 4);
+            entity.Property(e => e.VotesInFavorCoefficients).HasPrecision(18, 4);
+            entity.Property(e => e.VotesAgainstCoefficients).HasPrecision(18, 4);
+            entity.Property(e => e.AbstentionCoefficients).HasPrecision(18, 4);
+            entity.Property(e => e.RejectionReason).HasMaxLength(1000);
+            entity.Property(e => e.Observations).HasMaxLength(4000);
+            entity.Property(e => e.OwnerNotes).HasMaxLength(4000);
+            entity.Property(e => e.RegisteredByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Assembly)
+                  .WithMany(a => a.AgendaItems)
+                  .HasForeignKey(e => e.AssemblyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId });
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId, e.SequenceNumber });
+        });
+
+        modelBuilder.Entity<AssemblyConstancy>(entity =>
+        {
+            entity.ToTable("erp_assembly_constancies");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.OwnerName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Text).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.RegisteredByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Assembly)
+                  .WithMany(a => a.Constancies)
+                  .HasForeignKey(e => e.AssemblyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AgendaItem)
+                  .WithMany()
+                  .HasForeignKey(e => e.AgendaItemId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId });
+        });
+
+        modelBuilder.Entity<AssemblyMinutes>(entity =>
+        {
+            entity.ToTable("erp_assembly_minutes");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PresidentName).HasMaxLength(300);
+            entity.Property(e => e.SecretaryName).HasMaxLength(300);
+            entity.Property(e => e.FullText).HasColumnType("longtext").IsRequired();
+            entity.Property(e => e.GeneratedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CommissionMemberNames).HasMaxLength(2000);
+            entity.Property(e => e.CommissionComments).HasMaxLength(4000);
+            entity.Property(e => e.PresidentSignatureFilePath).HasMaxLength(500);
+            entity.Property(e => e.SecretarySignatureFilePath).HasMaxLength(500);
+            entity.Property(e => e.ApprovedByUserId).HasMaxLength(450);
+            entity.Property(e => e.PublishedByUserId).HasMaxLength(450);
+            entity.Property(e => e.RevisionNotes).HasMaxLength(4000);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Assembly)
+                  .WithMany(a => a.Minutes)
+                  .HasForeignKey(e => e.AssemblyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+        });
+
+        modelBuilder.Entity<AssemblyDecisionPropagation>(entity =>
+        {
+            entity.ToTable("erp_assembly_decision_propagations");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.TargetModule).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.TargetEntityId).HasMaxLength(100);
+            entity.Property(e => e.TargetEntityType).HasMaxLength(100);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(4000);
+            entity.Property(e => e.PropagatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.Assembly)
+                  .WithMany(a => a.DecisionPropagations)
+                  .HasForeignKey(e => e.AssemblyId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AgendaItem)
+                  .WithMany()
+                  .HasForeignKey(e => e.AgendaItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.TenantId, e.AssemblyId });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.TargetModule, e.Status });
         });
     }
 

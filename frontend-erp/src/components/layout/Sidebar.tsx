@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Truck,
   Wrench,
+  Gavel,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────
@@ -171,6 +172,17 @@ export const Sidebar = () => {
             <NavItem text="Fuera de Servicio" path="/maintenance/out-of-service" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Siniestros" path="/maintenance/incidents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Reportes" path="/maintenance/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+          </NavGroup>
+
+          <NavGroup
+            icon={<Gavel className="w-5 h-5" />}
+            text="Asambleas"
+            isOpen={openGroup === 'asambleas'}
+            isExpanded={isExpanded}
+            onToggle={() => toggleGroup('asambleas')}
+          >
+            <NavItem text="Asambleas" path="/assembly" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Nueva Asamblea" path="/assembly/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup
