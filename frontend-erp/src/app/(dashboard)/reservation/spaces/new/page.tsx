@@ -6,6 +6,7 @@ import { Loader2, Save, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import reservationService, { CreateReservableSpaceRequest } from '@/lib/reservation-service';
+import axios from 'axios';
 
 export default function NewSpacePage() {
   const router = useRouter();
@@ -39,8 +40,14 @@ export default function NewSpacePage() {
       await reservationService.createSpace(form);
       router.push('/reservation/spaces');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error al crear el espacio.';
-      setError(message);
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const data = err.response.data as { message?: string };
+        setError(data.message || 'Error al crear el espacio.');
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error al crear el espacio.');
+      }
     } finally {
       setLoading(false);
     }
