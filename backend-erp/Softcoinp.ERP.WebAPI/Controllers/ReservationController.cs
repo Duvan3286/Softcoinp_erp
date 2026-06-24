@@ -48,8 +48,15 @@ public class ReservationController : BaseController
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
-        var space = await _reservationService.CreateSpaceAsync(request, tenantId, userId);
-        return CreatedAtAction(nameof(GetSpace), new { id = space.Id }, space);
+        try
+        {
+            var space = await _reservationService.CreateSpaceAsync(request, tenantId, userId);
+            return CreatedAtAction(nameof(GetSpace), new { id = space.Id }, space);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("spaces/{id:guid}")]
@@ -59,8 +66,15 @@ public class ReservationController : BaseController
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
-        var space = await _reservationService.UpdateSpaceAsync(id, request, tenantId, userId);
-        return Ok(space);
+        try
+        {
+            var space = await _reservationService.UpdateSpaceAsync(id, request, tenantId, userId);
+            return Ok(space);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     // ── Schedules ────────────────────────────────────────────────
