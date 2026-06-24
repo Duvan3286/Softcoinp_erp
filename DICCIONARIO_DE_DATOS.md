@@ -1256,7 +1256,181 @@ Registro de cada cambio de estado de un bien con fecha, motivo y usuario respons
 
 ---
 
-## 10. Estándar de Campos en Frontend
+## 11. Módulo de Comunicados y Notificaciones
+
+Gestión de toda la comunicación oficial entre la administración y los residentes, tanto comunicados masivos formales como notificaciones automáticas generadas por eventos de otros módulos. Este módulo tiene implicaciones legales porque en Colombia la notificación debida es requisito de validez para muchos actos administrativos de la propiedad horizontal.
+
+### 11.1 Comunicado (`Communication`)
+
+Registro inmutable de cada comunicación formal enviada por la administración. Un comunicado puede ser inmediato, programado o guardado como borrador.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asunto (`subject`)** | `string` max 500 | Sí | Título del comunicado. |
+| **Cuerpo (`body`)** | `string` (longtext) | Sí | Contenido del comunicado con formato enriquecido. |
+| **Estado (`status`)** | `Enum` | Sí | `Draft` = Borrador · `Scheduled` = Programado · `Sent` = Enviado · `Archived` = Archivado. Una vez enviado no puede modificarse. |
+| **Tipo de Audiencia (`audienceType`)** | `Enum` | Sí | `AllOwners` = Todos los propietarios · `AllResidents` = Todos los residentes · `SpecificUnits` = Unidades específicas · `SpecificTowers` = Torres específicas · `CustomGroup` = Grupo personalizado. |
+| **Canales Seleccionados (`selectedChannels`)** | `string` (JSON) | Sí | Lista separada por comas de los canales habilitados: `Email`, `Sms`, `Push`, `BulletinBoard`. |
+| **Fecha de Envío (`sendAt`)** | `datetime` | No | Fecha y hora programada para envío futuro. `null` = envío inmediato o borrador. |
+| **Fecha de Envío Real (`sentAt`)** | `datetime` | No | Se asigna automáticamente cuando el comunicado se envía. |
+| **Requiere Confirmación de Lectura (`requiresReadConfirmation`)** | `boolean` | Sí | `true` = el sistema exige que el destinatario confirme haber leído el comunicado. |
+| **Publicar en Cartelera (`publishToBulletinBoard`)** | `boolean` | Sí | `true` = se publica automáticamente en la cartelera digital. |
+| **Comunicado Relacionado (`relatedCommunicationId`)** | `Guid?` FK | No | Referencia al comunicado anterior que este corrige o reemplaza. Self-reference. |
+| **Archivos Adjuntos (`filePaths`)** | `string` (JSON) | No | Lista serializada de rutas de archivos adjuntos. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó el comunicado. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó el comunicado. |
+
+> [!IMPORTANT]
+> **Inmutabilidad**: Una vez enviado, un comunicado no puede modificarse ni eliminarse. Solo se puede archivar (soft delete). Si se requiere corregir, debe crear un nuevo comunicado con referencia al anterior.
+
+### 11.2 Destinatario del Comunicado (`CommunicationRecipient`)
+
+Registro de entrega por cada destinatario de un comunicado. Almacena el estado de entrega individual por canal.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Comunicado (`communicationId`)** | `Guid` FK | Sí | Comunicado al que pertenece. Cascade delete. |
+| **Propietario (`ownerId`)** | `Guid?` FK | No | ID del propietario destinatario (si el destinatario es propietario). FK a `erp_owners`. |
+| **Arrendatario (`tenantResidentId`)** | `Guid?` FK | No | ID del arrendatario destinatario (si aplica). FK a `erp_tenant_residents`. |
+| **Email del Destinatario (`recipientEmail`)** | `string` max 300 | No | Email del destinatario al momento del envío (snapshot). |
+| **Teléfono del Destinatario (`recipientPhone`)** | `string` max 50 | No | Teléfono del destinatario al momento del envío (snapshot). |
+| **Estado Email (`emailStatus`)** | `Enum` | Sí | `Pending` · `Sent` · `Delivered` · `Read` · `Failed` · `Bounced`. |
+| **Estado SMS (`smsStatus`)** | `Enum` | Sí | `Pending` · `Sent` · `Delivered` · `Failed`. |
+| **Estado Push (`pushStatus`)** | `Enum` | Sí | `Pending` · `Sent` · `Delivered`. |
+| **Estado Cartelera (`bulletinBoardStatus`)** | `Enum` | Sí | `Pending` · `Sent` (se marca como enviado al publicarse en cartelera). |
+| **Email Enviado (`emailSentAt`)** | `datetime` | No | Marca temporal del envío por correo. |
+| **SMS Enviado (`smsSentAt`)** | `datetime` | No | Marca temporal del envío por SMS. |
+| **Push Enviado (`pushSentAt`)** | `datetime` | No | Marca temporal del envío por notificación push. |
+| **Confirmación de Lectura (`readConfirmedAt`)** | `datetime` | No | Fecha en que el destinatario confirmó la lectura del comunicado. |
+| **Contador de Reenvíos (`resentCount`)** | `int` | Sí | Número de veces que se ha reenviado a este destinatario por no confirmar lectura. |
+| **Último Reenvío (`lastResentAt`)** | `datetime` | No | Fecha del último reenvío. |
+| **Mensaje de Error (`errorMessage`)** | `string` max 1000 | No | Descripción del error si el envío falló. |
+
+### 11.3 Plantilla de Notificación (`NotificationTemplate`)
+
+Plantillas configurables para las notificaciones automáticas, con variables dinámicas y versiones por canal.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Nombre (`name`)** | `string` max 200 | Sí | Nombre descriptivo de la plantilla. |
+| **Tipo de Evento (`eventType`)** | `Enum` | Sí | `PaymentConfirmed` · `NewMonthlyBillingAvailable` · `DelinquencyNotice1` · `DelinquencyNotice2` · `DelinquencyNotice3` · `PreLegalNotice` · `PaymentAgreementConfirmed` · `PaymentAgreementDueSoon` · `PeaceAndSafetyIssued` · `PQRReceived` · `PQRStatusUpdated` · `PQRResponseAvailable` · `PQRClosed` · `ReservationApproved` · `ReservationRejected` · `ReservationReminder24h` · `ReservationReminder2h` · `DepositReturned` · `AssemblyConvocation` · `AssemblyReminder72h` · `AssemblyMinutesPublished` · `MaintenanceScheduled` · `OutOfService` · `WorkOrderResolved`. |
+| **Para (`forRecipientType`)** | `Enum` | Sí | `Owner` = Propietario · `Tenant` = Arrendatario · `Both` = Ambos. |
+| **Asunto Email (`emailSubject`)** | `string` max 500 | Sí | Asunto del correo electrónico. |
+| **Cuerpo Email (`emailBody`)** | `string` (longtext) | Sí | Contenido del correo con formato enriquecido. |
+| **Cuerpo SMS (`smsBody`)** | `string` max 160 | Sí | Texto plano del SMS. Máximo 160 caracteres. |
+| **Variables Dinámicas (`dynamicVariables`)** | `string` (JSON) | No | Lista de nombres de variables que se reemplazan en el texto. Ej. `["Propietario","Unidad","Valor","Fecha"]`. |
+| **Activo (`isActive`)** | `boolean` | Sí | `false` si la plantilla está desactivada y no debe usarse. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó la plantilla. |
+
+### 11.4 Notificación Automática (`AutomaticNotification`)
+
+Registro de cada notificación generada automáticamente por un evento de otro módulo.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Tipo de Evento (`eventType`)** | `Enum` | Sí | Tipo de evento que originó la notificación. Mismos valores que `NotificationTemplate.eventType`. |
+| **Comunicado Relacionado (`communicationId`)** | `Guid?` FK | No | Si la notificación generó un comunicado formal, referencia al mismo. |
+| **Propietario (`ownerId`)** | `Guid?` FK | No | Propietario destinatario de la notificación. |
+| **Arrendatario (`tenantResidentId`)** | `Guid?` FK | No | Arrendatario destinatario de la notificación. |
+| **Email Destino (`recipientEmail`)** | `string` max 300 | No | Email del destinatario (snapshot). |
+| **Teléfono Destino (`recipientPhone`)** | `string` max 50 | No | Teléfono del destinatario (snapshot). |
+| **Canal (`channel`)** | `Enum` | Sí | Canal por el que se envió: `Email` · `Sms` · `Push` · `BulletinBoard`. |
+| **Estado (`status`)** | `Enum` | Sí | `Pending` · `Sent` · `Delivered` · `Read` · `Failed`. |
+| **Enviado (`sentAt`)** | `datetime` | No | Fecha y hora del envío. |
+| **Leído (`readAt`)** | `datetime` | No | Fecha en que el destinatario abrió/leyó la notificación. |
+| **Módulo Origen (`sourceModule`)** | `string` max 50 | Sí | Módulo que originó el evento. `Billing` · `PQR` · `Reservations` · `Assembly` · `Maintenance`. |
+| **ID Entidad Origen (`sourceEntityId`)** | `string` max 100 | Sí | ID de la entidad que generó el evento (UUID como string). |
+| **Tipo Entidad Origen (`sourceEntityType`)** | `string` max 100 | Sí | Tipo de entidad origen. Ej. `"Payment"`, `"PqrRecord"`, `"Reservation"`. |
+| **Mensaje de Error (`errorMessage`)** | `string` max 1000 | No | Mensaje si el envío falló. |
+
+### 11.5 Preferencias de Comunicación (`CommunicationPreference`)
+
+Configuración individual de canales de comunicación para cada residente. El sistema respeta estas preferencias para notificaciones no críticas.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Propietario (`ownerId`)** | `Guid?` FK | No | Propietario al que pertenecen las preferencias. FK a `erp_owners`. |
+| **Arrendatario (`tenantResidentId`)** | `Guid?` FK | No | Arrendatario al que pertenecen las preferencias. FK a `erp_tenant_residents`. |
+| **Permite Email (`allowEmail`)** | `boolean` | Sí | `true` = autoriza notificaciones por correo electrónico. |
+| **Permite SMS (`allowSms`)** | `boolean` | Sí | `true` = autoriza notificaciones por SMS. |
+| **Permite Push (`allowPush`)** | `boolean` | Sí | `true` = autoriza notificaciones push. |
+| **Override Notificaciones Críticas (`criticalNotificationsOverride`)** | `boolean` | Sí | `true` = recibe notificaciones críticas (emergencia, cortes) sin importar las preferencias individuales. Default: `true`. |
+| **Tipos Desuscritos (`unsubscribedEventTypes`)** | `string` (JSON) | No | Lista de tipos de evento de los que el residente solicitó no ser notificado. |
+| **Notas (`notes`)** | `string` max 2000 | No | Notas internas del administrador sobre solicitudes de desuscripción. |
+| **Cambiado Por (`changedByUserId`)** | `string` max 450 | Automático | ID del usuario que modificó las preferencias. |
+
+> [!NOTE]
+> Índice único por `(TenantId, OwnerId)` y `(TenantId, TenantResidentId)` con filtro `IS NOT NULL` para garantizar una sola preferencia por residente.
+
+### 11.6 Publicación en Cartelera (`BulletinBoardPost`)
+
+Publicaciones visibles en la cartelera digital del portal. Las publicaciones vencidas se archivan automáticamente.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Título (`title`)** | `string` max 300 | Sí | Título de la publicación. |
+| **Contenido (`content`)** | `string` (longtext) | Sí | Contenido con formato enriquecido. |
+| **Fecha de Publicación (`publishedAt`)** | `datetime` | Sí | Fecha desde la cual la publicación es visible. Default: fecha de creación. |
+| **Fecha de Vencimiento (`expiresAt`)** | `datetime` | No | Fecha después de la cual la publicación se archiva automáticamente. |
+| **Fijada al Tope (`isPinned`)** | `boolean` | Sí | `true` = aparece siempre al inicio de la cartelera, antes que las no fijadas. |
+| **Categoría (`category`)** | `Enum` | Sí | `Administrative` = Administrativo · `Financial` = Financiero · `LivingTogether` = Convivencia · `Events` = Eventos · `Urgent` = Urgente. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó la publicación. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó la publicación. |
+
+> [!NOTE]
+> Las publicaciones con `isPinned = true` se ordenan primero. Las vencidas se archivan automáticamente mediante el servicio programado, pero no se eliminan.
+
+### 11.7 Configuración de Secuencia de Mora (`DelinquencySequenceConfig`)
+
+Define los días y plantillas para cada aviso en la secuencia de cobro de mora.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Número de Paso (`stepNumber`)** | `int` | Sí | 1 = Primer aviso · 2 = Segundo aviso · 3 = Tercer aviso · 4 = Aviso prejurídico. |
+| **Días después de Vencimiento (`daysAfterDue`)** | `int` | Sí | Número de días de mora para activar este paso. Ej. paso 1 = 1 día, paso 2 = 5 días, paso 3 = 15 días, paso 4 = 30 días. |
+| **Plantilla (`templateId`)** | `Guid` FK | Sí | Plantilla de notificación a usar para este paso. Debe corresponder al tipo de evento `DelinquencyNotice1..3` o `PreLegalNotice`. FK a `erp_notification_templates`. |
+| **Activo (`isActive`)** | `boolean` | Sí | `false` si el paso está desactivado y no debe procesarse. |
+
+> [!IMPORTANT]
+> Índice único por `(TenantId, StepNumber)`. La secuencia es progresiva: no se salta pasos.
+
+### 11.8 Pausa de Secuencia de Mora (`DelinquencySequencePause`)
+
+Suspende temporalmente la generación de avisos de mora para una unidad específica.
+
+| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad a la que se aplica la pausa. FK a `erp_units`. |
+| **Fecha Inicio (`startDate`)** | `datetime` | Sí | Fecha desde la cual la pausa está activa. |
+| **Fecha Fin (`endDate`)** | `datetime` | No | Fecha hasta la cual la pausa está activa. `null` = indefinida (hasta que se elimine manualmente). |
+| **Motivo (`reason`)** | `string` max 1000 | Sí | Razón de la pausa. Ej. "Acuerdo de pago vigente", "Reestructuración de deuda". |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que registró la pausa. |
+
+### 11.9 Reglas de Negocio del Módulo
+
+1. **Inmutabilidad de comunicados enviados**: Todo comunicado enviado queda registrado con su contenido completo, lista de destinatarios, canales utilizados y estado de entrega por destinatario. No puede eliminarse ni modificarse. Solo puede archivarse (soft delete).
+
+2. **Rastreo por canal**: El estado de entrega se rastrea individualmente por canal: para email se registra si fue entregado, abierto o rebotado; para SMS si fue enviado y entregado; para push si fue recibido.
+
+3. **Reenvío a no confirmados**: Cuando un comunicado requiere confirmación de lectura, el administrador puede reenviarlo únicamente a quienes no han confirmado. El sistema incrementa `resentCount` y actualiza `lastResentAt`.
+
+4. **Secuencia de mora progresiva**: Las notificaciones de mora siguen una secuencia configurable: primer aviso al día siguiente del vencimiento, segundo a los 5 días, tercero a los 15 y aviso prejurídico al día 30. Cada paso usa una plantilla distinta con tono progresivamente formal.
+
+5. **Pausa por acuerdo de pago**: El administrador puede pausar la secuencia de avisos de mora para una unidad específica cuando existe un acuerdo de pago vigente. La pausa no afecta a las demás unidades.
+
+6. **Notificaciones críticas**: Las notificaciones de emergencia o cortes de servicios se envían por todos los canales disponibles sin importar las preferencias individuales del residente.
+
+7. **Notificaciones desde otros módulos**: Las convocatorias de asamblea se envían automáticamente usando todos los canales disponibles y quedan registradas como comunicados formales con confirmación de lectura obligatoria.
+
+8. **Edición de comunicados programados**: Un comunicado en estado `Scheduled` puede editarse o cancelarse antes de su hora de envío. Una vez enviado no puede modificarse. Para corregir un comunicado enviado debe crearse uno nuevo con referencia al anterior.
+
+9. **Preferencias de comunicación**: El sistema respeta las preferencias de canal configuradas por cada residente para notificaciones no críticas. Si un residente ha solicitado no recibir cierto tipo de comunicaciones, el administrador registra esa preferencia con constancia de la solicitud.
+
+10. **Archivo automático de cartelera**: Las publicaciones vencidas se archivan automáticamente sin eliminarse. La cartelera muestra las vigentes con las fijadas al tope siempre primero.
+
+---
+
+## 12. Estándar de Campos en Frontend
 
 Esta sección define el estándar visual y de validación para todos los formularios del sistema.
 

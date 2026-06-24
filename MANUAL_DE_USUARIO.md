@@ -1119,7 +1119,135 @@ Permite generar reportes de mantenimientos programados para los próximos 30, 60
 
 ---
 
-## 14. Roles y Permisos
+## 14. Módulo de Comunicados y Notificaciones
+
+Este módulo gestiona toda la comunicación oficial entre la administración y los residentes. Está compuesto por dos subsistemas principales: los **comunicados formales** (circulares, avisos, boletines) y las **notificaciones automáticas** (alertas generadas por eventos de otros módulos).
+
+### 14.1 Comunicados
+
+Los comunicados son documentos formales que la administración envía a los residentes. Pueden ser inmediatos o programados, y soportan múltiples canales de envío simultáneos.
+
+#### Crear un nuevo comunicado
+
+1. En el menú lateral, expanda **Comunicaciones** y seleccione **Nuevo Comunicado**.
+2. Complete los siguientes campos:
+   - **Asunto**: Título del comunicado (obligatorio).
+   - **Contenido**: Cuerpo del comunicado.
+   - **Segmentación**: Seleccione la audiencia:
+     - *Todos los Propietarios*: envía a todos los propietarios registrados.
+     - *Todos los Residentes*: envía a propietarios y arrendatarios.
+     - *Unidades Específicas* / *Torres Específicas*: segmentación por unidad o torre.
+   - **Canales**: Seleccione uno o más canales de envío (Correo, SMS, Push, Cartelera).
+   - **Programación**: Opcional. Si no define fecha/hora, el comunicado se guarda como borrador.
+3. Opciones adicionales:
+   - *Requiere confirmación de lectura*: el destinatario debe confirmar haber leído el comunicado.
+   - *Publicar en cartelera digital*: el comunicado también aparece en la cartelera.
+4. Puede **Guardar Borrador** (para editar después) o **Enviar Ahora**.
+
+#### Programar un comunicado
+
+Si define una fecha y hora futura, el comunicado se guarda en estado `Programado`. El sistema lo enviará automáticamente a la hora programada. Mientras esté programado puede editarlo o cancelarlo desde la lista de comunicados.
+
+#### Seguimiento de entregas
+
+Desde el detalle del comunicado puede ver:
+- **Estado por destinatario**: para cada destinatario se muestra el estado en cada canal (Correo, SMS, Push).
+- **Confirmaciones de lectura**: cuántos destinatarios han confirmado la lectura.
+- **Reenviar a no confirmados**: si el comunicado requiere confirmación, puede reenviarlo solo a quienes no han confirmado.
+
+#### Archivar comunicados
+
+Los comunicados enviados pueden archivarse (ocultarse de la vista activa) pero nunca eliminarse del sistema.
+
+### 14.2 Plantillas de Notificación
+
+Las plantillas definen el contenido de las notificaciones automáticas generadas por eventos de otros módulos.
+
+1. Vaya a **Comunicaciones → Plantillas**.
+2. Para crear una plantilla:
+   - **Nombre**: identificador de la plantilla.
+   - **Tipo de Evento**: seleccione el evento que activará esta plantilla (ej. "Pago Confirmado", "Reserva Aprobada").
+   - **Para**: si la notificación va al propietario, arrendatario o ambos.
+   - **Asunto / Cuerpo Email**: contenido del correo electrónico.
+   - **Texto SMS**: versión para SMS (máximo 160 caracteres).
+   - **Variables dinámicas**: nombres de variables que serán reemplazadas automáticamente. Use `{Propietario}`, `{Unidad}`, `{Valor}`, etc. según la plantilla.
+3. Las plantillas pueden activarse o desactivarse.
+
+### 14.3 Cartelera Digital
+
+La cartelera digital es un mural de publicaciones visible para todos los residentes autenticados.
+
+#### Vista de residente
+
+Los residentes ven las publicaciones activas ordenadas por fecha (las fijadas al tope aparecen primero). Las publicaciones vencidas se ocultan automáticamente.
+
+#### Administración de cartelera
+
+1. Vaya a **Comunicaciones → Cartelera** y cambie a la vista *Administrar*.
+2. Para crear una publicación:
+   - **Título** y **Contenido** de la publicación.
+   - **Categoría**: Administrativo, Financiero, Convivencia, Eventos o Urgente.
+   - **Fijar al tope**: la publicación siempre aparece primero.
+   - **Vence el**: fecha opcional después de la cual la publicación se archiva automáticamente.
+3. Las publicaciones archivadas no se eliminan, pueden consultarse activando *Incluir archivadas*.
+
+### 14.4 Preferencias de Comunicación
+
+Cada residente puede configurar qué canales desea usar para recibir notificaciones.
+
+1. Vaya a **Comunicaciones → Preferencias**.
+2. Seleccione un residente y edite sus preferencias:
+   - **Correo electrónico**: activar/desactivar.
+   - **SMS**: activar/desactivar.
+   - **Notificación Push**: activar/desactivar.
+   - **Recibir notificaciones críticas**: override para emergencias (siempre activo por defecto).
+3. Puede registrar **notas** sobre solicitudes de desuscripción.
+
+> [!NOTE]
+> Las notificaciones críticas (emergencias, cortes de servicios, convocatorias de asamblea) se envían por todos los canales sin importar las preferencias individuales.
+
+### 14.5 Secuencia de Avisos de Mora
+
+Configura la progresión automática de avisos para unidades en mora.
+
+1. Vaya a **Comunicaciones → Secuencia Mora**.
+2. Cada paso (Primer Aviso, Segundo Aviso, Tercer Aviso, Prejurídico) se configura con:
+   - **Días después de vencimiento**: cuándo se activa este paso.
+   - **Plantilla**: qué plantilla de notificación usar.
+   - **Activo**: si el paso está habilitado.
+3. Para **pausar la secuencia** para una unidad específica (ej. por acuerdo de pago):
+   - Use el formulario *Nueva Pausa* indicando el ID de la unidad, motivo y fechas.
+4. **Ejecutar Proceso de Mora**: procesa manualmente la secuencia para todas las unidades vencidas.
+
+### 14.6 Eventos que generan notificaciones automáticas
+
+| Módulo | Evento | Descripción |
+|--------|--------|-------------|
+| Cartera | Pago Confirmado | Notifica al propietario que su pago fue registrado. |
+| Cartera | Nueva Liquidación | Avisa que la cuota mensual está disponible. |
+| Cartera | Avisos de Mora | Secuencia de 4 avisos progresivos (1, 5, 15, 30 días). |
+| Cartera | Acuerdo de Pago | Confirmación de acuerdo formalizado. |
+| Cartera | Cuota por Vencer | Recordatorio de cuota de acuerdo próxima a vencer. |
+| Cartera | Paz y Salvo | Notificación de expedición de paz y salvo. |
+| PQR | Radicación | Confirmación con número de radicado. |
+| PQR | Actualización de Estado | Cambio de estado de la PQR. |
+| PQR | Respuesta Disponible | El administrador respondió la PQR. |
+| PQR | Cierre | La PQR fue cerrada. |
+| Reservas | Aprobada | La reserva fue aprobada. |
+| Reservas | Rechazada | La reserva fue rechazada con motivo. |
+| Reservas | Recordatorio 24h | Recordatorio un día antes. |
+| Reservas | Recordatorio 2h | Recordatorio dos horas antes. |
+| Reservas | Depósito Devuelto | Confirmación de devolución del depósito. |
+| Asambleas | Convocatoria | Convocatoria formal con orden del día. |
+| Asambleas | Recordatorio 72h | Recordatorio tres días antes. |
+| Asambleas | Acta Publicada | Acta de asamblea disponible. |
+| Mantenimiento | Programado | Aviso de mantenimiento que afecta servicios. |
+| Mantenimiento | Fuera de Servicio | Bien fuera de servicio que afecta zonas reservadas. |
+| Mantenimiento | Orden Resuelta | Resolución de orden originada desde PQR. |
+
+---
+
+## 15. Roles y Permisos
 
 El sistema cuenta con los siguientes roles:
 
@@ -1132,7 +1260,7 @@ El sistema cuenta con los siguientes roles:
 | **Auditor** | Acceso de solo lectura a reportes financieros. |
 | **Resident** | Propietario o residente. Acceso solo a su unidad, su estado de cuenta y notificaciones. |
 
-### 14.1 Permisos por módulo
+### 15.1 Permisos por módulo
 
 | Módulo | Admin | Council | Accountant | Auditor | Resident |
 |--------|-------|---------|------------|---------|----------|
@@ -1149,10 +1277,11 @@ El sistema cuenta con los siguientes roles:
 | Proveedores | CRUD | Lectura | CRUD | Lectura | — |
 | Contratos | CRUD | Aprobar, Alertas | CRUD | Lectura | — |
 | Mantenimiento | CRUD | Lectura | Lectura | Lectura | — |
+| Comunicaciones | CRUD | Lectura | Lectura | Lectura | Cartelera, Preferencias |
 
 ---
 
-## 15. Preguntas Frecuentes
+## 16. Preguntas Frecuentes
 
 **¿Cómo recupero mi contraseña?**
 Actualmente debe contactar al administrador del sistema para restablecerla.
@@ -1178,9 +1307,18 @@ El propietario ha impugnado formalmente el cobro. Mientras esté en disputa, el 
 **¿Puede un propietario tener varias unidades?**
 Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes porcentajes de propiedad.
 
+**¿Cómo configuro la secuencia de avisos de mora?**
+Vaya a Comunicaciones → Secuencia Mora. Allí puede definir los días después del vencimiento y la plantilla para cada uno de los 4 pasos (1er aviso, 2do aviso, 3er aviso, prejurídico).
+
+**¿Un residente puede dejar de recibir comunicados?**
+Puede solicitarlo al administrador, quien registrará la preferencia en Comunicaciones → Preferencias dejando constancia de la solicitud. Las notificaciones críticas (emergencias, cortes) siempre se envían.
+
+**¿Qué pasa si un comunicado requiere confirmación de lectura y el residente no confirma?**
+El administrador puede reenviar el comunicado solo a los no confirmantes desde la página de detalle del comunicado.
+
 ---
 
-## 16. Glosario
+## 17. Glosario
 
 | Término | Definición |
 |---------|------------|
@@ -1210,6 +1348,12 @@ Sí. Un propietario puede estar vinculado a múltiples unidades con diferentes p
 | **Siniestro** | Evento extraordinario (inundación, incendio, daño estructural) que afecta bienes comunes del conjunto. |
 | **Fuera de Servicio** | Estado de un bien que impide su uso temporal o definitivamente, bloqueando reservas. |
 | **Evidencia Fotográfica** | Registro visual del estado de un bien antes y después de una intervención de mantenimiento. |
+| **Comunicado** | Documento formal de la administración con membrete, asunto y cuerpo, que queda registrado con seguimiento de entrega. |
+| **Notificación Automática** | Mensaje corto generado automáticamente por un evento de otro módulo (pago, PQR, reserva, etc.). |
+| **Confirmación de Lectura** | Mecanismo que requiere que el destinatario marque explícitamente que leyó un comunicado. |
+| **Cartelera Digital** | Mural de publicaciones visible para todos los residentes autenticados en el portal. |
+| **Secuencia de Mora** | Progresión de 4 avisos automáticos (1, 5, 15, 30 días) para unidades en mora. |
+| **Plantilla de Notificación** | Texto configurable con variables dinámicas que se reemplazan automáticamente al generar una notificación. |
 
 ---
 
