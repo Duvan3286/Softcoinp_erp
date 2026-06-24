@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Save, ArrowLeft, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, AlertTriangle, CheckCircle, Search, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import reservationService, {
   ReservableSpaceListItem,
   CreateReservationRequest,
   AvailabilityCheck,
+  UnitWithOwnerInfo,
 } from '@/lib/reservation-service';
+import axios from 'axios';
 
 export default function NewReservationPage() {
   const router = useRouter();
@@ -17,7 +19,14 @@ export default function NewReservationPage() {
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
   const [spaces, setSpaces] = useState<ReservableSpaceListItem[]>([]);
+  const [units, setUnits] = useState<UnitWithOwnerInfo[]>([]);
   const [availability, setAvailability] = useState<AvailabilityCheck | null>(null);
+  const [unitSearch, setUnitSearch] = useState('');
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+  const [selectedUnitLabel, setSelectedUnitLabel] = useState('');
+  const [selectedOwnerLabel, setSelectedOwnerLabel] = useState('');
+  const unitDropdownRef = useRef<HTMLDivElement>(null);
+  const unitInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<CreateReservationRequest>({
     spaceId: '',
     unitId: '',
@@ -32,14 +41,28 @@ export default function NewReservationPage() {
   });
 
   useEffect(() => {
-    const fetchSpaces = async () => {
+    const fetchData = async () => {
       try {
-        const data = await reservationService.getSpaces(true);
-        setSpaces(data);
-        if (data.length > 0) setForm((prev) => ({ ...prev, spaceId: data[0].id }));
+        const [spacesData, unitsData] = await Promise.all([
+          reservationService.getSpaces(true),
+          reservationService.getUnitsWithOwners(),
+        ]);
+        setSpaces(spacesData);
+        setUnits(unitsData);
+        if (spacesData.length > 0) setForm((prev) => ({ ...prev, spaceId: spacesData[0].id }));
       } catch {}
     };
-    fetchSpaces();
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (unitDropdownRef.current && !unitDropdownRef.current.contains(event.target as Node)) {
+        setShowUnitDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const checkAvailability = async () => {
@@ -67,6 +90,23 @@ export default function NewReservationPage() {
     }
   }, [form.spaceId, form.startDateTime, form.endDateTime, form.unitId]);
 
+  const filteredUnits = units.filter((u) =>
+    u.unitIdentifier.toLowerCase().includes(unitSearch.toLowerCase()) ||
+    (u.ownerName && u.ownerName.toLowerCase().includes(unitSearch.toLowerCase()))
+  );
+
+  const selectUnit = (unit: UnitWithOwnerInfo) => {
+    setForm((prev) => ({
+      ...prev,
+      unitId: unit.unitId,
+      ownerId: unit.ownerId || '',
+    }));
+    setSelectedUnitLabel(`${unit.unitIdentifier}${unit.ownerName ? ` - ${unit.ownerName}` : ''}`);
+    setSelectedOwnerLabel(unit.ownerName || 'Sin propietario asignado');
+    setUnitSearch('');
+    setShowUnitDropdown(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -79,7 +119,13 @@ export default function NewReservationPage() {
       await reservationService.createReservation(form);
       router.push('/reservation');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error al crear la reserva.';
+      let message = 'Error al crear la reserva.';
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const data = err.response.data as { message?: string };
+        if (data.message) message = data.message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
       setError(message);
     } finally {
       setLoading(false);
@@ -126,28 +172,67 @@ export default function NewReservationPage() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">ID Unidad *</label>
-                <input
-                  type="text"
-                  required
-                  value={form.unitId}
-                  onChange={(e) => setForm({ ...form, unitId: e.target.value })}
-                  className="w-full border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none"
-                  placeholder="ID de la unidad"
-                />
+
+              <div ref={unitDropdownRef} className="relative">
+                <label className="block text-sm font-medium text-foreground mb-1">Unidad *</label>
+                <div
+                  className="w-full border-b border-emerald-600/30 focus-within:border-emerald-600 text-sm font-medium py-2 outline-none flex items-center cursor-pointer"
+                  onClick={() => {
+                    setShowUnitDropdown(!showUnitDropdown);
+                    setTimeout(() => unitInputRef.current?.focus(), 50);
+                  }}
+                >
+                  <Search className="w-4 h-4 text-muted-foreground mr-2 flex-shrink-0" />
+                  <input
+                    ref={unitInputRef}
+                    type="text"
+                    value={selectedUnitLabel || unitSearch}
+                    onChange={(e) => {
+                      setUnitSearch(e.target.value);
+                      setShowUnitDropdown(true);
+                      if (!e.target.value) {
+                        setSelectedUnitLabel('');
+                        setForm((prev) => ({ ...prev, unitId: '', ownerId: '' }));
+                        setSelectedOwnerLabel('');
+                      }
+                    }}
+                    onFocus={() => setShowUnitDropdown(true)}
+                    className="flex-1 bg-transparent border-none outline-none text-sm font-medium"
+                    placeholder="Buscar unidad o propietario..."
+                  />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                </div>
+                {showUnitDropdown && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filteredUnits.length === 0 ? (
+                      <div className="p-3 text-sm text-muted-foreground">No se encontraron unidades.</div>
+                    ) : (
+                      filteredUnits.map((unit) => (
+                        <div
+                          key={unit.unitId}
+                          className="p-3 hover:bg-muted/50 cursor-pointer border-b border-border last:border-b-0"
+                          onClick={() => selectUnit(unit)}
+                        >
+                          <div className="font-medium text-foreground text-sm">{unit.unitIdentifier}</div>
+                          {unit.ownerName && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              Propietario: {unit.ownerName}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">ID Propietario *</label>
-                <input
-                  type="text"
-                  required
-                  value={form.ownerId}
-                  onChange={(e) => setForm({ ...form, ownerId: e.target.value })}
-                  className="w-full border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none"
-                  placeholder="ID del propietario"
-                />
+                <label className="block text-sm font-medium text-foreground mb-1">Propietario</label>
+                <div className="w-full border-b border-emerald-600/30 text-sm font-medium py-2 text-muted-foreground">
+                  {selectedOwnerLabel || 'Selecciona una unidad para ver el propietario'}
+                </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Fecha/Hora Inicio *</label>

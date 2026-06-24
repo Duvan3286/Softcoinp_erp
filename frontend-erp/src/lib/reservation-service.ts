@@ -371,6 +371,16 @@ export interface OwnerListItem {
   fullNameOrCompanyName: string;
 }
 
+export interface UnitWithOwnerInfo {
+  unitId: string;
+  unitIdentifier: string;
+  coefficient: number;
+  ownerId: string | null;
+  ownerName: string | null;
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+}
+
 const reservationService = {
   // ── Reservable Spaces ────────────────────────────────────────
 
@@ -539,6 +549,11 @@ const reservationService = {
     params.append('fromDate', fromDate);
     params.append('toDate', toDate);
     const response = await apiClient.get<ReservationReport>(`/reservation/reports/${spaceId}`, { params });
+    return response.data;
+  },
+
+  async getUnitsWithOwners(): Promise<UnitWithOwnerInfo[]> {
+    const response = await apiClient.get<UnitWithOwnerInfo[]>('/assembly/units-for-attendance');
     return response.data;
   },
 };
