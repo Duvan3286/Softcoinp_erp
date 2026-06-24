@@ -210,7 +210,9 @@ public class ReportController : ControllerBase
             Name = c.Name,
             Frequency = c.Frequency.ToString(),
             Format = c.Format.ToString(),
-            RecipientEmails = c.RecipientEmails,
+            RecipientEmails = string.IsNullOrEmpty(c.RecipientEmails)
+                ? new List<string>()
+                : c.RecipientEmails.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
             SubjectTemplate = c.SubjectTemplate,
             BodyTemplate = c.BodyTemplate,
             LastExecutionAt = c.LastExecutionAt,
@@ -248,7 +250,7 @@ public class ReportController : ControllerBase
             Name = request.Name,
             Frequency = frequency,
             Format = format,
-            RecipientEmails = request.RecipientEmails,
+            RecipientEmails = string.Join(",", request.RecipientEmails),
             SubjectTemplate = request.SubjectTemplate,
             BodyTemplate = request.BodyTemplate,
             NextExecutionAt = CalculateNextExecution(frequency, DateTime.UtcNow),
@@ -267,7 +269,9 @@ public class ReportController : ControllerBase
             Name = config.Name,
             Frequency = config.Frequency.ToString(),
             Format = config.Format.ToString(),
-            RecipientEmails = config.RecipientEmails,
+            RecipientEmails = string.IsNullOrEmpty(config.RecipientEmails)
+                ? new List<string>()
+                : config.RecipientEmails.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
             SubjectTemplate = config.SubjectTemplate,
             BodyTemplate = config.BodyTemplate,
             NextExecutionAt = config.NextExecutionAt,

@@ -53,7 +53,7 @@ public class RecurringReportConfigDto
     public string Name { get; set; } = string.Empty;
     public string Frequency { get; set; } = string.Empty;
     public string Format { get; set; } = string.Empty;
-    public string RecipientEmails { get; set; } = string.Empty;
+    public List<string> RecipientEmails { get; set; } = new();
     public string? SubjectTemplate { get; set; }
     public string? BodyTemplate { get; set; }
     public DateTime? LastExecutionAt { get; set; }
@@ -68,7 +68,7 @@ public class CreateRecurringReportConfigRequestDto
     public string Name { get; set; } = string.Empty;
     public string Frequency { get; set; } = string.Empty;
     public string Format { get; set; } = string.Empty;
-    public string RecipientEmails { get; set; } = string.Empty;
+    public List<string> RecipientEmails { get; set; } = new();
     public string? SubjectTemplate { get; set; }
     public string? BodyTemplate { get; set; }
 }
