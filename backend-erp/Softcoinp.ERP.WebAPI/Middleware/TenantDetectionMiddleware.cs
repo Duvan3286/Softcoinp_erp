@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Softcoinp.ERP.Domain.Interfaces;
@@ -41,6 +42,26 @@ public class TenantDetectionMiddleware
             
             await context.Response.WriteAsync(JsonSerializer.Serialize(response));
             return;
+        }
+
+        // Validate that JWT tenant_id matches resolved tenant when user is authenticated
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            var jwtTenantId = context.User.FindFirstValue("tenant_id");
+            if (!string.IsNullOrEmpty(jwtTenantId) && jwtTenantId != tenant.Id.ToString())
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                context.Response.ContentType = "application/json";
+
+                var response = new
+                {
+                    Error = "Tenant Mismatch",
+                    Message = "The authenticated user does not have access to this tenant."
+                };
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+                return;
+            }
         }
 
         // Add tenant info to items for downstream usage if needed

@@ -44,7 +44,13 @@ builder.Services.AddIdentity<User, IdentityRole>(options => {
 .AddDefaultTokenProviders();
 
 // Register JWT Authentication
-var jwtKey = builder.Configuration["JWT:Key"] ?? "YourSuperSecretKeyForDevelopmentOnly123!";
+var jwtKey = builder.Configuration["JWT:Key"];
+if (builder.Environment.IsProduction())
+{
+    if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+        throw new InvalidOperationException("JWT:Key must be configured with at least 32 characters in production.");
+}
+jwtKey ??= "YourSuperSecretKeyForDevelopmentOnly123!";
 builder.Services.AddAuthentication(options => {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;

@@ -104,6 +104,7 @@ public class AuthController : ControllerBase
         // ── Login exitoso: resetear contadores ──
         user.FailedLoginCount = 0;
         user.LockoutUntil = null;
+        user.DailyLockoutCount = 0;
         user.LastLogin = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
 
@@ -188,10 +189,12 @@ public class AuthController : ControllerBase
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.TokenHash == tokenHash);
 
-        if (stored == null || stored.IsRevoked || stored.ExpiresAt < DateTime.UtcNow)
+        if (stored == null)
+            return Unauthorized(new { message = "Token de sesión inválido o expirado." });
+
+        if (stored.IsRevoked || stored.ExpiresAt < DateTime.UtcNow)
         {
-            // Si el token fue reemplazado y alguien lo reutiliza → posible compromiso
-            if (stored?.ReplacedByTokenHash != null)
+            if (stored.ReplacedByTokenHash != null)
             {
                 _logger.LogWarning("Refresh token reuse detected for user {UserId}. Revoking all tokens.", stored.UserId);
                 await RevokeAllUserTokensAsync(stored.UserId);
@@ -432,7 +435,7 @@ public class AuthController : ControllerBase
     private (string jwt, DateTime expiry) GenerateJwtToken(User user, string role, Guid? tenantId)
     {
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_configuration["JWT:Key"] ?? "YourSuperSecretKeyForDevelopmentOnly123!"));
+            Encoding.UTF8.GetBytes(_configuration["JWT:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiry = DateTime.UtcNow.AddHours(8);
 

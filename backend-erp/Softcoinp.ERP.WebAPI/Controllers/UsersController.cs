@@ -88,6 +88,13 @@ public class UsersController : ControllerBase
         var targetUser = await _userManager.FindByIdAsync(id);
         if (targetUser == null) return NotFound("Usuario no encontrado.");
 
+        if (targetUser.Id == currentUserId)
+            return BadRequest(new { message = "No puedes suspenderte a ti mismo." });
+
+        var targetRoles = await _userManager.GetRolesAsync(targetUser);
+        if (targetRoles.Contains(nameof(AppRole.SuperAdmin)))
+            return Forbid();
+
         targetUser.IsSuspended = true;
         targetUser.SuspendedAt = DateTime.UtcNow;
         targetUser.SuspendedReason = request.Reason;
@@ -101,6 +108,7 @@ public class UsersController : ControllerBase
             TenantId = tenant.Id.ToString(),
             EventType = AuditEventType.AccountSuspended,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString(),
             Details = JsonSerializer.Serialize(new { reason = request.Reason, suspendedBy = currentUserId })
         });
         await _db.SaveChangesAsync();
@@ -124,7 +132,6 @@ public class UsersController : ControllerBase
         targetUser.IsSuspended = false;
         targetUser.SuspendedAt = null;
         targetUser.SuspendedReason = null;
-        // Reiniciar contadores de bloqueo al activar
         targetUser.FailedLoginCount = 0;
         targetUser.LockoutUntil = null;
         targetUser.DailyLockoutCount = 0;
@@ -138,6 +145,7 @@ public class UsersController : ControllerBase
             TenantId = tenant.Id.ToString(),
             EventType = AuditEventType.AccountActivated,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString(),
             Details = JsonSerializer.Serialize(new { activatedBy = currentUserId })
         });
         await _db.SaveChangesAsync();

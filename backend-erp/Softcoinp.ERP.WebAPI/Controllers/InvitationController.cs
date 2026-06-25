@@ -177,12 +177,11 @@ public class InvitationController : ControllerBase
         }
         else
         {
-            // Usuario ya existe, actualizar su nombre si viene y establecer password
+            // Usuario ya existe: actualizar nombre si viene. NO resetear contraseña
+            // (el admin no debería poder cambiar la contraseña de otro usuario por invitación)
             if (!string.IsNullOrEmpty(request.FullName))
                 user.FullName = request.FullName;
-                
-            var tokenReset = await _userManager.GeneratePasswordResetTokenAsync(user);
-            await _userManager.ResetPasswordAsync(user, tokenReset, request.Password);
+            await _userManager.UpdateAsync(user);
         }
 
         // Asignar el rol en el tenant específico
