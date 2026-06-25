@@ -8,23 +8,23 @@ import reportService, { RecurringReportConfig, ReportCatalogItem, CreateRecurrin
 import axios from 'axios';
 
 const frequencyLabels: Record<string, string> = {
-  Diario: 'Diario',
-  Semanal: 'Semanal',
-  Mensual: 'Mensual',
-  Trimestral: 'Trimestral',
-  Anual: 'Anual',
+  Daily: 'Diario',
+  Weekly: 'Semanal',
+  Monthly: 'Mensual',
+  Quarterly: 'Trimestral',
+  Annual: 'Anual',
 };
 
 const statusBadgeClass: Record<string, string> = {
   Active: 'badge-success',
   Paused: 'badge-warning',
-  Disabled: 'badge-danger',
+  Completed: 'badge-info',
 };
 
 const statusLabels: Record<string, string> = {
   Active: 'Activo',
   Paused: 'En pausa',
-  Disabled: 'Desactivado',
+  Completed: 'Completado',
 };
 
 export default function RecurringPage() {
@@ -67,8 +67,8 @@ export default function RecurringPage() {
   const resetForm = () => {
     setReportTypeId('');
     setName('');
-    setFrequency('Mensual');
-    setFormat('PDF');
+    setFrequency('Monthly');
+    setFormat('Pdf');
     setRecipientEmails('');
     setSubjectTemplate('');
   };
@@ -221,7 +221,7 @@ export default function RecurringPage() {
                   onChange={(e) => setFormat(e.target.value)}
                   className="w-full border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none bg-background"
                 >
-                  <option value="PDF">PDF</option>
+                  <option value="Pdf">PDF</option>
                   <option value="Excel">Excel</option>
                 </select>
               </div>

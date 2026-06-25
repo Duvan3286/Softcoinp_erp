@@ -10,15 +10,15 @@ import axios from 'axios';
 
 const categoryLabels: Record<string, string> = {
   Todos: 'Todos',
-  Financieros: 'Financieros',
-  Cartera: 'Cartera',
-  Operativos: 'Operativos',
-  Asamblea: 'Asamblea',
-  Anuales: 'Anuales',
+  Financial: 'Financieros',
+  Portfolio: 'Cartera',
+  Operational: 'Operativos',
+  Assembly: 'Asamblea',
+  Annual: 'Anuales',
 };
 
 const formatBadgeClass: Record<string, string> = {
-  PDF: 'badge-danger',
+  Pdf: 'badge-danger',
   Excel: 'badge-success',
 };
 
@@ -35,7 +35,7 @@ export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<ReportCatalogItem | null>(null);
   const [periodFrom, setPeriodFrom] = useState('');
   const [periodTo, setPeriodTo] = useState('');
-  const [format, setFormat] = useState('PDF');
+  const [format, setFormat] = useState('Pdf');
   const [notes, setNotes] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<GeneratedReport | null>(null);
@@ -68,7 +68,7 @@ export default function ReportsPage() {
 
   const openGenerate = (report: ReportCatalogItem) => {
     setSelectedReport(report);
-    setFormat(report.availableFormats.includes('PDF') ? 'PDF' : report.availableFormats[0]);
+    setFormat(report.availableFormats.includes('Pdf') ? 'Pdf' : report.availableFormats[0]);
     setPeriodFrom('');
     setPeriodTo('');
     setNotes('');

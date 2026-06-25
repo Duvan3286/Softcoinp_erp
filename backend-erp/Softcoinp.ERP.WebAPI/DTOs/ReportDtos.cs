@@ -99,6 +99,7 @@ public class PDFTemplateDto
 {
     public Guid Id { get; set; }
     public string ReportTypeCode { get; set; } = string.Empty;
+    public string ReportTypeName { get; set; } = string.Empty;
     public string? LogoFilePath { get; set; }
     public string HeaderText { get; set; } = string.Empty;
     public string FooterText { get; set; } = string.Empty;

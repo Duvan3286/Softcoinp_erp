@@ -84,6 +84,7 @@ export interface UpdateManagementReportSection {
 export interface PDFTemplate {
   id: string;
   reportTypeCode: string;
+  reportTypeName: string;
   logoFilePath?: string;
   headerText: string;
   footerText: string;

@@ -136,9 +136,9 @@ export default function TemplatesPage() {
                 {editingId === template.id ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-semibold text-foreground">
-                        Editando: {template.reportTypeCode}
-                      </h2>
+                        <h2 className="text-lg font-semibold text-foreground">
+                          Editando: {template.reportTypeName}
+                        </h2>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
                           <Palette className="w-4 h-4 text-muted-foreground" />
@@ -259,7 +259,7 @@ export default function TemplatesPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-foreground">{template.reportTypeCode}</h3>
+                          <h3 className="font-semibold text-foreground">{template.reportTypeName}</h3>
                           {template.isDefault && (
                             <span className="badge badge-success">Por defecto</span>
                           )}

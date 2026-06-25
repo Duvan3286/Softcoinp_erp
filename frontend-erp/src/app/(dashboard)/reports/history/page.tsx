@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import reportService, { GeneratedReport, ReportCatalogItem } from '@/lib/report-service';
 
 const formatBadgeClass: Record<string, string> = {
-  PDF: 'badge-danger',
+  Pdf: 'badge-danger',
   Excel: 'badge-success',
 };
 

@@ -523,23 +523,28 @@ public class ReportController : ControllerBase
 
         var templates = await _context.PDFTemplates
             .Where(t => t.TenantId == tenantId)
-            .OrderBy(t => t.ReportTypeCode)
+            .Join(_context.ReportTypes,
+                t => t.ReportTypeCode,
+                rt => rt.ReportTypeCode.ToString(),
+                (t, rt) => new { Template = t, ReportTypeName = rt.Name })
+            .OrderBy(x => x.ReportTypeName)
             .ToListAsync();
 
-        return Ok(templates.Select(t => new PDFTemplateDto
+        return Ok(templates.Select(x => new PDFTemplateDto
         {
-            Id = t.Id,
-            ReportTypeCode = t.ReportTypeCode,
-            LogoFilePath = t.LogoFilePath,
-            HeaderText = t.HeaderText,
-            FooterText = t.FooterText,
-            SignatureName = t.SignatureName,
-            SignatureRole = t.SignatureRole,
-            ConfidentialityNote = t.ConfidentialityNote,
-            DisclaimerNote = t.DisclaimerNote,
-            PrimaryColor = t.PrimaryColor,
-            SecondaryColor = t.SecondaryColor,
-            IsDefault = t.IsDefault
+            Id = x.Template.Id,
+            ReportTypeCode = x.Template.ReportTypeCode,
+            ReportTypeName = x.ReportTypeName,
+            LogoFilePath = x.Template.LogoFilePath,
+            HeaderText = x.Template.HeaderText,
+            FooterText = x.Template.FooterText,
+            SignatureName = x.Template.SignatureName,
+            SignatureRole = x.Template.SignatureRole,
+            ConfidentialityNote = x.Template.ConfidentialityNote,
+            DisclaimerNote = x.Template.DisclaimerNote,
+            PrimaryColor = x.Template.PrimaryColor,
+            SecondaryColor = x.Template.SecondaryColor,
+            IsDefault = x.Template.IsDefault
         }).ToList());
     }
 
