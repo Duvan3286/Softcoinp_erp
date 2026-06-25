@@ -54,25 +54,41 @@ public class ContractService
                 (c.Provider != null && c.Provider.BusinessName.ToLower().Contains(searchLower)));
         }
 
-        var contracts = await query
+        var contractsRaw = await query
             .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new ContractListDto
+            .Select(c => new
             {
-                Id = c.Id,
-                ContractNumber = c.ContractNumber,
+                c.Id,
+                c.ContractNumber,
                 ContractType = c.ContractType.ToString(),
                 ProviderBusinessName = c.Provider != null ? c.Provider.BusinessName : string.Empty,
-                TotalValue = c.TotalValue,
-                MonthlyValue = c.MonthlyValue,
-                StartDate = c.StartDate,
-                EndDate = c.EndDate,
-                HasAutoRenewal = c.HasAutoRenewal,
+                c.TotalValue,
+                c.MonthlyValue,
+                c.StartDate,
+                c.EndDate,
+                c.HasAutoRenewal,
                 ApprovalLevel = c.ApprovalLevel.ToString(),
                 Status = c.Status.ToString(),
-                DaysUntilExpiration = EF.Functions.DateDiffDay(DateTime.UtcNow, c.EndDate),
                 AlertCount = c.Alerts.Count(a => a.IsActive)
             })
             .ToListAsync();
+
+        var contracts = contractsRaw.Select(c => new ContractListDto
+        {
+            Id = c.Id,
+            ContractNumber = c.ContractNumber,
+            ContractType = c.ContractType,
+            ProviderBusinessName = c.ProviderBusinessName,
+            TotalValue = c.TotalValue,
+            MonthlyValue = c.MonthlyValue,
+            StartDate = c.StartDate,
+            EndDate = c.EndDate,
+            HasAutoRenewal = c.HasAutoRenewal,
+            ApprovalLevel = c.ApprovalLevel,
+            Status = c.Status,
+            DaysUntilExpiration = (int)(c.EndDate - DateTime.UtcNow).TotalDays,
+            AlertCount = c.AlertCount
+        }).ToList();
 
         return contracts;
     }

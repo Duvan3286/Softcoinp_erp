@@ -38,8 +38,15 @@ public class DashboardController : BaseController
             return Forbid();
         }
 
-        var data = await _dashboardService.GetDashboardAsync(tenantId, userId, role);
-        return Ok(data);
+        try
+        {
+            var data = await _dashboardService.GetDashboardAsync(tenantId, userId, role);
+            return Ok(data);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error al cargar datos del dashboard.", detail = ex.Message });
+        }
     }
 
     [HttpPost("initialize-alerts")]

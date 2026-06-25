@@ -32,7 +32,8 @@ public class DashboardService
 
         if (role == AppRole.Resident.ToString())
         {
-            data.ResidentData = await GetResidentDataAsync(tenantId, userId);
+            try { data.ResidentData = await GetResidentDataAsync(tenantId, userId); }
+            catch (Exception ex) { _ = ex; }
             return data;
         }
 
@@ -48,30 +49,50 @@ public class DashboardService
 
         if (isAdmin || isCouncil)
         {
-            data.Kpis = await GetKpisAsync(tenantId);
-            data.MonthlyCollection = await GetMonthlyCollectionAsync(tenantId);
-            data.UpcomingEvents = await GetUpcomingEventsAsync(tenantId);
-            data.Alerts = await EvaluateAlertsAsync(tenantId, role);
+            try { data.Kpis = await GetKpisAsync(tenantId); }
+            catch (Exception ex) { _ = ex; }
+
+            try { data.MonthlyCollection = await GetMonthlyCollectionAsync(tenantId); }
+            catch (Exception ex) { _ = ex; }
+
+            try { data.UpcomingEvents = await GetUpcomingEventsAsync(tenantId); }
+            catch (Exception ex) { _ = ex; }
+
+            try { data.Alerts = await EvaluateAlertsAsync(tenantId, role); }
+            catch (Exception ex) { _ = ex; }
 
             if (isAdmin)
             {
-                data.MoraMap = await GetMoraMapAsync(tenantId);
-                data.UnitSummaries = await GetUnitSummariesAsync(tenantId);
-                data.RecentActivity = await GetRecentActivityAsync(tenantId);
+                try { data.MoraMap = await GetMoraMapAsync(tenantId); }
+                catch (Exception ex) { _ = ex; }
+
+                try { data.UnitSummaries = await GetUnitSummariesAsync(tenantId); }
+                catch (Exception ex) { _ = ex; }
+
+                try { data.RecentActivity = await GetRecentActivityAsync(tenantId); }
+                catch (Exception ex) { _ = ex; }
             }
 
             if (isCouncil)
             {
-                data.ContingencyFund = await GetContingencyFundInfoAsync(tenantId);
-                data.PendingCouncilApprovals = await GetPendingCouncilApprovalsAsync(tenantId);
+                try { data.ContingencyFund = await GetContingencyFundInfoAsync(tenantId); }
+                catch (Exception ex) { _ = ex; }
+
+                try { data.PendingCouncilApprovals = await GetPendingCouncilApprovalsAsync(tenantId); }
+                catch (Exception ex) { _ = ex; }
             }
         }
 
         if (isAccountant)
         {
-            data.AccountingStatus = await GetAccountingStatusAsync(tenantId);
-            data.Kpis = await GetKpisAsync(tenantId);
-            data.MonthlyCollection = await GetMonthlyCollectionAsync(tenantId);
+            try { data.AccountingStatus = await GetAccountingStatusAsync(tenantId); }
+            catch (Exception ex) { _ = ex; }
+
+            try { data.Kpis = await GetKpisAsync(tenantId); }
+            catch (Exception ex) { _ = ex; }
+
+            try { data.MonthlyCollection = await GetMonthlyCollectionAsync(tenantId); }
+            catch (Exception ex) { _ = ex; }
         }
 
         return data;
@@ -144,40 +165,58 @@ public class DashboardService
                 : 0;
         }
 
-        var allOverdueFees = await _context.UnitFees
+        var allOverdueFeesRaw = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId
                 && uf.BalanceAmount > 0
                 && uf.Status != FeeStatus.FullyPaid)
             .Select(uf => new
             {
                 uf.BalanceAmount,
-                DaysOverdue = EF.Functions.DateDiffDay(uf.DueDate, DateTime.UtcNow)
+                uf.DueDate
             })
             .ToListAsync();
 
+        var allOverdueFees = allOverdueFeesRaw.Select(f => new
+        {
+            f.BalanceAmount,
+            DaysOverdue = (int)(DateTime.UtcNow - f.DueDate).TotalDays
+        }).ToList();
+
         var totalOverdue = allOverdueFees.Sum(f => f.BalanceAmount);
 
-        var allOverdueExtraordinary = await _context.ExtraordinaryFeeDistributions
+        var allOverdueExtraordinaryRaw = await _context.ExtraordinaryFeeDistributions
             .Where(efd => efd.TenantId == tenantId
                 && efd.BalanceAmount > 0
                 && efd.Status != FeeStatus.FullyPaid)
             .Select(efd => new
             {
                 efd.BalanceAmount,
-                DaysOverdue = EF.Functions.DateDiffDay(efd.DueDate, DateTime.UtcNow)
+                efd.DueDate
             })
             .ToListAsync();
 
-        var allOverdueCharges = await _context.IndividualCharges
+        var allOverdueExtraordinary = allOverdueExtraordinaryRaw.Select(efd => new
+        {
+            efd.BalanceAmount,
+            DaysOverdue = (int)(DateTime.UtcNow - efd.DueDate).TotalDays
+        }).ToList();
+
+        var allOverdueChargesRaw = await _context.IndividualCharges
             .Where(ic => ic.TenantId == tenantId
                 && ic.BalanceAmount > 0
                 && ic.Status != IndividualChargeStatus.Paid)
             .Select(ic => new
             {
                 ic.BalanceAmount,
-                DaysOverdue = EF.Functions.DateDiffDay(ic.ChargeDate, DateTime.UtcNow)
+                ic.ChargeDate
             })
             .ToListAsync();
+
+        var allOverdueCharges = allOverdueChargesRaw.Select(ic => new
+        {
+            ic.BalanceAmount,
+            DaysOverdue = (int)(DateTime.UtcNow - ic.ChargeDate).TotalDays
+        }).ToList();
 
         foreach (var item in allOverdueExtraordinary)
         {
