@@ -64,7 +64,7 @@ public class RecurringReportConfigDto
 
 public class CreateRecurringReportConfigRequestDto
 {
-    public Guid ReportTypeId { get; set; }
+    public string ReportTypeCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Frequency { get; set; } = string.Empty;
     public string Format { get; set; } = string.Empty;

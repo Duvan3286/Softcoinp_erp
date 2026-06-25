@@ -52,7 +52,7 @@ export interface RecurringReportConfig {
 }
 
 export interface CreateRecurringReportConfigRequest {
-  reportTypeId: string;
+  reportTypeCode: string;
   name: string;
   frequency: string;
   format: string;

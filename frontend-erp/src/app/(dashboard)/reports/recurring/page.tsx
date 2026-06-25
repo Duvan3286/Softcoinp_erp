@@ -83,7 +83,7 @@ export default function RecurringPage() {
         .filter(Boolean);
 
       const data: CreateRecurringReportConfigRequest = {
-        reportTypeId,
+        reportTypeCode: reportTypeId,
         name,
         frequency,
         format,
@@ -96,9 +96,17 @@ export default function RecurringPage() {
       resetForm();
       setShowForm(false);
       fetchData();
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          setError(data);
+        } else if (typeof data === 'object' && data !== null) {
+          const obj = data as Record<string, unknown>;
+          setError(String(obj.message || obj.title || JSON.stringify(data)));
+        } else {
+          setError('Error al crear configuración.');
+        }
       } else {
         setError('Error al crear configuración.');
       }

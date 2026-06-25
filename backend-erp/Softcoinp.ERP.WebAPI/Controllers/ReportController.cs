@@ -233,7 +233,11 @@ public class ReportController : ControllerBase
         if (role != "Admin" && role != "SuperAdmin")
             return Forbid();
 
-        var reportType = await _context.ReportTypes.FindAsync(request.ReportTypeId);
+        if (!Enum.TryParse<ReportTypeEnum>(request.ReportTypeCode, out var reportTypeCode))
+            return BadRequest("Codigo de tipo de reporte invalido.");
+
+        var reportType = await _context.ReportTypes
+            .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.ReportTypeCode == reportTypeCode);
         if (reportType is null)
             return BadRequest("Tipo de reporte no encontrado.");
 
@@ -246,7 +250,7 @@ public class ReportController : ControllerBase
         var config = new RecurringReportConfig
         {
             TenantId = tenantId,
-            ReportTypeId = request.ReportTypeId,
+            ReportTypeId = reportType.Id,
             Name = request.Name,
             Frequency = frequency,
             Format = format,
