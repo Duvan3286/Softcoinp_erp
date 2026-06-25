@@ -96,6 +96,11 @@ public class BudgetMovementService
         }
         else if (movementType == BudgetMovementType.Transfer)
         {
+            if (approvalType != BudgetApprovalType.Council)
+            {
+                throw new InvalidOperationException("Los traslados presupuestales entre cuentas del mismo grupo requieren aprobación del Consejo de Administración.");
+            }
+
             if (!sourceAccountId.HasValue)
             {
                 throw new ArgumentException("Para realizar un traslado es obligatorio especificar la cuenta contable de origen.");

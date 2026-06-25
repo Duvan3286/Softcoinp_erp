@@ -95,6 +95,25 @@ public class BankReconciliationController : BaseController
         }
     }
 
+    [HttpPost("{id}/items/{itemId}/clear")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> ClearItem(Guid id, Guid itemId)
+    {
+        try
+        {
+            var result = await _reconciliationService.ClearItemAsync(GetTenantId(), id, itemId);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("{id}/complete")]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
     public async Task<IActionResult> CompleteReconciliation(Guid id)

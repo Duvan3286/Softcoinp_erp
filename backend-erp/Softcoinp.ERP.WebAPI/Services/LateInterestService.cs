@@ -38,7 +38,9 @@ public class LateInterestService
     public decimal GetDailyRate(decimal monthlyRate)
     {
         if (monthlyRate <= 0m) return 0m;
-        return Math.Round(monthlyRate / 30m / 100m, 8);
+        var monthlyDecimal = monthlyRate / 100m;
+        var dailyRate = Math.Pow((double)(1m + monthlyDecimal), 1.0 / 30.0) - 1.0;
+        return Math.Round((decimal)dailyRate, 8);
     }
 
     public async Task<List<LateInterestPreviewDto>> PreviewUnitInterestAsync(

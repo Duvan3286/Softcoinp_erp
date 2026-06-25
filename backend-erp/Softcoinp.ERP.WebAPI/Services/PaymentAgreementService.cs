@@ -13,10 +13,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class PaymentAgreementService
 {
     private readonly ApplicationDbContext _context;
+    private readonly AccountingIntegrationService _accounting;
 
-    public PaymentAgreementService(ApplicationDbContext context)
+    public PaymentAgreementService(ApplicationDbContext context, AccountingIntegrationService accounting)
     {
         _context = context;
+        _accounting = accounting;
     }
 
     public AgreementSimulationDto SimulateAgreement(
@@ -209,6 +211,23 @@ public class PaymentAgreementService
         }
 
         await _context.SaveChangesAsync();
+
+        try
+        {
+            await _accounting.RecordPaymentAgreementAsync(
+                tenantId,
+                agreement.Id,
+                simulation.NetDebt,
+                request.NumberOfInstallments,
+                unit.Identifier,
+                $"Acuerdo de pago registrado para unidad {unit.Identifier} - {request.NumberOfInstallments} cuotas",
+                userId);
+        }
+        catch (Exception ex)
+        {
+            _ = ex;
+        }
+
         return agreement;
     }
 

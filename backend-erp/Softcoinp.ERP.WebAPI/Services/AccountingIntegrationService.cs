@@ -183,4 +183,40 @@ public class AccountingIntegrationService
             Credit = credit
         };
     }
+
+    public async Task<AccountingEntry> RecordPaymentAgreementAsync(
+        string tenantId, Guid agreementId, decimal totalAmount, int numberOfInstallments,
+        string unitIdentifier, string description, string userId)
+    {
+        var receivableAccount = await GetAccountOrThrowAsync(tenantId, "1305");
+
+        var deferredAccount = await _context.AccountingAccounts
+            .Where(a => a.TenantId == tenantId && a.Code.StartsWith("1310") && !a.IsGroup)
+            .OrderBy(a => a.Code)
+            .FirstOrDefaultAsync()
+            ?? await GetAccountOrThrowAsync(tenantId, "1305");
+
+        var entry = NewEntry(tenantId, description, $"ACU-{agreementId:N}", totalAmount, userId);
+        entry.Lines.Add(MakeLine(entry.Id, receivableAccount.Id, 0, totalAmount));
+        entry.Lines.Add(MakeLine(entry.Id, deferredAccount.Id, totalAmount, 0));
+
+        _context.AccountingEntries.Add(entry);
+        await _context.SaveChangesAsync();
+        return entry;
+    }
+
+    public async Task<AccountingEntry> RecordClearanceCertificateAsync(
+        string tenantId, Guid certificateId, string certificateNumber,
+        string unitIdentifier, decimal balanceAtDate, string description, string userId)
+    {
+        var receivableAccount = await GetAccountOrThrowAsync(tenantId, "1305");
+
+        var entry = NewEntry(tenantId, description, $"PYS-{certificateId:N}", balanceAtDate, userId);
+        entry.Lines.Add(MakeLine(entry.Id, receivableAccount.Id, 0, balanceAtDate));
+        entry.Lines.Add(MakeLine(entry.Id, receivableAccount.Id, balanceAtDate, 0));
+
+        _context.AccountingEntries.Add(entry);
+        await _context.SaveChangesAsync();
+        return entry;
+    }
 }

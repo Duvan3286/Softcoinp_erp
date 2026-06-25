@@ -432,7 +432,7 @@ export default function ContingencyFundPage() {
 
             <form onSubmit={handleLiquidateContribution} className="p-6 space-y-4">
               <div className="p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs border border-blue-100 dark:border-blue-900/50">
-                El sistema consultará todos los ingresos operacionales reales percibidos (Caja/Bancos de Cuotas de Administración) del período seleccionado, y liquidará el porcentaje de imprevistos configurado para el tenant.
+                El sistema consultará todos los ingresos operacionales reales percibidos (Caja/Bancos de Cuotas de Administración) del período seleccionado, y liquidará el porcentaje de imprevistos configurado para la copropiedad.
               </div>
 
               <div className="grid grid-cols-2 gap-4">

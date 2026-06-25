@@ -128,6 +128,31 @@ public class BankReconciliationService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<ReconciliationItem> ClearItemAsync(string tenantId, Guid reconciliationId, Guid itemId)
+    {
+        var reconciliation = await _context.BankReconciliations
+            .FirstOrDefaultAsync(r => r.Id == reconciliationId && r.TenantId == tenantId);
+        if (reconciliation == null)
+        {
+            throw new KeyNotFoundException("Conciliación no encontrada.");
+        }
+        if (reconciliation.Status == ReconciliationStatus.Completed)
+        {
+            throw new InvalidOperationException("No se pueden modificar items de una conciliación cerrada.");
+        }
+
+        var item = await _context.ReconciliationItems
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.BankReconciliationId == reconciliationId);
+        if (item == null)
+        {
+            throw new KeyNotFoundException("Item no encontrado.");
+        }
+
+        item.IsCleared = true;
+        await _context.SaveChangesAsync();
+        return item;
+    }
+
     public async Task<BankReconciliation> CompleteReconciliationAsync(string tenantId, Guid reconciliationId, string userId)
     {
         var reconciliation = await _context.BankReconciliations
@@ -145,13 +170,16 @@ public class BankReconciliationService
         }
 
         var unclearedItems = reconciliation.Items.Any(i => !i.IsCleared);
-        if (!unclearedItems)
+        if (unclearedItems)
         {
-            reconciliation.Status = ReconciliationStatus.Completed;
-            reconciliation.CompletedAt = DateTime.UtcNow;
-            reconciliation.CompletedByUserId = userId;
-            await _context.SaveChangesAsync();
+            throw new InvalidOperationException(
+                "Existen items no conciliados. Todos los items deben estar marcados como conciliados para cerrar.");
         }
+
+        reconciliation.Status = ReconciliationStatus.Completed;
+        reconciliation.CompletedAt = DateTime.UtcNow;
+        reconciliation.CompletedByUserId = userId;
+        await _context.SaveChangesAsync();
 
         return reconciliation;
     }

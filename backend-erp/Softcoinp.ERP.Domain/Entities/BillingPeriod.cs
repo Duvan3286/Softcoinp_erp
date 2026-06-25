@@ -11,6 +11,7 @@ public class BillingPeriod
 
     public string Period { get; set; } = string.Empty;
     public decimal MonthlyBudgetTotal { get; set; }
+    public decimal TotalBilled { get; set; }
     public DateTime CutoffDate { get; set; }
     public DateTime PaymentDueDate { get; set; }
     public BillingPeriodStatus Status { get; set; } = BillingPeriodStatus.Pending;

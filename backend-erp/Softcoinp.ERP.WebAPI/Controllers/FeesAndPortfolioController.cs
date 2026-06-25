@@ -775,6 +775,9 @@ public class FeesAndPortfolioController : BaseController
         if (!Enum.TryParse<ChargeType>(request.ChargeType, true, out var chargeType))
             return BadRequest("Tipo de cobro inválido. Use: Fine, Damage, ParkingFee u Other.");
 
+        if (chargeType == ChargeType.Fine && string.IsNullOrWhiteSpace(request.ReferenceActNumber))
+            return BadRequest("El número de acta del Consejo de Administración es obligatorio para registrar multas.");
+
         var charge = new IndividualCharge
         {
             Id = Guid.NewGuid(),

@@ -12,6 +12,9 @@ public class Payment
     public Guid UnitId { get; set; }
     public Unit? Unit { get; set; }
 
+    public Guid? BankAccountId { get; set; }
+    public BankAccount? BankAccount { get; set; }
+
     public DateTime PaymentDate { get; set; }
     public decimal Amount { get; set; }
     public PaymentMethod PaymentMethod { get; set; }

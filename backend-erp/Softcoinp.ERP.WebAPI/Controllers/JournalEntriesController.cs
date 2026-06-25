@@ -68,6 +68,28 @@ public class JournalEntriesController : BaseController
         }
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> UpdateEntry(Guid id, [FromBody] CreateJournalEntryDto dto)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        try
+        {
+            var entry = await _journalEntryService.UpdateEntryAsync(tenantId, id, dto, userId);
+            return Ok(entry);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound("Asiento contable no encontrado.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     [HttpPost("{id:guid}/post")]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
     public async Task<IActionResult> PostEntry(Guid id)

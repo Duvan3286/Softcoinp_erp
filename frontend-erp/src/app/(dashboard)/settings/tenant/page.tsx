@@ -305,7 +305,7 @@ export default function TenantConfigPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-black text-foreground uppercase tracking-tight">Configuración del Conjunto</h1>
-          <p className="text-sm text-slate-500 font-medium">Gestiona la identidad legal y parámetros operativos del tenant actual.</p>
+          <p className="text-sm text-slate-500 font-medium">Gestiona la identidad legal y parámetros operativos de la copropiedad.</p>
         </div>
         {canEdit && (
           <Button onClick={handleSave} disabled={isSaving || !config} className="bg-emerald-600 hover:bg-emerald-700">

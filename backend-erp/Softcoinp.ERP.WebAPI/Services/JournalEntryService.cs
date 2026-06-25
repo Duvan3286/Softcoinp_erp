@@ -117,6 +117,89 @@ public class JournalEntryService
             ?? throw new InvalidOperationException("Error al crear el asiento contable.");
     }
 
+    public async Task<JournalEntryDto> UpdateEntryAsync(
+        string tenantId, Guid entryId, CreateJournalEntryDto dto, string userId)
+    {
+        var entry = await _context.AccountingEntries
+            .Where(e => e.Id == entryId && e.TenantId == tenantId)
+            .Include(e => e.Lines)
+            .FirstOrDefaultAsync();
+
+        if (entry == null)
+            throw new KeyNotFoundException("Asiento contable no encontrado.");
+
+        if (entry.Status != EntryStatus.Draft)
+            throw new InvalidOperationException("Solo se pueden editar asientos en estado Borrador.");
+
+        if (entry.EntryType == EntryType.Automatic)
+            throw new InvalidOperationException("No se pueden editar asientos generados automáticamente por el sistema.");
+
+        if (dto.AccountingPeriodId.HasValue)
+        {
+            var period = await _context.AccountingPeriods
+                .FirstOrDefaultAsync(p => p.Id == dto.AccountingPeriodId.Value && p.TenantId == tenantId);
+            if (period == null)
+                throw new InvalidOperationException("El período contable especificado no existe.");
+            if (period.Status == AccountingPeriodStatus.Closed)
+                throw new InvalidOperationException($"El período {period.PeriodLabel} está cerrado. No se pueden modificar asientos en períodos cerrados.");
+        }
+
+        var totalDebit = dto.Lines.Sum(l => l.Debit);
+        var totalCredit = dto.Lines.Sum(l => l.Credit);
+
+        if (totalDebit != totalCredit)
+            throw new InvalidOperationException($"La suma de débitos ({totalDebit}) debe ser igual a la suma de créditos ({totalCredit}).");
+
+        if (totalDebit == 0)
+            throw new InvalidOperationException("El asiento debe tener al menos un valor de débito o crédito.");
+
+        foreach (var line in dto.Lines)
+        {
+            if (line.Debit > 0 && line.Credit > 0)
+                throw new InvalidOperationException("Cada línea del asiento debe ser solo débito o solo crédito, no ambos.");
+            if (line.Debit == 0 && line.Credit == 0)
+                throw new InvalidOperationException("Cada línea del asiento debe tener un valor de débito o crédito.");
+        }
+
+        var accountIds = dto.Lines.Select(l => l.AccountingAccountId).Distinct().ToList();
+        var validAccounts = await _context.AccountingAccounts
+            .Where(a => a.TenantId == tenantId && accountIds.Contains(a.Id) && a.IsGroup == false)
+            .Select(a => a.Id)
+            .ToListAsync();
+
+        var invalidAccounts = accountIds.Except(validAccounts).ToList();
+        if (invalidAccounts.Any())
+            throw new InvalidOperationException($"Las siguientes cuentas no existen, no pertenecen al tenant o son cuentas de grupo: {string.Join(", ", invalidAccounts)}");
+
+        entry.Description = dto.Description;
+        entry.ExternalReference = dto.ExternalReference ?? string.Empty;
+        entry.EntryDate = dto.EntryDate;
+        entry.TotalDebit = totalDebit;
+        entry.TotalCredit = totalCredit;
+        entry.UpdatedByUserId = userId;
+        entry.UpdatedAt = DateTime.UtcNow;
+
+        _context.EntryLines.RemoveRange(entry.Lines);
+        entry.Lines.Clear();
+
+        foreach (var lineDto in dto.Lines)
+        {
+            entry.Lines.Add(new EntryLine
+            {
+                AccountingEntryId = entry.Id,
+                AccountingAccountId = lineDto.AccountingAccountId,
+                ThirdPartyId = lineDto.ThirdPartyId,
+                Debit = lineDto.Debit,
+                Credit = lineDto.Credit
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return await GetEntryAsync(tenantId, entryId)
+            ?? throw new InvalidOperationException("Error al actualizar el asiento contable.");
+    }
+
     public async Task<JournalEntryDto?> GetEntryAsync(string tenantId, Guid entryId)
     {
         return await _context.AccountingEntries

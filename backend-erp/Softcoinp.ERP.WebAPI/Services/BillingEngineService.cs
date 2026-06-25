@@ -125,7 +125,7 @@ public class BillingEngineService
 
         var monthlyTotal = checklist.MonthlyBudgetTotal;
         var coefficientSum = checklist.CoeficientSum;
-        var rawSum = 0m;
+        var roundedSum = 0m;
         var unitFees = new List<UnitFee>();
 
         foreach (var unit in activeUnits)
@@ -146,10 +146,11 @@ public class BillingEngineService
                 BalanceAmount = roundedFee
             });
 
-            rawSum += roundedFee;
+            roundedSum += roundedFee;
         }
 
-        var roundingAdjustment = Math.Round(monthlyTotal - rawSum, 2);
+        var roundingAdjustment = Math.Round(monthlyTotal - roundedSum, 2);
+        var totalBilled = roundedSum;
 
         var billingPeriod = new BillingPeriod
         {
@@ -157,6 +158,7 @@ public class BillingEngineService
             TenantId = tenantId,
             Period = period,
             MonthlyBudgetTotal = monthlyTotal,
+            TotalBilled = totalBilled,
             CutoffDate = cutoffDate,
             PaymentDueDate = paymentDueDate,
             Status = BillingPeriodStatus.Executed,
@@ -181,19 +183,68 @@ public class BillingEngineService
         {
             await _context.SaveChangesAsync();
 
-            try
+            foreach (var uf in unitFees)
             {
-                await _accounting.RecordBillingAsync(
-                    tenantId,
-                    billingPeriod.Id,
-                    billingPeriod.MonthlyBudgetTotal,
-                    $"Liquidación mensual {period}",
-                    userId);
+                var advanceBalance = await _context.Payments
+                    .Where(p => p.TenantId == tenantId && p.UnitId == uf.UnitId)
+                    .SumAsync(p => p.AdvanceAmount);
+
+                if (advanceBalance <= 0m || uf.BalanceAmount <= 0m)
+                    continue;
+
+                var applied = Math.Min(advanceBalance, uf.BalanceAmount);
+                if (applied <= 0m)
+                    continue;
+
+                uf.PaidAmount += applied;
+                uf.BalanceAmount -= applied;
+                uf.UpdatedAt = DateTime.UtcNow;
+
+                if (uf.BalanceAmount <= 0m)
+                {
+                    uf.Status = FeeStatus.FullyPaid;
+                    uf.BalanceAmount = 0m;
+                }
+                else
+                {
+                    uf.Status = FeeStatus.PartiallyPaid;
+                }
+
+                var advancePayment = new Payment
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    UnitId = uf.UnitId,
+                    PaymentDate = DateTime.UtcNow,
+                    Amount = 0m,
+                    PaymentMethod = PaymentMethod.Cash,
+                    ReferenceNumber = $"ADV-{billingPeriod.Id:N}",
+                    Notes = "Aplicacion automatica de saldo a favor",
+                    ReceivedByUserId = "SYSTEM",
+                    AdvanceAmount = -applied
+                };
+
+                _context.Payments.Add(advancePayment);
+
+                _context.PaymentAllocations.Add(new PaymentAllocation
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    PaymentId = advancePayment.Id,
+                    UnitFeeId = uf.Id,
+                    Amount = applied,
+                    AllocationType = PaymentAllocationType.Advance
+                });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al registrar asiento contable de liquidación {Period} para tenant {TenantId}", period, tenantId);
-            }
+
+            await _context.SaveChangesAsync();
+
+            await _accounting.RecordBillingAsync(
+                tenantId,
+                billingPeriod.Id,
+                billingPeriod.TotalBilled,
+                $"Liquidación mensual {period}",
+                userId);
 
             try
             {

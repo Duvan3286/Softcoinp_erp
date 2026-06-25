@@ -116,6 +116,18 @@ public class AccountingPeriodService
             throw new InvalidOperationException("El período ya se encuentra cerrado.");
         }
 
+        var hasDraftEntries = await _context.AccountingEntries
+            .AnyAsync(e => e.TenantId == tenantId
+                        && e.AccountingPeriodId == periodId
+                        && e.Status == EntryStatus.Draft);
+
+        if (hasDraftEntries)
+        {
+            throw new InvalidOperationException(
+                "No se puede cerrar el período porque existen asientos en estado Borrador. " +
+                "Contabilice o reversé todos los asientos borrador antes de cerrar.");
+        }
+
         period.Status = AccountingPeriodStatus.Closed;
         period.ClosedAt = DateTime.UtcNow;
         period.ClosedByUserId = userId;
@@ -160,8 +172,11 @@ public class AccountingPeriodService
             throw new InvalidOperationException("No hay un período contable abierto. Abra un período antes de crear asientos.");
         }
 
-        period.LastEntryNumber++;
-        await _context.SaveChangesAsync();
+        await _context.AccountingPeriods
+            .Where(p => p.Id == period.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.LastEntryNumber, p => p.LastEntryNumber + 1));
+
+        await _context.Entry(period).ReloadAsync();
 
         return period.LastEntryNumber;
     }
