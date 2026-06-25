@@ -23,9 +23,11 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 11. [Módulo PQR](#11-módulo-pqr)
 12. [Módulo de Proveedores y Contratos](#12-módulo-de-proveedores-y-contratos)
 13. [Módulo de Mantenimiento y Zonas Comunes](#13-módulo-de-mantenimiento-y-zonas-comunes)
-14. [Roles y Permisos](#14-roles-y-permisos)
-15. [Preguntas Frecuentes](#15-preguntas-frecuentes)
-16. [Glosario](#16-glosario)
+14. [Módulo de Comunicados y Notificaciones](#14-módulo-de-comunicados-y-notificaciones)
+15. [Roles y Permisos](#15-roles-y-permisos)
+16. [Preguntas Frecuentes](#16-preguntas-frecuentes)
+17. [Glosario](#17-glosario)
+18. [Módulo de Reportes y Exportaciones](#18-módulo-de-reportes-y-exportaciones)
 
 ---
 

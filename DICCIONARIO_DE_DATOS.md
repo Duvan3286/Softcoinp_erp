@@ -862,6 +862,11 @@ Alertas generadas automáticamente por el motor de vencimiento de tiempos.
 | `erp_provider_evaluations` | Proveedores y Contratos | Evaluaciones de desempeño de proveedores |
 | `erp_retention_configurations` | Proveedores y Contratos | Configuración de retenciones por tipo de servicio |
 | `erp_approval_thresholds` | Proveedores y Contratos | Umbrales de aprobación por nivel (Admin/Consejo/Asamblea) |
+| `erp_report_types` | Reportes | Catálogo de tipos de reporte disponibles |
+| `erp_generated_reports` | Reportes | Registro de reportes generados y exportados |
+| `erp_recurring_report_configs` | Reportes | Configuración de reportes programados recurrentes |
+| `erp_management_report_sections` | Reportes | Secciones del generador de informes anuales |
+| `erp_pdf_templates` | Reportes | Personalización visual de reportes PDF |
 
 ---
 
@@ -1565,6 +1570,10 @@ Configuración de reportes programados para generación automática y recurrente
 | **CreatedByUserId** | `string` max 450 | Sí | ID del usuario que creó la configuración. |
 
 > [!IMPORTANT]
+> **API vs Base de datos**: El campo `RecipientEmails` se almacena en base de datos como cadena separada por comas (`string.Join(",")`), pero en los DTOs de la API se expone como `List<string>` para facilitar su consumo desde el frontend. El controlador realiza la conversión en la creación (`string.Join`) y en la respuesta (`Split`).
+>
+> **Resolución de tipo de reporte**: El endpoint `POST /api/report/recurring` recibe `ReportTypeCode` (string) en lugar de `ReportTypeId` (Guid) para coincidir con el select del frontend que usa `r.code` como valor de opción. El controlador busca el `ReportType` por código + tenant antes de crear la configuración.
+>
 > El motor `RecurringReportEngine` ejecuta cada 5 minutos consultando configuraciones activas con `NextExecutionAt ≤ now`. Al ejecutarse, recalcula `NextExecutionAt` sumando la frecuencia a la fecha actual.
 
 ### 13.4 Tabla: `erp_management_report_sections`
@@ -1622,7 +1631,7 @@ Personalización visual de los reportes PDF generados por el sistema. Cada conju
 
 ### 13.6 Reglas de Negocio Transversales
 
-1. **Control de acceso basado en roles**: `AllowedRoles` determina qué roles pueden acceder a cada reporte. SuperAdmin y Admin ven los 26 reportes completos. Council excluye `OwnerRegistry` y reportes con datos personales. Accountant y Auditor ven reportes financieros, de cartera y `OwnerRegistry`. Resident solo accede a `PortfolioByUnit` de su propia unidad.
+1. **Control de acceso basado en roles**: `AllowedRoles` determina qué roles pueden acceder a cada reporte. SuperAdmin y Admin ven los 26 reportes completos. Council excluye `OwnerRegistry` y reportes con datos personales. Accountant y Auditor ven reportes financieros, de cartera y `OwnerRegistry`. Resident solo accede a `PortfolioByUnit` de su propia unidad. En los endpoints del `ReportController`, los roles se validan como `role != "Admin" && role != "SuperAdmin"` (no solo `role != "Admin"`) porque el claim del token JWT usa `"SuperAdmin"` como valor.
 
 2. **Generación PDF**: Se utiliza QuestPDF. El header incluye logo del conjunto (si configurado), nombre del conjunto, NIT y dirección. El footer contiene nombre y cargo del firmante, fecha de generación, notas de confidencialidad (si aplica) y disclaimer (si aplica).
 
