@@ -10,6 +10,8 @@ namespace Softcoinp.ERP.Domain.Entities;
 /// </summary>
 public class TenantConfiguration : BaseEntity
 {
+    public string TenantId { get; set; } = string.Empty;
+
     // ── 1. DATOS LEGALES ───────────────────────────────────────────────
     public string OfficialName { get; set; } = string.Empty;
     

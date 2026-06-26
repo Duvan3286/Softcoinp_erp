@@ -124,7 +124,7 @@ public class ContingencyFundService
 
         // 2. Obtener porcentaje del fondo de imprevistos de la configuración del tenant
         decimal pct = 1.00m; // Mínimo legal por defecto según la Ley 675
-        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
         if (tenantConfig != null)
         {
             pct = tenantConfig.ContingencyFundPercentage;

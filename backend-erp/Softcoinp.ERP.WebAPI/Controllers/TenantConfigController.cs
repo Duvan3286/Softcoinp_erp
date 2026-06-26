@@ -32,7 +32,8 @@ public class TenantConfigController : BaseController
     [Authorize(Roles = "SuperAdmin,Admin,Council")]
     public async Task<ActionResult<TenantConfigurationDto>> Get()
     {
-        var config = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var tenantId = GetTenantId();
+        var config = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
         if (config == null)
             return NotFound("La configuración del conjunto no ha sido inicializada.");
 
@@ -43,12 +44,13 @@ public class TenantConfigController : BaseController
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<TenantConfigurationDto>> Update([FromBody] UpdateTenantConfigDto dto)
     {
-        var config = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var tenantId = GetTenantId();
+        var config = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
         bool isNew = false;
         
         if (config == null)
         {
-            config = new TenantConfiguration();
+            config = new TenantConfiguration { TenantId = tenantId };
             isNew = true;
         }
 
@@ -167,7 +169,8 @@ public class TenantConfigController : BaseController
         if (ext != ".png" && ext != ".svg")
             return BadRequest("Solo se permiten archivos PNG o SVG.");
 
-        var config = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var tenantId = GetTenantId();
+        var config = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
         if (config == null)
             return BadRequest("Debe guardar la configuración general primero.");
 

@@ -531,6 +531,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
         {
             entity.ToTable("erp_tenant_configuration");
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
             entity.Property(e => e.OfficialName).HasMaxLength(200);
             entity.Property(e => e.Nit).HasMaxLength(20).IsRequired();
             entity.Property(e => e.VerificationDigit).HasMaxLength(1);
@@ -541,6 +542,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.MaxLegalInterestRate).HasPrecision(5, 2);
             entity.Property(e => e.AnnualBudget).HasPrecision(18, 2);
             entity.Property(e => e.ContingencyFundPercentage).HasPrecision(5, 2);
+            entity.HasIndex(e => e.TenantId).IsUnique();
         });
 
         // ── ConfigurationAuditLog ────────────────────────────────────────

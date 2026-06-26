@@ -482,7 +482,7 @@ public class ReportController : ControllerBase
             .OrderBy(s => s.SectionOrder)
             .ToListAsync();
 
-        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
 
         var periodFrom = new DateTime(request.FiscalYear, 1, 1);
         var periodTo = new DateTime(request.FiscalYear, 12, 31);

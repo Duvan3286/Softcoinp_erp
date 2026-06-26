@@ -211,7 +211,7 @@ public class FeesAndPortfolioController : BaseController
         var monthlyRate = await _lateInterestService.GetMonthlyRateAsync(tenantId);
         var dailyRate = _lateInterestService.GetDailyRate(monthlyRate);
 
-        var config = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var config = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
 
         return Ok(new LateInterestRateConfigDto
         {

@@ -171,7 +171,7 @@ public class StatementService
                 statement.ClosingBalance.ToString("C2") + ".");
         }
 
-        var config = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var config = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
         var administratorName = config?.LegalRepresentativeName ?? "Administrador";
 
         var lastCert = await _context.ClearanceCertificates
