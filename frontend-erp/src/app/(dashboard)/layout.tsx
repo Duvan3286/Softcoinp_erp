@@ -38,9 +38,9 @@ export default function DashboardLayout({
     <SidebarProvider>
       <div className="h-screen bg-background overflow-hidden">
         <Header />
-        <Sidebar />
-        <div className="flex flex-col min-w-0 lg:ml-[88px] transition-all duration-300 h-full pt-14">
-          <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-background/50">
+        <div className="flex h-full pt-14">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto p-6 md:p-8 bg-background/50 min-w-0">
             <div className="max-w-7xl mx-auto">
               {children}
             </div>
