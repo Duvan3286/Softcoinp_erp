@@ -1,5 +1,8 @@
 import apiClient, { setAuthCookie, clearAuthCookie } from './api-client';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const isSameOrigin = API_URL.startsWith('/');
+
 export interface User {
   id: string;
   name: string;
@@ -27,25 +30,31 @@ const authService = {
     const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
     const { token, refreshToken } = response.data;
 
-    if (typeof window !== 'undefined') {
+    // Modo cross-origen: guardar en sessionStorage + cookie para middleware
+    if (!isSameOrigin && typeof window !== 'undefined') {
       sessionStorage.setItem('auth_token', token);
       if (refreshToken) {
         sessionStorage.setItem('refresh_token', refreshToken);
       }
       setAuthCookie(token);
     }
+    // Modo mismo origen: la cookie httpOnly la maneja el backend
 
     return response.data;
   },
 
   async logout(): Promise<void> {
     try {
-      const refreshToken = typeof window !== 'undefined' ? sessionStorage.getItem('refresh_token') : null;
-      await apiClient.post('/auth/logout', { refreshToken });
+      if (!isSameOrigin) {
+        const refreshToken = typeof window !== 'undefined' ? sessionStorage.getItem('refresh_token') : null;
+        await apiClient.post('/auth/logout', { refreshToken });
+      } else {
+        await apiClient.post('/auth/logout', {});
+      }
     } catch (error) {
       console.warn('Backend logout failed, but clearing local session anyway', error);
     } finally {
-      if (typeof window !== 'undefined') {
+      if (!isSameOrigin && typeof window !== 'undefined') {
         sessionStorage.removeItem('auth_token');
         sessionStorage.removeItem('refresh_token');
         clearAuthCookie();

@@ -1,13 +1,14 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const isSameOrigin = API_URL.startsWith('/');
 
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: !isSameOrigin,
 });
 
 const getSubdomain = () => {
@@ -20,12 +21,12 @@ const getSubdomain = () => {
 };
 
 const setAuthCookie = (token: string) => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || isSameOrigin) return;
   document.cookie = `auth_token=${token}; path=/; max-age=86400; samesite=lax`;
 };
 
 const clearAuthCookie = () => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || isSameOrigin) return;
   document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax';
 };
 
@@ -38,10 +39,14 @@ apiClient.interceptors.request.use(
     if (config.method && config.method !== 'get' && config.method !== 'head') {
       config.headers['X-Requested-With'] = 'XMLHttpRequest';
     }
-    const token = sessionStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Modo cross-origen: enviar token desde sessionStorage como Authorization header
+    if (!isSameOrigin) {
+      const token = sessionStorage.getItem('auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+    // Modo mismo origen: la cookie httpOnly se envía automáticamente
     return config;
   },
   (error) => {
@@ -58,28 +63,42 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = sessionStorage.getItem('refresh_token');
-        if (refreshToken) {
+        if (!isSameOrigin) {
+          const refreshToken = sessionStorage.getItem('refresh_token');
+          if (refreshToken) {
+            const tenantId = getSubdomain();
+            const headers: Record<string, string> = {};
+            if (tenantId) {
+              headers['X-Tenant-Id'] = tenantId;
+            }
+            const response = await axios.post(`${API_URL}/auth/refresh`, {
+              refreshToken,
+            }, { headers, withCredentials: true });
+
+            const { token } = response.data;
+            sessionStorage.setItem('auth_token', token);
+            setAuthCookie(token);
+
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          }
+        } else {
+          // Modo mismo origen: el refresh usa la cookie httpOnly
           const tenantId = getSubdomain();
           const headers: Record<string, string> = {};
           if (tenantId) {
             headers['X-Tenant-Id'] = tenantId;
           }
-          const response = await axios.post(`${API_URL}/auth/refresh`, {
-            refreshToken,
-          }, { headers, withCredentials: true });
+          await axios.post('/api/auth/refresh', {}, { headers });
 
-          const { token } = response.data;
-          sessionStorage.setItem('auth_token', token);
-          setAuthCookie(token);
-
-          originalRequest.headers.Authorization = `Bearer ${token}`;
           return apiClient(originalRequest);
         }
       } catch {
-        sessionStorage.removeItem('auth_token');
-        sessionStorage.removeItem('refresh_token');
-        clearAuthCookie();
+        if (!isSameOrigin) {
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('refresh_token');
+          clearAuthCookie();
+        }
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }

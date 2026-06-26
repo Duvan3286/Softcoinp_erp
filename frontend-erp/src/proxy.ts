@@ -64,7 +64,7 @@ export function proxy(request: NextRequest) {
 
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:5005 http://localhost:5031 http://localhost:3001 https:; font-src 'self'; frame-ancestors 'none'; form-action 'self'"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:5005 http://localhost:5031 http://localhost:3001 ws://localhost:3001 https:; font-src 'self'; frame-ancestors 'none'; form-action 'self'"
   );
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
