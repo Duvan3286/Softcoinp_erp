@@ -33,7 +33,12 @@ export function proxy(request: NextRequest) {
 
   // ── Protegemos rutas que requieran Auth ──
   const path = request.nextUrl.pathname;
-  const isProtectedRoute = path.startsWith('/dashboard') || path.startsWith('/settings');
+  const protectedRoutes = [
+    '/dashboard', '/settings', '/units', '/pqr', '/residents',
+    '/communications', '/billing', '/reports', '/suppliers',
+    '/reservation', '/budget', '/accounting', '/bank',
+  ];
+  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
   const isAuthRoute = path.startsWith('/login') || path.startsWith('/invite');
   
   const token = request.cookies.get('auth_token')?.value;
@@ -51,11 +56,21 @@ export function proxy(request: NextRequest) {
   }
 
   // Return response with modified headers
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+
+  response.headers.set(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:5005 https:; font-src 'self'; frame-ancestors 'none'; form-action 'self'"
+  );
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  return response;
 }
 
 // Matching paths: exclude static files, api, etc.

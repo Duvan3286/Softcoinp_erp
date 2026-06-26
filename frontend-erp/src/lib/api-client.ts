@@ -1,14 +1,12 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5005/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Helper to get subdomain on the client.
-// Priority: (1) subdomain from URL, (2) NEXT_PUBLIC_TENANT_ID env var (local dev fallback).
 const getSubdomain = () => {
   if (typeof window === 'undefined') return process.env.NEXT_PUBLIC_TENANT_ID ?? '';
   const hostname = window.location.hostname;
@@ -20,20 +18,13 @@ const getSubdomain = () => {
 
 apiClient.interceptors.request.use(
   (config) => {
-    // Add Tenant ID
     const tenantId = getSubdomain();
     if (tenantId) {
       config.headers['X-Tenant-Id'] = tenantId;
     }
-
-    // Add Authorization header
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    if (config.method && config.method !== 'get' && config.method !== 'head') {
+      config.headers['X-Requested-With'] = 'XMLHttpRequest';
     }
-
     return config;
   },
   (error) => {
@@ -46,34 +37,20 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized (expired token)
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const tenantId = getSubdomain();
-          const headers: Record<string, string> = {};
-          if (tenantId) {
-            headers['X-Tenant-Id'] = tenantId;
-          }
-          const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
-            refreshToken,
-          }, { headers });
-
-          const { token } = response.data;
-          localStorage.setItem('auth_token', token);
-
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return apiClient(originalRequest);
+        const tenantId = getSubdomain();
+        const headers: Record<string, string> = {};
+        if (tenantId) {
+          headers['X-Tenant-Id'] = tenantId;
         }
+        await axios.post('/api/auth/refresh', {}, { headers });
+
+        return apiClient(originalRequest);
       } catch {
-        // Refresh token failed or expired
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
         if (typeof window !== 'undefined') {
-          document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax';
           window.location.href = '/login';
         }
       }

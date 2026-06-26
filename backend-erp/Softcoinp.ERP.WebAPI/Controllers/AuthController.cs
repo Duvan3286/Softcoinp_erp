@@ -159,6 +159,8 @@ public class AuthController : ControllerBase
 
         await WriteAuditAsync(user.Id, user.Email!, tenant?.Id, AuditEventType.LoginSuccess, ip, userAgent);
 
+        SetAuthCookies(jwt, jwtExpiry, rawRefresh);
+
         return Ok(new
         {
             user = new
@@ -180,10 +182,13 @@ public class AuthController : ControllerBase
     // POST /api/auth/refresh
     // ─────────────────────────────────────────────────────────────────
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest? request)
     {
         var ip = GetClientIp();
-        var tokenHash = HashToken(request.RefreshToken);
+        var rawRefresh = request?.RefreshToken ?? Request.Cookies["refresh_token"] ?? "";
+        if (string.IsNullOrEmpty(rawRefresh))
+            return Unauthorized(new { message = "Token de sesión inválido o expirado." });
+        var tokenHash = HashToken(rawRefresh);
 
         var stored = await _db.RefreshTokens
             .Include(r => r.User)
@@ -235,6 +240,8 @@ public class AuthController : ControllerBase
 
         await WriteAuditAsync(user.Id, user.Email!, tenant?.Id, AuditEventType.TokenRefreshed, ip, Request.Headers.UserAgent.ToString());
 
+        SetAuthCookies(jwt, jwtExpiry, rawNew);
+
         return Ok(new { token = jwt, tokenExpiry = jwtExpiry, refreshToken = rawNew });
     }
 
@@ -243,15 +250,16 @@ public class AuthController : ControllerBase
     // ─────────────────────────────────────────────────────────────────
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest? request)
     {
         var ip = GetClientIp();
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var tenant = await _tenantResolver.GetCurrentTenantAsync();
 
-        if (!string.IsNullOrEmpty(request.RefreshToken))
+        var refreshToken = request?.RefreshToken ?? Request.Cookies["refresh_token"] ?? "";
+        if (!string.IsNullOrEmpty(refreshToken))
         {
-            var tokenHash = HashToken(request.RefreshToken);
+            var tokenHash = HashToken(refreshToken);
             var stored = await _db.RefreshTokens.FirstOrDefaultAsync(r => r.TokenHash == tokenHash && r.UserId == userId);
             if (stored != null && !stored.IsRevoked)
             {
@@ -264,6 +272,8 @@ public class AuthController : ControllerBase
 
         var email = User.FindFirstValue(ClaimTypes.Email) ?? "";
         await WriteAuditAsync(userId, email, tenant?.Id, AuditEventType.Logout, ip, Request.Headers.UserAgent.ToString());
+
+        ClearAuthCookies();
 
         return Ok(new { message = "Sesión cerrada correctamente." });
     }
@@ -348,6 +358,8 @@ public class AuthController : ControllerBase
         await WriteAuditAsync(user.Id, user.Email!, request.TenantId, AuditEventType.ContextSwitched, ip,
             Request.Headers.UserAgent.ToString(),
             JsonSerializer.Serialize(new { targetTenantId = request.TenantId }));
+
+        SetAuthCookies(jwt, jwtExpiry, rawRefresh);
 
         return Ok(new
         {
@@ -502,6 +514,36 @@ public class AuthController : ControllerBase
             t.RevokedAt = DateTime.UtcNow;
         }
         await _db.SaveChangesAsync();
+    }
+
+    private void SetAuthCookies(string jwt, DateTime jwtExpiry, string refreshToken)
+    {
+        var isSecure = Request.IsHttps;
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = isSecure,
+            SameSite = SameSiteMode.Strict,
+            Path = "/",
+            Expires = jwtExpiry
+        };
+        Response.Cookies.Append("auth_token", jwt, cookieOptions);
+
+        var refreshOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = isSecure,
+            SameSite = SameSiteMode.Strict,
+            Path = "/",
+            Expires = DateTime.UtcNow.AddDays(RefreshTokenDays)
+        };
+        Response.Cookies.Append("refresh_token", refreshToken, refreshOptions);
+    }
+
+    private void ClearAuthCookies()
+    {
+        Response.Cookies.Delete("auth_token", new CookieOptions { Path = "/" });
+        Response.Cookies.Delete("refresh_token", new CookieOptions { Path = "/" });
     }
 
     private string GetClientIp()
