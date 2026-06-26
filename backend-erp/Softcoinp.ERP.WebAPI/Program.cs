@@ -185,6 +185,7 @@ app.Use(async (context, next) => {
 });
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseMiddleware<LoginRateLimitMiddleware>();
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {

@@ -460,7 +460,7 @@ export default function TenantConfigPage() {
                     <h2 className="text-sm font-bold text-foreground mb-4">Logotipo del Conjunto</h2>
                     <div className="flex items-center gap-6">
                       {config.logoUrl ? (
-                        <img src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${config.logoUrl}`} alt="Logo" className="w-24 h-24 object-contain bg-slate-100 rounded-lg p-2" />
+                        <img src={config.logoUrl} alt="Logo" className="w-24 h-24 object-contain bg-slate-100 rounded-lg p-2" />
                       ) : (
                         <div className="w-24 h-24 bg-slate-100 flex items-center justify-center rounded-lg text-slate-400">
                           Sin Logo

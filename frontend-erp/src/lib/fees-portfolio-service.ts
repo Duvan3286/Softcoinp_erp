@@ -546,8 +546,8 @@ const feesPortfolioService = {
 
   // Agreements
   async simulateAgreement(unitId: string, totalDebt: number, forgivenessPercentage: number, installments: number, startDate: string): Promise<AgreementSimulation> {
-    const response = await apiClient.get<AgreementSimulation>('/billing/agreements/simulate', {
-      params: { unitId, totalDebt, forgivenessPercentage, installments, startDate }
+    const response = await apiClient.post<AgreementSimulation>('/billing/agreements/simulate', {
+      unitId, totalDebt, forgivenessPercentage, installments, startDate
     });
     return response.data;
   },

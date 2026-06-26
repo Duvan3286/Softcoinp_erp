@@ -423,7 +423,7 @@ const supplierService = {
   },
 
   async calculateRetentions(serviceType: string, subtotal: number): Promise<RetentionCalculation> {
-    const response = await apiClient.get<RetentionCalculation>(`/contracts/calculate-retentions?serviceType=${serviceType}&subtotal=${subtotal}`);
+    const response = await apiClient.post<RetentionCalculation>('/contracts/calculate-retentions', { serviceType, subtotal });
     return response.data;
   },
 };

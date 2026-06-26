@@ -108,13 +108,14 @@ export default function NewCommunicationPage() {
         <CardContent className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Asunto</label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="w-full border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none bg-transparent"
-              placeholder="Asunto del comunicado"
-            />
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="w-full border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none bg-transparent"
+                placeholder="Asunto del comunicado"
+                maxLength={200}
+              />
           </div>
 
           <div>
@@ -124,6 +125,7 @@ export default function NewCommunicationPage() {
               onChange={(e) => setBody(e.target.value)}
               className="w-full border border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none rounded-lg px-3 bg-background min-h-[200px]"
               placeholder="Redacte el contenido del comunicado..."
+              maxLength={5000}
             />
           </div>
 
