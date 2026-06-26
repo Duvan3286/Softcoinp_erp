@@ -16,7 +16,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/residents")]
-[Authorize]
+[Authorize(Roles = "SuperAdmin,Admin,Council,Auditor")]
 public class ResidentsController : BaseController
 {
     private readonly ApplicationDbContext _context;
@@ -99,7 +99,6 @@ public class ResidentsController : BaseController
         var tenantId = GetTenantId();
 
         var owner = await _context.Owners
-            .IgnoreQueryFilters()
             .Include(o => o.UnitOwners)
                 .ThenInclude(uo => uo.Unit)
             .Include(o => o.ContactHistories)
@@ -168,13 +167,12 @@ public class ResidentsController : BaseController
     // ── PROPIETARIOS — PERSONA NATURAL ───────────────────────────────────────
 
     [HttpPost("owners/natural-person")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateNaturalPersonOwner([FromBody] CreateNaturalPersonOwnerDto dto)
     {
         var tenantId = GetTenantId();
 
         var exists = await _context.Owners
-            .IgnoreQueryFilters()
             .AnyAsync(o => o.TenantId == tenantId && o.DocumentNumber == dto.DocumentNumber);
 
         if (exists)
@@ -208,7 +206,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpPut("owners/{id:guid}/natural-person")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateNaturalPersonOwner(Guid id, [FromBody] UpdateNaturalPersonOwnerDto dto)
     {
         var tenantId = GetTenantId();
@@ -247,13 +245,12 @@ public class ResidentsController : BaseController
     // ── PROPIETARIOS — PERSONA JURÍDICA ──────────────────────────────────────
 
     [HttpPost("owners/legal-entity")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateLegalEntityOwner([FromBody] CreateLegalEntityOwnerDto dto)
     {
         var tenantId = GetTenantId();
 
         var exists = await _context.Owners
-            .IgnoreQueryFilters()
             .AnyAsync(o => o.TenantId == tenantId && o.DocumentNumber == dto.DocumentNumber);
 
         if (exists)
@@ -291,7 +288,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpPut("owners/{id:guid}/legal-entity")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateLegalEntityOwner(Guid id, [FromBody] UpdateLegalEntityOwnerDto dto)
     {
         var tenantId = GetTenantId();
@@ -652,7 +649,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpPost("units/{unitId:guid}/tenant")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> RegisterTenant(Guid unitId, [FromBody] CreateTenantResidentDto dto)
     {
         var tenantId = GetTenantId();
@@ -731,7 +728,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpPut("units/{unitId:guid}/tenant/{residentId:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateTenant(Guid unitId, Guid residentId, [FromBody] UpdateTenantResidentDto dto)
     {
         var tenantId = GetTenantId();
@@ -829,7 +826,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpPost("units/{unitId:guid}/cohabitation")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> AddCohabitationMember(Guid unitId, [FromBody] AddCohabitationMemberDto dto)
     {
         var tenantId = GetTenantId();
@@ -882,7 +879,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpPost("units/{unitId:guid}/cohabitation/{memberId:guid}/deactivate")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> RemoveCohabitationMember(Guid unitId, Guid memberId)
     {
         var tenantId = GetTenantId();
@@ -1029,7 +1026,6 @@ public class ResidentsController : BaseController
         var tenantId = GetTenantId();
 
         var ownerExists = await _context.Owners
-            .IgnoreQueryFilters()
             .AnyAsync(o => o.Id == ownerId && o.TenantId == tenantId);
 
         if (!ownerExists)
@@ -1224,7 +1220,7 @@ public class ResidentsController : BaseController
     // ── LISTADO GLOBAL DE ARRENDATARIOS ──────────────────────────────────────
 
     [HttpGet("tenants")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council,Auditor")]
     public async Task<IActionResult> GetTenants(
         [FromQuery] string? search,
         [FromQuery] bool includeInactive = false)
@@ -1294,7 +1290,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpGet("tenants/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council,Auditor")]
     public async Task<IActionResult> GetTenantDetail(Guid id)
     {
         var tenantId = GetTenantId();
@@ -1329,7 +1325,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpPut("tenants/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateTenant(Guid id, [FromBody] UpdateTenantResidentDto dto)
     {
         if (!ModelState.IsValid)
