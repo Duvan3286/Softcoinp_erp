@@ -24,6 +24,7 @@ public class NotificationsController : BaseController
     }
 
     [HttpGet]
+    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
     public async Task<IActionResult> GetUnread([FromQuery] Guid ownerId)
     {
         var tenantId = GetTenantId();
@@ -38,13 +39,24 @@ public class NotificationsController : BaseController
     }
 
     [HttpPost("{id}/read")]
+    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
     public async Task<IActionResult> MarkAsRead(Guid id)
     {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        var notification = await _context.Notifications
+            .FirstOrDefaultAsync(n => n.Id == id && n.TenantId == tenantId);
+
+        if (notification == null)
+            return NotFound(new { message = "Notificación no encontrada." });
+
         await _notificationService.MarkAsReadAsync(id);
         return Ok();
     }
 
     [HttpPost("read-all")]
+    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
     public async Task<IActionResult> MarkAllAsRead([FromQuery] Guid ownerId)
     {
         var tenantId = GetTenantId();

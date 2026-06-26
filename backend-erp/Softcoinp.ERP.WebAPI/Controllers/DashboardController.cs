@@ -22,6 +22,7 @@ public class DashboardController : BaseController
     }
 
     [HttpGet]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
     public async Task<IActionResult> GetDashboard()
     {
         var tenantId = GetTenantId();

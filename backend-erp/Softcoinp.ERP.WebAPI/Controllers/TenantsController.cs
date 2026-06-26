@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Softcoinp.ERP.Domain.Interfaces;
@@ -7,6 +8,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/v1/admin/tenants")]
+[Authorize(Roles = "SuperAdmin")]
 public class TenantsController : ControllerBase
 {
     private readonly MasterDbContext _context;
