@@ -1,4 +1,4 @@
-import apiClient from './api-client';
+import apiClient, { setAuthCookie, clearAuthCookie } from './api-client';
 
 export interface User {
   id: string;
@@ -25,14 +25,31 @@ export interface LoginCredentials {
 const authService = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
+    const { token, refreshToken } = response.data;
+
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('auth_token', token);
+      if (refreshToken) {
+        sessionStorage.setItem('refresh_token', refreshToken);
+      }
+      setAuthCookie(token);
+    }
+
     return response.data;
   },
 
   async logout(): Promise<void> {
     try {
-      await apiClient.post('/auth/logout');
+      const refreshToken = typeof window !== 'undefined' ? sessionStorage.getItem('refresh_token') : null;
+      await apiClient.post('/auth/logout', { refreshToken });
     } catch (error) {
       console.warn('Backend logout failed, but clearing local session anyway', error);
+    } finally {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('refresh_token');
+        clearAuthCookie();
+      }
     }
   },
 

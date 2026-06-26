@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, LoginCredentials } from '../lib/auth-service';
 import authService from '../lib/auth-service';
+import { setAuthCookie, clearAuthCookie } from '../lib/api-client';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -15,6 +16,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function readTokenFromCookie(): string | null {
+  if (typeof window === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)auth_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,11 +29,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      try {
-        const currentUser = await authService.getCurrentUser();
-        setUser(currentUser);
-      } catch {
-        // No session - user is not authenticated
+      const cookieToken = readTokenFromCookie();
+      const sessionToken = typeof window !== 'undefined' ? sessionStorage.getItem('auth_token') : null;
+      const token = sessionToken || cookieToken;
+
+      if (token) {
+        if (!sessionToken) {
+          sessionStorage.setItem('auth_token', token);
+          setAuthCookie(token);
+        }
+        try {
+          const currentUser = await authService.getCurrentUser();
+          setUser(currentUser);
+        } catch {
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('refresh_token');
+          clearAuthCookie();
+        }
       }
       setIsLoading(false);
     };
@@ -53,6 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore logout errors
     } finally {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('refresh_token');
+        clearAuthCookie();
+      }
       setUser(null);
       router.push('/login');
     }

@@ -70,10 +70,13 @@ builder.Services.AddAuthentication(options => {
     {
         OnMessageReceived = context =>
         {
-            var token = context.Request.Cookies["auth_token"];
-            if (!string.IsNullOrEmpty(token))
+            if (string.IsNullOrEmpty(context.Token))
             {
-                context.Token = token;
+                var token = context.Request.Cookies["auth_token"];
+                if (!string.IsNullOrEmpty(token))
+                {
+                    context.Token = token;
+                }
             }
             return Task.CompletedTask;
         }
