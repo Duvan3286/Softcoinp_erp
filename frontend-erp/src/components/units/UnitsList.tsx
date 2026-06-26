@@ -72,16 +72,7 @@ export default function UnitsList() {
     return <span className="px-2 py-1 bg-gray-200 text-gray-800 rounded-lg text-xs font-semibold">Desconocido ({String(status)})</span>;
   };
 
-  const filteredUnits = units.filter(u => {
-    if (filterArrears === "mora") {
-      // Mock logic: randomly simulate someone in arrears if id contains 'a'
-      return u.identifier.toLowerCase().includes('a') === false;
-    }
-    if (filterArrears === "aldia") {
-      return u.identifier.toLowerCase().includes('a') === true;
-    }
-    return true;
-  });
+  const filteredUnits = filterArrears ? units : units;
 
   if (showCreateForm) {
     return <UnitForm initialData={unitToEdit} onSuccess={handleFormSuccess} onCancel={handleFormCancel} />;
@@ -147,8 +138,8 @@ export default function UnitsList() {
               onChange={(e) => setFilterArrears(e.target.value)}
             >
               <option value="">Todos</option>
-              <option value="aldia">Al Día (100% Recaudo)</option>
-              <option value="mora">En Mora (Recaudo &lt; 100%)</option>
+              <option value="aldia" disabled>Al Día (próximamente)</option>
+              <option value="mora" disabled>En Mora (próximamente)</option>
             </select>
           </div>
         </div>
@@ -185,7 +176,6 @@ export default function UnitsList() {
                 );
               }
               return filteredUnits.map((u) => {
-                const isUpToDate = u.identifier.toLowerCase().includes('a'); // mocked logic
 
                 return (
                   <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
@@ -204,12 +194,7 @@ export default function UnitsList() {
                       {renderStatusBadge(u.status)}
                     </td>
                     <td className="px-6 py-4">
-                      {(() => {
-                        if (isUpToDate) {
-                          return <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700"><span className="w-2 h-2 rounded-full bg-green-500"></span>Al Día (100%)</span>;
-                        }
-                        return <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700"><span className="w-2 h-2 rounded-full bg-red-500"></span>En Mora</span>;
-                      })()}
+                      <span className="text-xs text-gray-400 italic">Por implementar</span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">

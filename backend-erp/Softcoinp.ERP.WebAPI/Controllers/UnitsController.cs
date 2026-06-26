@@ -45,6 +45,7 @@ public class UnitsController : BaseController
     }
 
     [HttpPost("types")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateUnitType([FromBody] CreateUnitTypeDto dto)
     {
         var tenantId = GetTenantId();
@@ -96,7 +97,7 @@ public class UnitsController : BaseController
     public async Task<IActionResult> GetUnits([FromQuery] string? tower, [FromQuery] string? status)
     {
         var tenantId = GetTenantId();
-        var query = _context.Units.Include(u => u.UnitType).Where(u => u.TenantId == tenantId).AsQueryable();
+        var query = _context.Units.Where(u => u.TenantId == tenantId).AsQueryable();
 
         if (!string.IsNullOrEmpty(tower))
         {
@@ -161,10 +162,18 @@ public class UnitsController : BaseController
     }
 
     [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateUnit([FromBody] CreateUnitDto dto)
     {
         var tenantId = GetTenantId();
         
+        // Validate UnitType exists
+        var unitTypeExists = await _context.UnitTypes.AnyAsync(t => t.Id == dto.UnitTypeId && t.TenantId == tenantId);
+        if (!unitTypeExists)
+        {
+            return BadRequest("El tipo de unidad seleccionado no existe en este conjunto.");
+        }
+
         // Validate Identifier Uniqueness
         var exists = await _context.Units.AnyAsync(u => u.TenantId == tenantId && u.Identifier == dto.Identifier);
         if (exists)
@@ -225,6 +234,7 @@ public class UnitsController : BaseController
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateUnit(Guid id, [FromBody] UpdateUnitDto dto)
     {
         var tenantId = GetTenantId();
@@ -288,6 +298,7 @@ public class UnitsController : BaseController
     }
 
     [HttpPost("bulk-import")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> BulkImport(Microsoft.AspNetCore.Http.IFormFile file)
     {
         var tenantId = GetTenantId();
