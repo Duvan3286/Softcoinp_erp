@@ -25,7 +25,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="relative w-full h-14 bg-card border-b border-border px-4 lg:px-5 flex items-center gap-2 lg:gap-4 shadow-sm z-[110] transition-colors duration-300">
+    <header className="fixed top-0 left-0 right-0 h-14 bg-card border-b border-border px-4 lg:px-5 flex items-center gap-2 lg:gap-4 shadow-sm z-[110] transition-colors duration-300">
       
       {/* 📱 BOTÓN MENU (Solo móvil) */}
       <button 
