@@ -571,17 +571,21 @@ public class FeesAndPortfolioController : BaseController
         if (!Enum.TryParse<DistributionType>(request.DistributionType, true, out var distributionType))
             return BadRequest("Tipo de distribución inválido. Use: AllByCoefficient o SpecificGroup.");
 
-        var units = await _context.Units
+        var unitsQuery = _context.Units
             .Where(u => u.TenantId == tenantId
-                && (u.Status == UnitStatus.ActiveOccupied || u.Status == UnitStatus.ActiveUnoccupied))
-            .ToListAsync();
+                && (u.Status == UnitStatus.ActiveOccupied || u.Status == UnitStatus.ActiveUnoccupied));
+
+        if (distributionType == DistributionType.SpecificGroup && request.UnitIds?.Count > 0)
+        {
+            unitsQuery = unitsQuery.Where(u => request.UnitIds.Contains(u.Id));
+        }
+
+        var units = await unitsQuery.ToListAsync();
 
         if (units.Count == 0)
             return BadRequest("No hay unidades activas para distribuir la cuota.");
 
-        var amountPerUnit = distributionType == DistributionType.AllByCoefficient
-            ? Math.Round(request.TotalAmount / units.Count, 2)
-            : 0;
+        var totalCoefficients = units.Sum(u => u.CoproprietyCoefficient);
 
         var fee = new ExtraordinaryFee
         {
@@ -608,9 +612,9 @@ public class FeesAndPortfolioController : BaseController
             foreach (var unit in units)
             {
                 decimal unitAmount;
-                if (distributionType == DistributionType.AllByCoefficient)
+                if (distributionType == DistributionType.AllByCoefficient && totalCoefficients > 0)
                 {
-                    unitAmount = amountPerUnit;
+                    unitAmount = Math.Round(request.TotalAmount * unit.CoproprietyCoefficient / totalCoefficients, 2);
                 }
                 else
                 {
@@ -651,7 +655,8 @@ public class FeesAndPortfolioController : BaseController
                 _logger.LogError(ex, "Error al registrar asiento contable de cuota extraordinaria {FeeId} para tenant {TenantId}", fee.Id, tenantId);
             }
 
-            return Ok(new { id = fee.Id, name = fee.Name, amountPerUnit, distributionsCount = distributions.Count });
+            var firstUnitAmount = distributions.Count > 0 ? distributions[0].Amount : 0m;
+            return Ok(new { id = fee.Id, name = fee.Name, amountPerUnit = firstUnitAmount, distributionsCount = distributions.Count });
         }
         catch (Exception)
         {
@@ -1106,6 +1111,10 @@ public class FeesAndPortfolioController : BaseController
             .Take(10)
             .ToListAsync();
 
+        var advanceBalance = await _context.Payments
+            .Where(p => p.UnitId == unitId && p.TenantId == tenantId && p.AdvanceAmount > 0)
+            .SumAsync(p => p.AdvanceAmount);
+
         var now = DateTime.UtcNow;
         var outstandingBalance = unitFees.Sum(f => f.BalanceAmount)
             + extraordinaryDistributions.Sum(d => d.BalanceAmount)
@@ -1120,10 +1129,6 @@ public class FeesAndPortfolioController : BaseController
             + individualCharges
                 .Where(c => c.Status != IndividualChargeStatus.Paid && c.ChargeDate < now)
                 .Sum(c => c.BalanceAmount);
-
-        var advanceBalance = latestPayments
-            .Where(p => p.AdvanceAmount > 0)
-            .Sum(p => p.AdvanceAmount);
 
         var maxLateDays = unitFees
             .Where(f => f.Status != FeeStatus.FullyPaid && f.DueDate < now)
@@ -1182,6 +1187,9 @@ public class FeesAndPortfolioController : BaseController
             DaysOverdue = c.Status != IndividualChargeStatus.Paid ? Math.Max(0, (now - c.ChargeDate).Days) : 0
         }));
 
+        var monthlyRate = await _lateInterestService.GetMonthlyRateAsync(tenantId);
+        var dailyRate = _lateInterestService.GetDailyRate(monthlyRate);
+
         var detail = new UnitPortfolioDetailDto
         {
             UnitId = unit.Id,
@@ -1193,7 +1201,7 @@ public class FeesAndPortfolioController : BaseController
             AdvanceBalance = advanceBalance,
             AccruedInterest = unitFees
                 .Where(f => f.Status != FeeStatus.FullyPaid && f.DueDate < now)
-                .Sum(f => Math.Round(f.BalanceAmount * lateDays * 0.01m / 30, 2)),
+                .Sum(f => Math.Round(f.BalanceAmount * dailyRate * Math.Max(0, (now - f.DueDate).Days), 2)),
             LateDays = lateDays,
             CollectionStage = collectionStage,
             DebtItems = debtItems.OrderByDescending(d => d.DaysOverdue).ToList(),

@@ -366,6 +366,7 @@ public class CreateExtraordinaryFeeRequestDto
     public string Name { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public string DistributionType { get; set; } = string.Empty;
+    public List<Guid>? UnitIds { get; set; }
     public DateTime DueDate { get; set; }
     public string StartPeriod { get; set; } = string.Empty;
     public int NumberOfInstallments { get; set; } = 1;
