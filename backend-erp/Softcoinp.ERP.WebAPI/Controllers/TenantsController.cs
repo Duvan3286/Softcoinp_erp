@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Softcoinp.ERP.Domain.Interfaces;
 using Softcoinp.ERP.Infrastructure.Persistence;
+using Softcoinp.ERP.WebAPI.DTOs;
 
 namespace Softcoinp.ERP.WebAPI.Controllers;
 
@@ -25,8 +26,15 @@ public class TenantsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(Tenant tenant)
+    public async Task<IActionResult> Create([FromBody] CreateTenantDto dto)
     {
+        var tenant = new Tenant
+        {
+            Name = dto.Name,
+            Subdomain = dto.Subdomain,
+            ConnectionString = dto.ConnectionString
+        };
+
         _context.Tenants.Add(tenant);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetAll), new { id = tenant.Id }, tenant);

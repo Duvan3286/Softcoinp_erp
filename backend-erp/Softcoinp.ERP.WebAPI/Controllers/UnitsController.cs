@@ -299,7 +299,7 @@ public class UnitsController : BaseController
 
     [HttpPost("bulk-import")]
     [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<IActionResult> BulkImport(Microsoft.AspNetCore.Http.IFormFile file)
+    public async Task<IActionResult> BulkImport([FromForm] Microsoft.AspNetCore.Http.IFormFile file)
     {
         var tenantId = GetTenantId();
         

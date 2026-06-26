@@ -157,7 +157,7 @@ public class TenantConfigController : BaseController
 
     [HttpPost("logo")]
     [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<IActionResult> UploadLogo(IFormFile file)
+    public async Task<IActionResult> UploadLogo([FromForm] IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest("Archivo vacío.");
