@@ -125,11 +125,6 @@ export default function TenantConfigPage() {
   const handleChange = (field: keyof TenantConfiguration, value: any) => {
     if (!config || !canEdit) return;
     
-    // Auto-capitalize first letter of each word for specific text fields
-    const titleCaseFields = ['officialName', 'address', 'municipality', 'department', 'legalRepresentativeName'];
-    if (typeof value === 'string' && titleCaseFields.includes(field)) {
-      value = value.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
-    }
     
     setConfig({ ...config, [field]: value });
   };
@@ -437,7 +432,7 @@ export default function TenantConfigPage() {
                         <option value="CE">Cédula de Extranjería (CE)</option>
                         <option value="NIT">NIT</option>
                         <option value="PASAPORTE">Pasaporte</option>
-                        <option value="PEP">Persona Expuesta Políticamente (PEP)</option>
+                        <option value="PEP">Permiso Especial de Permanencia (PEP)</option>
                         <option value="PPT">Pasaporte Temporal (PPT)</option>
                       </select>
                     </div>

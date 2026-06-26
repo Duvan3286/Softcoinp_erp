@@ -66,6 +66,15 @@ public class TenantConfigController : BaseController
         if (dto.HasContingencyFund && dto.ContingencyFundPercentage < 1m)
             return BadRequest("Según la Ley 675, el fondo de imprevistos debe ser mínimo el 1% del presupuesto.");
 
+        if (dto.TotalUnits <= 0)
+            return BadRequest("El total de unidades debe ser mayor a cero.");
+
+        if (dto.TotalTowers <= 0)
+            return BadRequest("El total de torres/bloques debe ser mayor a cero.");
+
+        if (dto.FiscalYearStartDay < 1 || dto.FiscalYearStartDay > 31)
+            return BadRequest("El día de inicio del año fiscal debe estar entre 1 y 31.");
+
         var currentUserId = GetUserId();
         var currentTenantId = GetTenantId();
 
@@ -227,13 +236,15 @@ public class TenantConfigController : BaseController
             await file.CopyToAsync(stream);
         }
 
+        var relativePath = $"/uploads/documents/{fileName}";
+
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
 
         var doc = new TenantDocument
         {
             Title = title,
             Type = type,
-            FilePath = filePath,
+            FilePath = relativePath,
             ContentType = "application/pdf",
             FileSize = file.Length,
             MinimumRoleRequired = minRole,
@@ -280,11 +291,11 @@ public class TenantConfigController : BaseController
         if ((int)userRole > (int)doc.MinimumRoleRequired)
             return Forbid();
 
-        if (!System.IO.File.Exists(doc.FilePath))
+        var physicalPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", doc.FilePath.TrimStart('/'));
+        if (!System.IO.File.Exists(physicalPath))
             return NotFound("El archivo físico no existe en el servidor.");
 
-        var bytes = await System.IO.File.ReadAllBytesAsync(doc.FilePath);
-        return File(bytes, doc.ContentType, Path.GetFileName(doc.FilePath));
+        return PhysicalFile(physicalPath, doc.ContentType, Path.GetFileName(doc.FilePath));
     }
 
     private Task AuditFinancialChange(string tenantId, TenantConfiguration oldConfig, UpdateTenantConfigDto newConfig, string userId)
@@ -375,7 +386,7 @@ public class UpdateTenantConfigDto
     public string OfficialName { get; set; } = string.Empty;
     
     [Required(ErrorMessage = "El NIT es obligatorio.")] 
-    [StringLength(10, ErrorMessage = "El NIT no puede tener más de 10 dígitos.")]
+    [StringLength(15, ErrorMessage = "El NIT no puede tener más de 15 dígitos.")]
     [RegularExpression(@"^\d+$", ErrorMessage = "El NIT solo debe contener números.")]
     public string Nit { get; set; } = string.Empty;
     
@@ -454,7 +465,38 @@ public class UpdateTenantConfigDto
     public int LatePaymentNotificationFrequencyDays { get; set; }
 }
 
-public class TenantConfigurationDto : UpdateTenantConfigDto
+public class TenantConfigurationDto
 {
     public string? LogoUrl { get; set; }
+    public string OfficialName { get; set; } = string.Empty;
+    public string Nit { get; set; } = string.Empty;
+    public string VerificationDigit { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string Municipality { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string RealEstateRegistration { get; set; } = string.Empty;
+    public DateTime ConstitutionDate { get; set; }
+    public string LegalRepresentativeName { get; set; } = string.Empty;
+    public IdentityDocumentType LegalRepresentativeDocumentType { get; set; } = IdentityDocumentType.CC;
+    public string LegalRepresentativeId { get; set; } = string.Empty;
+    public string LegalRepresentativeDv { get; set; } = string.Empty;
+    public int BillingCycleDay { get; set; }
+    public int GracePeriodDays { get; set; }
+    public decimal LatePaymentInterestRate { get; set; }
+    public decimal MaxLegalInterestRate { get; set; }
+    public int FiscalYearStartMonth { get; set; }
+    public int FiscalYearStartDay { get; set; }
+    public decimal AnnualBudget { get; set; }
+    public int TotalUnits { get; set; }
+    public int TotalTowers { get; set; }
+    public RoundingPolicy RoundingPolicy { get; set; }
+    public int MaxActiveExtraordinaryQuotas { get; set; }
+    public bool HasContingencyFund { get; set; }
+    public decimal ContingencyFundPercentage { get; set; }
+    public string SenderEmail { get; set; } = string.Empty;
+    public string SignatureFooterTemplate { get; set; } = string.Empty;
+    public bool AutoSendLatePaymentNotifications { get; set; }
+    public int LatePaymentNotificationFrequencyDays { get; set; }
 }
