@@ -55,7 +55,7 @@ export const Sidebar = () => {
   // Auto-open groups based on current path
   useEffect(() => {
     if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('accounting') || pathname.includes('budgets') || pathname.includes('contingency-fund')) setOpenGroup('finanzas');
-    else if (pathname.includes('users') || pathname.includes('integrations')) setOpenGroup('admin');
+
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
     else if (pathname.startsWith('/suppliers') || pathname.startsWith('/contracts')) setOpenGroup('proveedores');
     else if (pathname.startsWith('/maintenance')) setOpenGroup('mantenimiento');
@@ -235,17 +235,6 @@ export const Sidebar = () => {
             <NavItem text="Reportes Contables" path="/accounting/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Presupuesto" path="/budgets" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Fondo Imprevistos" path="/contingency-fund" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-          </NavGroup>
-
-          <NavGroup
-            icon={<Users className="w-5 h-5" />}
-            text="Administración"
-            isOpen={openGroup === 'admin'}
-            isExpanded={isExpanded}
-            onToggle={() => toggleGroup('admin')}
-          >
-            <NavItem text="Usuarios" path="/users" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Integraciones" path="/integrations" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavItem
