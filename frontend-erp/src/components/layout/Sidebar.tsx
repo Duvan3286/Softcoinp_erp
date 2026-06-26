@@ -83,7 +83,7 @@ export const Sidebar = () => {
 
       <aside
         className={`bg-card text-foreground flex flex-col pt-2 pb-4 flex-shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-none border-r border-border transition-all duration-300 ease-in-out
-          fixed inset-y-0 left-0 z-[120] lg:static lg:z-10 h-full
+          fixed inset-y-0 left-0 z-[120] lg:fixed lg:z-30 h-full
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${isExpanded ? 'w-72' : 'w-72 lg:w-[88px]'}
         `}
