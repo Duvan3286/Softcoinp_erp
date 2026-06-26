@@ -22,7 +22,7 @@ services:
     shm_size: '256mb'
     command: npm run dev
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:5005/api
+      - API_URL=http://erp-backend:8080
       - NEXT_PUBLIC_TENANT_ID=test
       - NODE_ENV=development
       - NEXT_TELEMETRY_DISABLED=1
