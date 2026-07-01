@@ -235,6 +235,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => new { e.BudgetId, e.AccountingAccountId }).IsUnique();
+            entity.HasIndex(e => new { e.AccountingAccountId, e.BudgetId })
+                  .HasDatabaseName("IX_budget_details_account_lookup");
         });
 
         modelBuilder.Entity<BudgetMovement>(entity =>
@@ -331,6 +333,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.EntryNumber }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.EntryDate });
             entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.EntryDate, e.EntryNumber })
+                  .HasDatabaseName("IX_entries_pagination");
         });
 
         modelBuilder.Entity<EntryLine>(entity =>
@@ -350,6 +354,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .WithMany()
                   .HasForeignKey(e => e.AccountingAccountId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.AccountingAccountId, e.AccountingEntryId })
+                  .HasDatabaseName("IX_entry_lines_account_entry");
+            entity.HasIndex(e => e.AccountingEntryId)
+                  .HasDatabaseName("IX_entry_lines_entry_id");
         });
 
         modelBuilder.Entity<EntryReversal>(entity =>
@@ -889,6 +898,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.BillingPeriodId, e.UnitId }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status, e.BalanceAmount, e.DueDate })
+                  .HasDatabaseName("IX_unit_fees_overdue_balance");
         });
 
         modelBuilder.Entity<ExtraordinaryFee>(entity =>
@@ -932,6 +943,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.ExtraordinaryFeeId, e.UnitId, e.InstallmentNumber });
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status, e.BalanceAmount, e.DueDate })
+                  .HasDatabaseName("IX_extra_dist_overdue_balance");
         });
 
         modelBuilder.Entity<IndividualCharge>(entity =>
@@ -958,6 +971,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.Status, e.IsDisputed });
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status, e.BalanceAmount, e.ChargeDate })
+                  .HasDatabaseName("IX_charges_overdue_balance");
         });
 
         modelBuilder.Entity<Payment>(entity =>
@@ -979,6 +994,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.PaymentDate });
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.AdvanceAmount })
+                  .HasDatabaseName("IX_payments_advance_sum");
         });
 
         modelBuilder.Entity<PaymentAllocation>(entity =>
@@ -1017,6 +1034,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.PaymentId, e.AllocationType });
             entity.HasIndex(e => new { e.UnitFeeId, e.AllocationType });
+            entity.HasIndex(e => e.LateInterestId)
+                  .HasDatabaseName("IX_payment_alloc_late_interest");
         });
 
         modelBuilder.Entity<LateInterest>(entity =>
