@@ -370,46 +370,41 @@ public class ProviderService
 
     public async Task<ProviderIndicatorsDto> GetIndicatorsAsync(string tenantId)
     {
-        var totalProviders = await _context.Providers
-            .CountAsync(p => p.TenantId == tenantId);
+        var providerStats = await _context.Providers
+            .Where(p => p.TenantId == tenantId)
+            .GroupBy(p => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Active = g.Count(p => p.Status == ProviderStatus.Active),
+                Inactive = g.Count(p => p.Status == ProviderStatus.Inactive),
+                Preferred = g.Count(p => p.IsPreferred && p.Status == ProviderStatus.Active)
+            })
+            .FirstOrDefaultAsync();
 
-        var activeProviders = await _context.Providers
-            .CountAsync(p => p.TenantId == tenantId && p.Status == ProviderStatus.Active);
+        var contractStats = await _context.Contracts
+            .Where(c => c.TenantId == tenantId)
+            .GroupBy(c => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Active = g.Count(c => c.Status == ContractStatus.Active),
+                Expiring = g.Count(c => c.Status == ContractStatus.Active && c.EndDate <= DateTime.UtcNow.AddDays(90)),
+                TotalValue = g.Where(c => c.Status == ContractStatus.Active).Sum(c => c.TotalValue),
+                MonthlyValue = g.Where(c => c.Status == ContractStatus.Active).Sum(c => c.MonthlyValue)
+            })
+            .FirstOrDefaultAsync();
 
-        var inactiveProviders = await _context.Providers
-            .CountAsync(p => p.TenantId == tenantId && p.Status == ProviderStatus.Inactive);
-
-        var preferredProviders = await _context.Providers
-            .CountAsync(p => p.TenantId == tenantId && p.IsPreferred && p.Status == ProviderStatus.Active);
-
-        var totalContracts = await _context.Contracts
-            .CountAsync(c => c.TenantId == tenantId);
-
-        var activeContracts = await _context.Contracts
-            .CountAsync(c => c.TenantId == tenantId && c.Status == ContractStatus.Active);
-
-        var expiringContracts = await _context.Contracts
-            .CountAsync(c => c.TenantId == tenantId &&
-                c.Status == ContractStatus.Active &&
-                c.EndDate <= DateTime.UtcNow.AddDays(90));
-
-        var totalContractValue = await _context.Contracts
-            .Where(c => c.TenantId == tenantId && c.Status == ContractStatus.Active)
-            .SumAsync(c => (decimal?)c.TotalValue) ?? 0m;
-
-        var monthlyContractValue = await _context.Contracts
-            .Where(c => c.TenantId == tenantId && c.Status == ContractStatus.Active)
-            .SumAsync(c => (decimal?)c.MonthlyValue) ?? 0m;
-
-        var pendingInvoices = await _context.ProviderInvoices
-            .CountAsync(i => i.TenantId == tenantId && i.Status == InvoiceStatus.Pending);
-
-        var pendingInvoiceAmount = await _context.ProviderInvoices
-            .Where(i => i.TenantId == tenantId && i.Status == InvoiceStatus.Pending)
-            .SumAsync(i => (decimal?)i.NetAmount) ?? 0m;
-
-        var overdueInvoices = await _context.ProviderInvoices
-            .CountAsync(i => i.TenantId == tenantId && i.Status == InvoiceStatus.Overdue);
+        var invoiceStats = await _context.ProviderInvoices
+            .Where(i => i.TenantId == tenantId)
+            .GroupBy(i => 1)
+            .Select(g => new
+            {
+                Pending = g.Count(i => i.Status == InvoiceStatus.Pending),
+                PendingAmount = g.Where(i => i.Status == InvoiceStatus.Pending).Sum(i => i.NetAmount),
+                Overdue = g.Count(i => i.Status == InvoiceStatus.Overdue)
+            })
+            .FirstOrDefaultAsync();
 
         var activeAlerts = await _context.ContractAlerts
             .CountAsync(a => a.TenantId == tenantId && a.IsActive);
@@ -421,18 +416,18 @@ public class ProviderService
 
         return new ProviderIndicatorsDto
         {
-            TotalProviders = totalProviders,
-            ActiveProviders = activeProviders,
-            InactiveProviders = inactiveProviders,
-            PreferredProviders = preferredProviders,
-            TotalContracts = totalContracts,
-            ActiveContracts = activeContracts,
-            ExpiringContracts = expiringContracts,
-            TotalContractValue = totalContractValue,
-            MonthlyContractValue = monthlyContractValue,
-            PendingInvoices = pendingInvoices,
-            PendingInvoiceAmount = pendingInvoiceAmount,
-            OverdueInvoices = overdueInvoices,
+            TotalProviders = providerStats?.Total ?? 0,
+            ActiveProviders = providerStats?.Active ?? 0,
+            InactiveProviders = providerStats?.Inactive ?? 0,
+            PreferredProviders = providerStats?.Preferred ?? 0,
+            TotalContracts = contractStats?.Total ?? 0,
+            ActiveContracts = contractStats?.Active ?? 0,
+            ExpiringContracts = contractStats?.Expiring ?? 0,
+            TotalContractValue = contractStats?.TotalValue ?? 0m,
+            MonthlyContractValue = contractStats?.MonthlyValue ?? 0m,
+            PendingInvoices = invoiceStats?.Pending ?? 0,
+            PendingInvoiceAmount = invoiceStats?.PendingAmount ?? 0m,
+            OverdueInvoices = invoiceStats?.Overdue ?? 0,
             ActiveAlerts = activeAlerts,
             ExpiringPolicies = expiringPolicies
         };
