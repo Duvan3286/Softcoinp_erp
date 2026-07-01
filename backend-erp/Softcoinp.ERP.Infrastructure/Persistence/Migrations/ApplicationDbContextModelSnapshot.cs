@@ -341,6 +341,9 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId", "Status");
 
+                    b.HasIndex("TenantId", "EntryDate", "EntryNumber")
+                        .HasDatabaseName("IX_entries_pagination");
+
                     b.ToTable("erp_accounting_entries", (string)null);
                 });
 
@@ -1755,7 +1758,8 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountingAccountId");
+                    b.HasIndex("AccountingAccountId", "BudgetId")
+                        .HasDatabaseName("IX_budget_details_account_lookup");
 
                     b.HasIndex("BudgetId", "AccountingAccountId")
                         .IsUnique();
@@ -3067,9 +3071,11 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountingAccountId");
+                    b.HasIndex("AccountingEntryId")
+                        .HasDatabaseName("IX_entry_lines_entry_id");
 
-                    b.HasIndex("AccountingEntryId");
+                    b.HasIndex("AccountingAccountId", "AccountingEntryId")
+                        .HasDatabaseName("IX_entry_lines_account_entry");
 
                     b.ToTable("erp_entry_lines", (string)null);
                 });
@@ -3238,6 +3244,9 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.HasIndex("ExtraordinaryFeeId", "UnitId", "InstallmentNumber");
 
                     b.HasIndex("TenantId", "UnitId", "Status");
+
+                    b.HasIndex("TenantId", "UnitId", "Status", "BalanceAmount", "DueDate")
+                        .HasDatabaseName("IX_extra_dist_overdue_balance");
 
                     b.ToTable("erp_extraordinary_fee_distributions", (string)null);
                 });
@@ -3724,6 +3733,9 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "Status", "IsDisputed");
 
                     b.HasIndex("TenantId", "UnitId", "Status");
+
+                    b.HasIndex("TenantId", "UnitId", "Status", "BalanceAmount", "ChargeDate")
+                        .HasDatabaseName("IX_charges_overdue_balance");
 
                     b.ToTable("erp_individual_charges", (string)null);
                 });
@@ -4476,6 +4488,9 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UnitId");
 
+                    b.HasIndex("TenantId", "UnitId", "AdvanceAmount")
+                        .HasDatabaseName("IX_payments_advance_sum");
+
                     b.HasIndex("TenantId", "UnitId", "PaymentDate");
 
                     b.ToTable("erp_payments", (string)null);
@@ -4595,7 +4610,8 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IndividualChargeId");
 
-                    b.HasIndex("LateInterestId");
+                    b.HasIndex("LateInterestId")
+                        .HasDatabaseName("IX_payment_alloc_late_interest");
 
                     b.HasIndex("PaymentId", "AllocationType");
 
@@ -6775,6 +6791,9 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("TenantId", "UnitId", "Status");
+
+                    b.HasIndex("TenantId", "UnitId", "Status", "BalanceAmount", "DueDate")
+                        .HasDatabaseName("IX_unit_fees_overdue_balance");
 
                     b.ToTable("erp_unit_fees", (string)null);
                 });
