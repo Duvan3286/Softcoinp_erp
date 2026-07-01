@@ -246,13 +246,11 @@ public class LateInterestService
 
         var now = DateTime.UtcNow;
 
-        var overdueFees = await _context.UnitFees
+        await foreach (var fee in _context.UnitFees
             .Where(uf => uf.TenantId == tenantId
                       && uf.BalanceAmount > 0
                       && uf.DueDate < now)
-            .ToListAsync();
-
-        foreach (var fee in overdueFees)
+            .AsAsyncEnumerable())
         {
             var daysOverdue = Math.Max(0, (int)(now - fee.DueDate).TotalDays);
             if (daysOverdue <= 0) continue;
@@ -274,13 +272,11 @@ public class LateInterestService
             });
         }
 
-        var overdueExtraordinary = await _context.ExtraordinaryFeeDistributions
+        await foreach (var ed in _context.ExtraordinaryFeeDistributions
             .Where(ed => ed.TenantId == tenantId
                       && ed.BalanceAmount > 0
                       && ed.DueDate < now)
-            .ToListAsync();
-
-        foreach (var ed in overdueExtraordinary)
+            .AsAsyncEnumerable())
         {
             var daysOverdue = Math.Max(0, (int)(now - ed.DueDate).TotalDays);
             if (daysOverdue <= 0) continue;
@@ -302,13 +298,11 @@ public class LateInterestService
             });
         }
 
-        var overdueCharges = await _context.IndividualCharges
+        await foreach (var charge in _context.IndividualCharges
             .Where(ic => ic.TenantId == tenantId
                       && ic.BalanceAmount > 0
                       && !ic.IsDisputed)
-            .ToListAsync();
-
-        foreach (var charge in overdueCharges)
+            .AsAsyncEnumerable())
         {
             var daysOverdue = Math.Max(0, (int)(now - charge.ChargeDate).TotalDays);
             if (daysOverdue <= 0) continue;
