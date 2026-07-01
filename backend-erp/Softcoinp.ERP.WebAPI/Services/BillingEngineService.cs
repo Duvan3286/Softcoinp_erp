@@ -183,11 +183,16 @@ public class BillingEngineService
         {
             await _context.SaveChangesAsync();
 
+            var unitIds = unitFees.Select(uf => uf.UnitId).ToList();
+            var advanceBalances = await _context.Payments
+                .Where(p => p.TenantId == tenantId && unitIds.Contains(p.UnitId))
+                .GroupBy(p => p.UnitId)
+                .Select(g => new { UnitId = g.Key, TotalAdvance = g.Sum(p => p.AdvanceAmount) })
+                .ToDictionaryAsync(g => g.UnitId, g => g.TotalAdvance);
+
             foreach (var uf in unitFees)
             {
-                var advanceBalance = await _context.Payments
-                    .Where(p => p.TenantId == tenantId && p.UnitId == uf.UnitId)
-                    .SumAsync(p => p.AdvanceAmount);
+                advanceBalances.TryGetValue(uf.UnitId, out var advanceBalance);
 
                 if (advanceBalance <= 0m || uf.BalanceAmount <= 0m)
                     continue;
@@ -323,7 +328,26 @@ public class BillingEngineService
         var periods = await _context.BillingPeriods
             .Where(bp => bp.TenantId == tenantId)
             .OrderByDescending(bp => bp.Period)
-            .Select(bp => new BillingPeriodSummaryDto
+            .ToListAsync();
+
+        var periodIds = periods.Select(bp => bp.Id).ToList();
+
+        var feeStats = await _context.UnitFees
+            .Where(uf => periodIds.Contains(uf.BillingPeriodId))
+            .GroupBy(uf => uf.BillingPeriodId)
+            .Select(g => new
+            {
+                BillingPeriodId = g.Key,
+                UnitsCount = g.Count(),
+                TotalBilled = g.Sum(uf => uf.FeeValue)
+            })
+            .ToDictionaryAsync(g => g.BillingPeriodId);
+
+        return periods.Select(bp =>
+        {
+            feeStats.TryGetValue(bp.Id, out var stats);
+
+            return new BillingPeriodSummaryDto
             {
                 Id = bp.Id,
                 Period = bp.Period,
@@ -334,12 +358,10 @@ public class BillingEngineService
                 ExecutedAt = bp.ExecutedAt,
                 ExecutedByUserId = bp.ExecutedByUserId,
                 RoundingAdjustment = bp.RoundingAdjustment,
-                UnitsCount = _context.UnitFees.Count(uf => uf.BillingPeriodId == bp.Id),
-                TotalBilled = _context.UnitFees.Where(uf => uf.BillingPeriodId == bp.Id).Sum(uf => uf.FeeValue)
-            })
-            .ToListAsync();
-
-        return periods;
+                UnitsCount = stats?.UnitsCount ?? 0,
+                TotalBilled = stats?.TotalBilled ?? 0m
+            };
+        }).ToList();
     }
 
     private static decimal ApplyRounding(decimal value, RoundingPolicy policy)
