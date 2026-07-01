@@ -34,45 +34,24 @@ public class AccountingReportService
         if (toDate.HasValue)
             linesQuery = linesQuery.Where(l => l.AccountingEntry!.EntryDate <= toDate.Value);
 
-        var lines = await linesQuery
-            .GroupBy(l => l.AccountingAccountId)
-            .Select(g => new
+        var result = await linesQuery
+            .GroupBy(l => new { l.AccountingAccountId, l.AccountingAccount!.Code, l.AccountingAccount.Name, l.AccountingAccount.Nature, l.AccountingAccount.Category })
+            .Select(g => new TrialBalanceItemDto
             {
-                AccountId = g.Key,
+                AccountCode = g.Key.Code,
+                AccountName = g.Key.Name,
+                Nature = g.Key.Nature.ToString(),
+                Category = g.Key.Category.ToString(),
                 TotalDebit = g.Sum(l => l.Debit),
-                TotalCredit = g.Sum(l => l.Credit)
+                TotalCredit = g.Sum(l => l.Credit),
+                Balance = g.Key.Nature == AccountingAccountNature.Debit
+                    ? g.Sum(l => l.Debit) - g.Sum(l => l.Credit)
+                    : g.Sum(l => l.Credit) - g.Sum(l => l.Debit)
             })
+            .OrderBy(r => r.AccountCode)
             .ToListAsync();
 
-        var accountIds = lines.Select(l => l.AccountId).ToList();
-        var accounts = await _context.AccountingAccounts
-            .Where(a => accountIds.Contains(a.Id))
-            .ToDictionaryAsync(a => a.Id);
-
-        var result = new List<TrialBalanceItemDto>();
-
-        foreach (var line in lines)
-        {
-            if (!accounts.TryGetValue(line.AccountId, out var account)) continue;
-
-            var nature = account.Nature;
-            var balance = nature == AccountingAccountNature.Debit
-                ? line.TotalDebit - line.TotalCredit
-                : line.TotalCredit - line.TotalDebit;
-
-            result.Add(new TrialBalanceItemDto
-            {
-                AccountCode = account.Code,
-                AccountName = account.Name,
-                Nature = nature.ToString(),
-                Category = account.Category.ToString(),
-                TotalDebit = line.TotalDebit,
-                TotalCredit = line.TotalCredit,
-                Balance = balance
-            });
-        }
-
-        return result.OrderBy(r => r.AccountCode).ToList();
+        return result;
     }
 
     public async Task<List<GeneralLedgerEntryDto>> GetGeneralLedgerAsync(
