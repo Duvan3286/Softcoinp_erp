@@ -828,13 +828,18 @@ public class MaintenanceService
             .Where(a => a.TenantId == tenantId && a.Status == AssetStatus.OutOfService)
             .ToListAsync();
 
+        var assetIds = assets.Select(a => a.Id).ToList();
+
+        var lastHistories = await _context.AssetStatusHistories
+            .Where(h => assetIds.Contains(h.AssetId) && h.NewStatus == AssetStatus.OutOfService)
+            .GroupBy(h => h.AssetId)
+            .Select(g => g.OrderByDescending(h => h.ChangedAt).First())
+            .ToDictionaryAsync(h => h.AssetId);
+
         var result = new List<OutOfServiceAssetDto>();
         foreach (var asset in assets)
         {
-            var lastHistory = await _context.AssetStatusHistories
-                .Where(h => h.AssetId == asset.Id && h.NewStatus == AssetStatus.OutOfService)
-                .OrderByDescending(h => h.ChangedAt)
-                .FirstOrDefaultAsync();
+            lastHistories.TryGetValue(asset.Id, out var lastHistory);
 
             var statusChangedAt = lastHistory?.ChangedAt ?? asset.CreatedAt;
             var daysOut = (int)(DateTime.UtcNow - statusChangedAt).TotalDays;
