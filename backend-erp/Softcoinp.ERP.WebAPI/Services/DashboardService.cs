@@ -135,119 +135,107 @@ public class DashboardService
 
         if (currentBillingPeriod != null)
         {
-            var currentFees = await _context.UnitFees
+            var currentFeesAgg = await _context.UnitFees
                 .Where(uf => uf.TenantId == tenantId
                     && uf.BillingPeriodId == currentBillingPeriod.Id)
-                .ToListAsync();
+                .GroupBy(uf => 1)
+                .Select(g => new { Billed = g.Sum(uf => uf.FeeValue), Collected = g.Sum(uf => uf.PaidAmount) })
+                .FirstOrDefaultAsync();
 
-            var totalBilled = currentFees.Sum(f => f.FeeValue);
-            var totalCollected = currentFees.Sum(f => f.PaidAmount);
-
-            kpis.CurrentMonthBilled = totalBilled;
-            kpis.CurrentMonthCollected = totalCollected;
-            kpis.CurrentMonthCollectionPercentage = totalBilled > 0
-                ? Math.Round(totalCollected / totalBilled * 100, 1)
+            kpis.CurrentMonthBilled = currentFeesAgg?.Billed ?? 0m;
+            kpis.CurrentMonthCollected = currentFeesAgg?.Collected ?? 0m;
+            kpis.CurrentMonthCollectionPercentage = kpis.CurrentMonthBilled > 0
+                ? Math.Round(kpis.CurrentMonthCollected / kpis.CurrentMonthBilled * 100, 1)
                 : 0;
         }
 
         if (previousBillingPeriod != null)
         {
-            var previousFees = await _context.UnitFees
+            var prevFeesAgg = await _context.UnitFees
                 .Where(uf => uf.TenantId == tenantId
                     && uf.BillingPeriodId == previousBillingPeriod.Id)
-                .ToListAsync();
+                .GroupBy(uf => 1)
+                .Select(g => new { Billed = g.Sum(uf => uf.FeeValue), Collected = g.Sum(uf => uf.PaidAmount) })
+                .FirstOrDefaultAsync();
 
-            var prevBilled = previousFees.Sum(f => f.FeeValue);
-            var prevCollected = previousFees.Sum(f => f.PaidAmount);
+            var prevBilled = prevFeesAgg?.Billed ?? 0m;
+            var prevCollected = prevFeesAgg?.Collected ?? 0m;
 
             kpis.PreviousMonthCollectionPercentage = prevBilled > 0
                 ? Math.Round(prevCollected / prevBilled * 100, 1)
                 : 0;
         }
 
-        var allOverdueFeesRaw = await _context.UnitFees
+        var totalOverdue = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId
                 && uf.BalanceAmount > 0
                 && uf.Status != FeeStatus.FullyPaid)
-            .Select(uf => new
-            {
-                uf.BalanceAmount,
-                uf.DueDate
-            })
-            .ToListAsync();
+            .SumAsync(uf => uf.BalanceAmount);
 
-        var allOverdueFees = allOverdueFeesRaw.Select(f => new
-        {
-            f.BalanceAmount,
-            DaysOverdue = (int)(DateTime.UtcNow - f.DueDate).TotalDays
-        }).ToList();
-
-        var totalOverdue = allOverdueFees.Sum(f => f.BalanceAmount);
-
-        var allOverdueExtraordinaryRaw = await _context.ExtraordinaryFeeDistributions
+        var totalOverdueExtraordinary = await _context.ExtraordinaryFeeDistributions
             .Where(efd => efd.TenantId == tenantId
                 && efd.BalanceAmount > 0
                 && efd.Status != FeeStatus.FullyPaid)
-            .Select(efd => new
-            {
-                efd.BalanceAmount,
-                efd.DueDate
-            })
-            .ToListAsync();
+            .SumAsync(efd => efd.BalanceAmount);
 
-        var allOverdueExtraordinary = allOverdueExtraordinaryRaw.Select(efd => new
-        {
-            efd.BalanceAmount,
-            DaysOverdue = (int)(DateTime.UtcNow - efd.DueDate).TotalDays
-        }).ToList();
-
-        var allOverdueChargesRaw = await _context.IndividualCharges
+        var totalOverdueCharges = await _context.IndividualCharges
             .Where(ic => ic.TenantId == tenantId
                 && ic.BalanceAmount > 0
                 && ic.Status != IndividualChargeStatus.Paid)
-            .Select(ic => new
-            {
-                ic.BalanceAmount,
-                ic.ChargeDate
-            })
-            .ToListAsync();
+            .SumAsync(ic => ic.BalanceAmount);
 
-        var allOverdueCharges = allOverdueChargesRaw.Select(ic => new
-        {
-            ic.BalanceAmount,
-            DaysOverdue = (int)(DateTime.UtcNow - ic.ChargeDate).TotalDays
-        }).ToList();
+        kpis.TotalOverduePortfolio = totalOverdue + totalOverdueExtraordinary + totalOverdueCharges;
 
-        foreach (var item in allOverdueExtraordinary)
+        var overdueItems = new List<(decimal Balance, int DaysOverdue)>();
+
+        await foreach (var item in _context.UnitFees
+            .Where(uf => uf.TenantId == tenantId
+                && uf.BalanceAmount > 0
+                && uf.Status != FeeStatus.FullyPaid)
+            .Select(uf => new { uf.BalanceAmount, uf.DueDate })
+            .AsAsyncEnumerable())
         {
-            allOverdueFees.Add(new { BalanceAmount = item.BalanceAmount, DaysOverdue = item.DaysOverdue });
+            var days = (int)(DateTime.UtcNow - item.DueDate).TotalDays;
+            overdueItems.Add((item.BalanceAmount, days));
         }
 
-        foreach (var item in allOverdueCharges)
+        await foreach (var item in _context.ExtraordinaryFeeDistributions
+            .Where(efd => efd.TenantId == tenantId
+                && efd.BalanceAmount > 0
+                && efd.Status != FeeStatus.FullyPaid)
+            .Select(efd => new { efd.BalanceAmount, efd.DueDate })
+            .AsAsyncEnumerable())
         {
-            allOverdueFees.Add(new { BalanceAmount = item.BalanceAmount, DaysOverdue = item.DaysOverdue });
+            var days = (int)(DateTime.UtcNow - item.DueDate).TotalDays;
+            overdueItems.Add((item.BalanceAmount, days));
         }
 
-        kpis.TotalOverduePortfolio = totalOverdue + allOverdueExtraordinary.Sum(x => x.BalanceAmount)
-            + allOverdueCharges.Sum(x => x.BalanceAmount);
+        await foreach (var item in _context.IndividualCharges
+            .Where(ic => ic.TenantId == tenantId
+                && ic.BalanceAmount > 0
+                && ic.Status != IndividualChargeStatus.Paid)
+            .Select(ic => new { ic.BalanceAmount, ic.ChargeDate })
+            .AsAsyncEnumerable())
+        {
+            var days = (int)(DateTime.UtcNow - item.ChargeDate).TotalDays;
+            overdueItems.Add((item.BalanceAmount, days));
+        }
 
-        kpis.EarlyOverdue = allOverdueFees
+        kpis.EarlyOverdue = overdueItems
             .Where(x => x.DaysOverdue >= 1 && x.DaysOverdue <= 90)
-            .Sum(x => x.BalanceAmount);
+            .Sum(x => x.Balance);
 
-        kpis.MediumOverdue = allOverdueFees
+        kpis.MediumOverdue = overdueItems
             .Where(x => x.DaysOverdue >= 91 && x.DaysOverdue <= 180)
-            .Sum(x => x.BalanceAmount);
+            .Sum(x => x.Balance);
 
-        kpis.LegalOverdue = allOverdueFees
+        kpis.LegalOverdue = overdueItems
             .Where(x => x.DaysOverdue > 180)
-            .Sum(x => x.BalanceAmount);
+            .Sum(x => x.Balance);
 
-        var bankAccounts = await _context.BankAccounts
+        var totalBankBalance = await _context.BankAccounts
             .Where(ba => ba.TenantId == tenantId && ba.IsActive)
-            .ToListAsync();
-
-        var totalBankBalance = bankAccounts.Sum(ba => ba.CurrentBalance);
+            .SumAsync(ba => ba.CurrentBalance);
 
         var pendingPayables = await _context.AccountingEntries
             .Where(ae => ae.TenantId == tenantId
@@ -313,20 +301,31 @@ public class DashboardService
             .OrderBy(bp => bp.Period)
             .ToListAsync();
 
+        var periodIds = billingPeriods.Select(bp => bp.Id).ToList();
+
+        var feesByPeriod = await _context.UnitFees
+            .Where(uf => uf.TenantId == tenantId
+                && periodIds.Contains(uf.BillingPeriodId))
+            .GroupBy(uf => uf.BillingPeriodId)
+            .Select(g => new
+            {
+                BillingPeriodId = g.Key,
+                Billed = g.Sum(uf => uf.FeeValue),
+                Collected = g.Sum(uf => uf.PaidAmount)
+            })
+            .ToDictionaryAsync(g => g.BillingPeriodId);
+
         var result = new List<MonthlyCollectionDto>();
 
         foreach (var period in billingPeriods)
         {
-            var fees = await _context.UnitFees
-                .Where(uf => uf.TenantId == tenantId
-                    && uf.BillingPeriodId == period.Id)
-                .ToListAsync();
+            feesByPeriod.TryGetValue(period.Id, out var fees);
 
             result.Add(new MonthlyCollectionDto
             {
                 Period = period.Period,
-                Billed = fees.Sum(f => f.FeeValue),
-                Collected = fees.Sum(f => f.PaidAmount)
+                Billed = fees?.Billed ?? 0m,
+                Collected = fees?.Collected ?? 0m
             });
         }
 
@@ -679,19 +678,21 @@ public class DashboardService
                     && bd.Budget.Status == BudgetStatus.Active)
                 .ToListAsync();
 
+            var budgetAccountIds = budgetDetails.Select(bd => bd.AccountingAccountId).Distinct().ToList();
+
+            var actualExpensesByAccount = await _context.EntryLines
+                .Where(el => el.AccountingEntry!.TenantId == tenantId
+                    && el.AccountingEntry.Status == EntryStatus.Final
+                    && el.AccountingEntry.EntryDate.Year == currentYear
+                    && el.Debit > 0
+                    && budgetAccountIds.Contains(el.AccountingAccountId))
+                .GroupBy(el => el.AccountingAccountId)
+                .Select(g => new { AccountId = g.Key, TotalDebit = g.Sum(el => el.Debit) })
+                .ToDictionaryAsync(g => g.AccountId, g => g.TotalDebit);
+
             foreach (var detail in budgetDetails)
             {
-                var actualExpense = await _context.EntryLines
-                    .Where(el => el.AccountingEntry!.TenantId == tenantId
-                        && el.AccountingEntry.Status == EntryStatus.Final
-                        && el.AccountingEntry.EntryDate.Year == currentYear
-                        && el.Debit > 0)
-                    .Join(_context.AccountingAccounts,
-                        el => el.AccountingAccountId,
-                        acc => acc.Id,
-                        (el, acc) => new { el.Debit, acc.Id })
-                    .Where(x => x.Id == detail.AccountingAccountId)
-                    .SumAsync(x => x.Debit);
+                actualExpensesByAccount.TryGetValue(detail.AccountingAccountId, out var actualExpense);
 
                 var executionPercentage = detail.ApprovedValue > 0
                     ? Math.Round(actualExpense / detail.ApprovedValue * 100, 1)
