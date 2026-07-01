@@ -387,25 +387,24 @@ public class PaymentService
 
     public async Task<List<PaymentDto>> GetUnitPaymentsAsync(string tenantId, Guid unitId)
     {
+        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
+
         var payments = await _context.Payments
             .Where(p => p.TenantId == tenantId && p.UnitId == unitId)
             .OrderByDescending(p => p.PaymentDate)
-            .Join(_context.Units,
-                  p => p.UnitId,
-                  u => u.Id,
-                  (p, u) => new PaymentDto
-                  {
-                      Id = p.Id,
-                      UnitId = p.UnitId,
-                      UnitIdentifier = u.Identifier,
-                      PaymentDate = p.PaymentDate,
-                      Amount = p.Amount,
-                      PaymentMethod = p.PaymentMethod.ToString(),
-                      ReferenceNumber = p.ReferenceNumber,
-                      Notes = p.Notes,
-                      AdvanceAmount = p.AdvanceAmount,
-                      CreatedAt = p.CreatedAt
-                  })
+            .Select(p => new PaymentDto
+            {
+                Id = p.Id,
+                UnitId = p.UnitId,
+                UnitIdentifier = unit != null ? unit.Identifier : string.Empty,
+                PaymentDate = p.PaymentDate,
+                Amount = p.Amount,
+                PaymentMethod = p.PaymentMethod.ToString(),
+                ReferenceNumber = p.ReferenceNumber,
+                Notes = p.Notes,
+                AdvanceAmount = p.AdvanceAmount,
+                CreatedAt = p.CreatedAt
+            })
             .ToListAsync();
 
         return payments;
@@ -526,7 +525,7 @@ public class PaymentService
             .ToListAsync();
 
         var paidInterestIds = await _context.PaymentAllocations
-            .Where(pa => pa.LateInterestId != null)
+            .Where(pa => pa.LateInterestId != null && pa.TenantId == tenantId)
             .Select(pa => pa.LateInterestId!.Value)
             .ToListAsync();
 
