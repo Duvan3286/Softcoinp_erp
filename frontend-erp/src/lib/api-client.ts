@@ -99,7 +99,7 @@ apiClient.interceptors.response.use(
           sessionStorage.removeItem('refresh_token');
           clearAuthCookie();
         }
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
       }
