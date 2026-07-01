@@ -63,9 +63,16 @@ public class StatementService
             .OrderBy(p => p.PaymentDate)
             .ToListAsync();
 
+        var unitFeeIds = await _context.UnitFees
+            .Where(uf => uf.TenantId == tenantId && uf.UnitId == unitId)
+            .Select(uf => uf.Id)
+            .ToListAsync();
+
         var allCapitalizedInterests = await _context.LateInterests
-            .Where(li => li.TenantId == tenantId && li.IsCapitalized
-                      && _context.UnitFees.Any(uf => uf.Id == li.UnitFeeId && uf.UnitId == unitId))
+            .Where(li => li.TenantId == tenantId
+                      && li.IsCapitalized
+                      && li.UnitFeeId != null
+                      && unitFeeIds.Contains(li.UnitFeeId.Value))
             .OrderBy(li => li.Period)
             .ToListAsync();
 
