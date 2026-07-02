@@ -489,17 +489,24 @@ public class AuthController : ControllerBase
         string? userId, string email, Guid? tenantId,
         AuditEventType eventType, string? ip = null, string? userAgent = null, string? details = null)
     {
-        _db.AccessAuditLogs.Add(new AccessAuditLog
+        try
         {
-            UserId = userId,
-            Email = email,
-            TenantId = tenantId?.ToString(),
-            EventType = eventType,
-            IpAddress = ip,
-            UserAgent = userAgent?.Length > 500 ? userAgent[..500] : userAgent,
-            Details = details
-        });
-        await _db.SaveChangesAsync();
+            _db.AccessAuditLogs.Add(new AccessAuditLog
+            {
+                UserId = userId,
+                Email = email,
+                TenantId = tenantId?.ToString(),
+                EventType = eventType,
+                IpAddress = ip,
+                UserAgent = userAgent?.Length > 500 ? userAgent[..500] : userAgent,
+                Details = details
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to write audit log for {EventType}, userId={UserId}", eventType, userId);
+        }
     }
 
     private async Task RevokeAllUserTokensAsync(string userId)
