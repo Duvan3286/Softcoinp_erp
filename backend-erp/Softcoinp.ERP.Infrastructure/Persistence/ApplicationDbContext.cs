@@ -711,6 +711,9 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => e.TenantId);
             entity.HasIndex(e => new { e.TenantId, e.Email })
                   .HasDatabaseName("IX_owners_tenant_email");
+            // Composite index for search: WHERE TenantId=? AND IsActive=? ORDER BY FullNameOrCompanyName
+            entity.HasIndex(e => new { e.TenantId, e.IsActive, e.FullNameOrCompanyName })
+                  .HasDatabaseName("IX_owners_search_order");
         });
 
         modelBuilder.Entity<UnitOwner>(entity =>
@@ -759,6 +762,12 @@ public class ApplicationDbContext : IdentityDbContext<User>
             // Índice para consulta de contratos próximos a vencer
             entity.HasIndex(e => new { e.TenantId, e.LeaseEndDate, e.IsActive });
             entity.HasIndex(e => new { e.UnitId, e.IsActive });
+            // Composite index for search: WHERE TenantId=? AND IsActive=? ORDER BY FullName
+            entity.HasIndex(e => new { e.TenantId, e.IsActive, e.FullName })
+                  .HasDatabaseName("IX_tenant_residents_search_order");
+            // Composite index for search by Unit: WHERE UnitId=? AND IsActive=? ORDER BY FullName
+            entity.HasIndex(e => new { e.UnitId, e.IsActive, e.FullName })
+                  .HasDatabaseName("IX_tenant_residents_unit_active_fullname");
         });
 
         modelBuilder.Entity<CohabitationGroupMember>(entity =>
