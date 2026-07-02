@@ -272,10 +272,12 @@ public class DashboardService
 
         if (totalBudgetApproved > 0)
         {
+            var yearEnd = new DateTime(currentYear + 1, 1, 1);
             var actualExpenses = await _context.EntryLines
                 .Where(el => el.AccountingEntry!.TenantId == tenantId
                     && el.AccountingEntry.Status == EntryStatus.Final
-                    && el.AccountingEntry.EntryDate.Year == currentYear
+                    && el.AccountingEntry.EntryDate >= yearStart
+                    && el.AccountingEntry.EntryDate < yearEnd
                     && el.Debit > 0)
                 .Join(_context.AccountingAccounts,
                     el => el.AccountingAccountId,
@@ -672,6 +674,8 @@ public class DashboardService
         if (budgetConfig != null)
         {
             var currentYear = now.Year;
+            var budgetYearStart = new DateTime(currentYear, 1, 1);
+            var budgetYearEnd = new DateTime(currentYear + 1, 1, 1);
             var budgetDetails = await _context.BudgetDetails
                 .Where(bd => bd.Budget!.TenantId == tenantId
                     && bd.Budget.FiscalPeriod == currentYear
@@ -683,7 +687,8 @@ public class DashboardService
             var actualExpensesByAccount = await _context.EntryLines
                 .Where(el => el.AccountingEntry!.TenantId == tenantId
                     && el.AccountingEntry.Status == EntryStatus.Final
-                    && el.AccountingEntry.EntryDate.Year == currentYear
+                    && el.AccountingEntry.EntryDate >= budgetYearStart
+                    && el.AccountingEntry.EntryDate < budgetYearEnd
                     && el.Debit > 0
                     && budgetAccountIds.Contains(el.AccountingAccountId))
                 .GroupBy(el => el.AccountingAccountId)
