@@ -204,6 +204,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.Nature).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Code, e.IsGroup })
+                  .HasDatabaseName("IX_accounts_tenant_code_group");
         });
 
         modelBuilder.Entity<Budget>(entity =>
@@ -237,6 +239,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.BudgetId, e.AccountingAccountId }).IsUnique();
             entity.HasIndex(e => new { e.AccountingAccountId, e.BudgetId })
                   .HasDatabaseName("IX_budget_details_account_lookup");
+            entity.HasIndex(e => new { e.BudgetId, e.AccountingAccountId, e.ApprovedValue })
+                  .HasDatabaseName("IX_budget_details_budget_account_value");
         });
 
         modelBuilder.Entity<BudgetMovement>(entity =>
@@ -308,6 +312,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.ClosedByUserId).HasMaxLength(450);
             entity.HasIndex(e => new { e.TenantId, e.FiscalYear, e.Month }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.FiscalYear, e.Month })
+                  .HasDatabaseName("IX_accounting_periods_status_year_month");
         });
 
         modelBuilder.Entity<AccountingEntry>(entity =>
@@ -335,6 +341,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.EntryDate, e.EntryNumber })
                   .HasDatabaseName("IX_entries_pagination");
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.EntryType })
+                  .HasDatabaseName("IX_entries_status_type");
         });
 
         modelBuilder.Entity<EntryLine>(entity =>
@@ -359,6 +367,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasDatabaseName("IX_entry_lines_account_entry");
             entity.HasIndex(e => e.AccountingEntryId)
                   .HasDatabaseName("IX_entry_lines_entry_id");
+            entity.HasIndex(e => new { e.AccountingAccountId, e.Debit, e.Credit })
+                  .HasDatabaseName("IX_entry_lines_account_debit_credit");
         });
 
         modelBuilder.Entity<EntryReversal>(entity =>
@@ -602,6 +612,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             
             // Unique index for identifier per tenant
             entity.HasIndex(e => new { e.TenantId, e.Identifier }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Status })
+                  .HasDatabaseName("IX_units_tenant_status");
 
             entity.Property(e => e.Identifier).IsRequired().HasMaxLength(50);
             entity.Property(e => e.TowerOrBlock).HasMaxLength(50);
@@ -697,6 +709,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             // Un mismo documento no puede pertenecer a dos propietarios activos del mismo tenant
             entity.HasIndex(e => new { e.TenantId, e.DocumentNumber }).IsUnique();
             entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.TenantId, e.Email })
+                  .HasDatabaseName("IX_owners_tenant_email");
         });
 
         modelBuilder.Entity<UnitOwner>(entity =>
@@ -900,6 +914,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status, e.BalanceAmount, e.DueDate })
                   .HasDatabaseName("IX_unit_fees_overdue_balance");
+            entity.HasIndex(e => new { e.TenantId, e.BillingPeriodId, e.FeeValue, e.PaidAmount })
+                  .HasDatabaseName("IX_unit_fees_period_agg");
         });
 
         modelBuilder.Entity<ExtraordinaryFee>(entity =>
@@ -996,6 +1012,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.PaymentDate });
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.AdvanceAmount })
                   .HasDatabaseName("IX_payments_advance_sum");
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.CreatedAt })
+                  .HasDatabaseName("IX_payments_tenant_unit_created");
         });
 
         modelBuilder.Entity<PaymentAllocation>(entity =>
@@ -1066,6 +1084,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.UnitFeeId, e.Period });
             entity.HasIndex(e => new { e.TenantId, e.IsCapitalized });
+            entity.HasIndex(e => new { e.TenantId, e.UnitFeeId, e.IsCapitalized, e.CalculatedAmount })
+                  .HasDatabaseName("IX_late_interests_fee_cap_amount");
         });
 
         modelBuilder.Entity<PaymentAgreement>(entity =>
@@ -1107,6 +1127,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.PaymentAgreementId, e.InstallmentNumber }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Status, e.DueDate });
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.DueDate, e.Amount })
+                  .HasDatabaseName("IX_agreement_installments_overdue");
         });
 
         modelBuilder.Entity<AgreementDebt>(entity =>
@@ -1161,6 +1183,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.CurrentBalance).HasPrecision(18, 2);
             entity.Property(e => e.OpeningBalance).HasPrecision(18, 2);
             entity.HasIndex(e => new { e.TenantId, e.AccountNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.IsActive, e.CurrentBalance })
+                  .HasDatabaseName("IX_bank_accounts_active_balance");
         });
 
         modelBuilder.Entity<BankMovement>(entity =>
