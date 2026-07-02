@@ -85,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearAuthCookie();
       }
       setUser(null);
-      router.push('/login');
     }
   };
 
