@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 using Softcoinp.ERP.Domain.Common;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
@@ -18,6 +20,10 @@ namespace Softcoinp.ERP.Infrastructure.Persistence;
 public class ApplicationDbContext : IdentityDbContext<User>
 {
     private readonly ITenantResolver _tenantResolver;
+
+    // Cache ServerVersion per server:port to avoid opening a MySQL connection on every request.
+    // ServerVersion.AutoDetect() executes SELECT VERSION() which is expensive under load.
+    private static readonly ConcurrentDictionary<string, MySqlServerVersion> _serverVersionCache = new();
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ITenantResolver tenantResolver)
         : base(options)
@@ -166,27 +172,31 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        // Only resolve the tenant connection string when no provider has been configured.
-        // - When created via DI with AddDbContext<T>() (no lambda): IsConfigured=false → resolver runs.
-        // - When created with explicit options (e.g. DatabaseMigrationService): IsConfigured=true → skip.
         if (!optionsBuilder.IsConfigured)
         {
             var connectionString = _tenantResolver.GetConnectionStringAsync().GetAwaiter().GetResult();
 
             if (!string.IsNullOrEmpty(connectionString))
             {
-                optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+                optionsBuilder.UseMySql(connectionString, GetOrDetectServerVersion(connectionString));
             }
             else
             {
-                // Fallback: no tenant in context (e.g. background services, seed without SetCurrentTenant)
                 var masterCs = Environment.GetEnvironmentVariable("ConnectionStrings__MasterConnection")
                              ?? "Server=127.0.0.1;Port=3307;Database=erp_master;User=root;Password=1234;";
-                optionsBuilder.UseMySql(masterCs, ServerVersion.AutoDetect(masterCs));
+                optionsBuilder.UseMySql(masterCs, GetOrDetectServerVersion(masterCs));
             }
         }
 
         base.OnConfiguring(optionsBuilder);
+    }
+
+    private static MySqlServerVersion GetOrDetectServerVersion(string connectionString)
+    {
+        var builder = new MySqlConnectionStringBuilder(connectionString);
+        var cacheKey = $"{builder.Server}:{builder.Port}";
+
+        return _serverVersionCache.GetOrAdd(cacheKey, _ => (MySqlServerVersion)ServerVersion.AutoDetect(connectionString));
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
