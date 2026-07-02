@@ -43,32 +43,25 @@ public class StatementService
         var lines = new List<StatementLineDto>();
         var runningBalance = 0m;
 
-        var allChargesTask = _context.UnitFees
+        var allCharges = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId && uf.UnitId == unitId)
             .OrderBy(uf => uf.DueDate)
             .ToListAsync();
 
-        var allExtraordinaryTask = _context.ExtraordinaryFeeDistributions
+        var allExtraordinary = await _context.ExtraordinaryFeeDistributions
             .Where(ed => ed.TenantId == tenantId && ed.UnitId == unitId)
             .OrderBy(ed => ed.DueDate)
             .ToListAsync();
 
-        var allChargesIndTask = _context.IndividualCharges
+        var allCharges_ind = await _context.IndividualCharges
             .Where(ic => ic.TenantId == tenantId && ic.UnitId == unitId)
             .OrderBy(ic => ic.ChargeDate)
             .ToListAsync();
 
-        var allPaymentsTask = _context.Payments
+        var allPayments = await _context.Payments
             .Where(p => p.TenantId == tenantId && p.UnitId == unitId)
             .OrderBy(p => p.PaymentDate)
             .ToListAsync();
-
-        await Task.WhenAll(allChargesTask, allExtraordinaryTask, allChargesIndTask, allPaymentsTask);
-
-        var allCharges = allChargesTask.Result;
-        var allExtraordinary = allExtraordinaryTask.Result;
-        var allCharges_ind = allChargesIndTask.Result;
-        var allPayments = allPaymentsTask.Result;
 
         var unitFeeIds = allCharges.Select(f => f.Id).ToList();
 
