@@ -373,74 +373,50 @@ charge_debts AS (
     FROM erp_individual_charges
     WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'Paid'
     GROUP BY UnitId
+),
+unit_base AS (
+    SELECT
+        u.Id AS UnitId,
+        u.Identifier,
+        COALESCE(u.TowerOrBlock, '') AS TowerOrBlock,
+        u.FloorLevel,
+        u.Status,
+        COALESCE(s.OwnerName, 'Sin propietario') AS OwnerName,
+        COALESCE(fd.TotalDebt, 0) + COALESCE(ed.TotalDebt, 0) + COALESCE(cd.TotalDebt, 0) AS OverdueBalance,
+        LEAST(
+            COALESCE(fd.OldestDate, '9999-12-31'),
+            COALESCE(ed.OldestDate, '9999-12-31'),
+            COALESCE(cd.OldestDate, '9999-12-31')
+        ) AS MinDebtDate
+    FROM erp_units u
+    LEFT JOIN spokespersons s ON s.UnitId = u.Id
+    LEFT JOIN fee_debts fd ON fd.UnitId = u.Id
+    LEFT JOIN extra_debts ed ON ed.UnitId = u.Id
+    LEFT JOIN charge_debts cd ON cd.UnitId = u.Id
+    WHERE u.TenantId = @p0
+      AND u.Status IN ('ActiveOccupied', 'ActiveUnoccupied')
 )
 SELECT
-    u.Id AS UnitId,
-    u.Identifier,
-    COALESCE(u.TowerOrBlock, '') AS TowerOrBlock,
-    u.FloorLevel,
-    COALESCE(s.OwnerName, 'Sin propietario') AS OwnerName,
-    COALESCE(fd.TotalDebt, 0) + COALESCE(ed.TotalDebt, 0) + COALESCE(cd.TotalDebt, 0) AS OverdueBalance,
-    CASE
-        WHEN LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ) = '9999-12-31' THEN 0
-        ELSE GREATEST(0, DATEDIFF(@p1, LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        )))
+    UnitId, Identifier, TowerOrBlock, FloorLevel, OwnerName, OverdueBalance,
+    CASE WHEN MinDebtDate = '9999-12-31' THEN 0
+         ELSE GREATEST(0, DATEDIFF(@p1, MinDebtDate))
     END AS DaysOverdue,
-    CASE
-        WHEN u.Status = 'ActiveUnoccupied' THEN 'gray'
-        WHEN COALESCE(fd.TotalDebt, 0) + COALESCE(ed.TotalDebt, 0) + COALESCE(cd.TotalDebt, 0) <= 0 THEN 'green'
-        WHEN LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ) = '9999-12-31' THEN 'green'
-        WHEN GREATEST(0, DATEDIFF(@p1, LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ))) <= 30 THEN 'yellow'
-        WHEN GREATEST(0, DATEDIFF(@p1, LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ))) <= 90 THEN 'orange'
-        ELSE 'red'
+    CASE WHEN Status = 'ActiveUnoccupied' THEN 'gray'
+         WHEN OverdueBalance <= 0 THEN 'green'
+         WHEN MinDebtDate = '9999-12-31' THEN 'green'
+         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 30 THEN 'yellow'
+         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 90 THEN 'orange'
+         ELSE 'red'
     END AS ColorCode,
-    CASE
-        WHEN u.Status = 'ActiveUnoccupied' THEN 'Desocupada'
-        WHEN COALESCE(fd.TotalDebt, 0) + COALESCE(ed.TotalDebt, 0) + COALESCE(cd.TotalDebt, 0) <= 0 THEN 'Al dia'
-        WHEN LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ) = '9999-12-31' THEN 'Al dia'
-        WHEN GREATEST(0, DATEDIFF(@p1, LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ))) <= 30 THEN 'Mora temprana'
-        WHEN GREATEST(0, DATEDIFF(@p1, LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ))) <= 90 THEN 'Mora media'
-        ELSE 'Mora critica'
+    CASE WHEN Status = 'ActiveUnoccupied' THEN 'Desocupada'
+         WHEN OverdueBalance <= 0 THEN 'Al dia'
+         WHEN MinDebtDate = '9999-12-31' THEN 'Al dia'
+         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 30 THEN 'Mora temprana'
+         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 90 THEN 'Mora media'
+         ELSE 'Mora critica'
     END AS Status
-FROM erp_units u
-LEFT JOIN spokespersons s ON s.UnitId = u.Id
-LEFT JOIN fee_debts fd ON fd.UnitId = u.Id
-LEFT JOIN extra_debts ed ON ed.UnitId = u.Id
-LEFT JOIN charge_debts cd ON cd.UnitId = u.Id
-WHERE u.TenantId = @p0
-  AND u.Status IN ('ActiveOccupied', 'ActiveUnoccupied')
-ORDER BY u.Identifier";
+FROM unit_base
+ORDER BY Identifier";
 
         var units = await _context.Database
             .SqlQueryRaw<UnitMoraDto>(sql, tenantId, nowStr)
