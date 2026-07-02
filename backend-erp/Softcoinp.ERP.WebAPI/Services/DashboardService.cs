@@ -346,15 +346,34 @@ public class DashboardService
             }
         }
 
+        var now = DateTime.UtcNow;
+
         var units = await _context.Units
             .Where(u => u.TenantId == tenantId
                 && (u.Status == UnitStatus.ActiveOccupied
                     || u.Status == UnitStatus.ActiveUnoccupied))
+            .Select(u => new UnitMoraDto
+            {
+                UnitId = u.Id,
+                Identifier = u.Identifier,
+                TowerOrBlock = u.TowerOrBlock,
+                FloorLevel = u.FloorLevel,
+                OwnerName = "Sin propietario",
+                OverdueBalance = 0m,
+                DaysOverdue = 0,
+                ColorCode = u.Status == UnitStatus.ActiveUnoccupied ? "gray" : "green",
+                Status = u.Status == UnitStatus.ActiveUnoccupied ? "Desocupada" : "Al día"
+            })
             .ToListAsync();
 
-        var unitIds = units.Select(u => u.Id).ToList();
+        if (units.Count == 0)
+        {
+            return units;
+        }
 
-        var unitOwners = await _context.UnitOwners
+        var unitIds = units.Select(u => u.UnitId).ToList();
+
+        var spokespersons = await _context.UnitOwners
             .Where(uo => uo.TenantId == tenantId
                 && unitIds.Contains(uo.UnitId)
                 && uo.IsActive
@@ -365,147 +384,137 @@ public class DashboardService
                 (uo, o) => new { uo.UnitId, OwnerName = o.FullNameOrCompanyName })
             .ToDictionaryAsync(x => x.UnitId, x => x.OwnerName);
 
-        var activeUnitFees = await _context.UnitFees
+        var now_date = now;
+        var unitFeeDebts = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId
                 && unitIds.Contains(uf.UnitId)
                 && uf.BalanceAmount > 0
                 && uf.Status != FeeStatus.FullyPaid)
-            .Select(uf => new
+            .GroupBy(uf => uf.UnitId)
+            .Select(g => new
             {
-                uf.UnitId,
-                uf.BalanceAmount,
-                uf.DueDate
+                UnitId = g.Key,
+                TotalDebt = g.Sum(uf => uf.BalanceAmount),
+                OldestDate = g.Min(uf => uf.DueDate)
             })
             .ToListAsync();
 
-        var extraFees = await _context.ExtraordinaryFeeDistributions
+        var extraDebts = await _context.ExtraordinaryFeeDistributions
             .Where(efd => efd.TenantId == tenantId
                 && unitIds.Contains(efd.UnitId)
                 && efd.BalanceAmount > 0
                 && efd.Status != FeeStatus.FullyPaid)
-            .Select(efd => new
+            .GroupBy(efd => efd.UnitId)
+            .Select(g => new
             {
-                efd.UnitId,
-                efd.BalanceAmount,
-                efd.DueDate
+                UnitId = g.Key,
+                TotalDebt = g.Sum(efd => efd.BalanceAmount),
+                OldestDate = g.Min(efd => efd.DueDate)
             })
             .ToListAsync();
 
-        var charges = await _context.IndividualCharges
+        var chargeDebts = await _context.IndividualCharges
             .Where(ic => ic.TenantId == tenantId
                 && unitIds.Contains(ic.UnitId)
                 && ic.BalanceAmount > 0
                 && ic.Status != IndividualChargeStatus.Paid)
-            .Select(ic => new
+            .GroupBy(ic => ic.UnitId)
+            .Select(g => new
             {
-                ic.UnitId,
-                ic.BalanceAmount,
-                ic.ChargeDate
+                UnitId = g.Key,
+                TotalDebt = g.Sum(ic => ic.BalanceAmount),
+                OldestDate = g.Min(ic => ic.ChargeDate)
             })
             .ToListAsync();
 
-        var result = new List<UnitMoraDto>();
-        var now = DateTime.UtcNow;
+        var feeDict = unitFeeDebts.ToDictionary(x => x.UnitId);
+        var extraDict = extraDebts.ToDictionary(x => x.UnitId);
+        var chargeDict = chargeDebts.ToDictionary(x => x.UnitId);
 
         foreach (var unit in units)
         {
-            var unitFeeDebt = activeUnitFees
-                .Where(f => f.UnitId == unit.Id)
-                .Sum(f => f.BalanceAmount);
+            spokespersons.TryGetValue(unit.UnitId, out var ownerName);
+            if (ownerName != null) unit.OwnerName = ownerName;
 
-            var extraDebt = extraFees
-                .Where(f => f.UnitId == unit.Id)
-                .Sum(f => f.BalanceAmount);
+            feeDict.TryGetValue(unit.UnitId, out var feeDebt);
+            extraDict.TryGetValue(unit.UnitId, out var extraDebt);
+            chargeDict.TryGetValue(unit.UnitId, out var chargeDebt);
 
-            var chargeDebt = charges
-                .Where(c => c.UnitId == unit.Id)
-                .Sum(c => c.BalanceAmount);
+            var totalOverdue = (feeDebt?.TotalDebt ?? 0m) + (extraDebt?.TotalDebt ?? 0m) + (chargeDebt?.TotalDebt ?? 0m);
+            unit.OverdueBalance = totalOverdue;
 
-            var totalOverdue = unitFeeDebt + extraDebt + chargeDebt;
+            var allDates = new List<DateTime>();
+            if (feeDebt != null && feeDebt.OldestDate != default) allDates.Add(feeDebt.OldestDate);
+            if (extraDebt != null && extraDebt.OldestDate != default) allDates.Add(extraDebt.OldestDate);
+            if (chargeDebt != null && chargeDebt.OldestDate != default) allDates.Add(chargeDebt.OldestDate);
 
-            var allDueDates = activeUnitFees
-                .Where(f => f.UnitId == unit.Id)
-                .Select(f => f.DueDate)
-                .Concat(extraFees
-                    .Where(f => f.UnitId == unit.Id)
-                    .Select(f => f.DueDate))
-                .Concat(charges
-                    .Where(c => c.UnitId == unit.Id)
-                    .Select(c => c.ChargeDate))
-                .ToList();
-
-            var oldestDate = allDueDates.Count > 0
-                ? allDueDates.Min()
-                : (DateTime?)null;
-
+            var oldestDate = allDates.Count > 0 ? allDates.Min() : (DateTime?)null;
             var maxDaysOverdue = oldestDate.HasValue
                 ? Math.Max(0, (int)(now - oldestDate.Value).TotalDays)
                 : 0;
 
-            string colorCode;
-            string status;
+            unit.DaysOverdue = maxDaysOverdue;
 
-            if (totalOverdue <= 0)
+            if (unit.ColorCode == "gray")
             {
-                colorCode = "green";
-                status = "Al día";
+                // Already set for ActiveUnoccupied
+            }
+            else if (totalOverdue <= 0)
+            {
+                unit.ColorCode = "green";
+                unit.Status = "Al día";
             }
             else if (maxDaysOverdue <= 30)
             {
-                colorCode = "yellow";
-                status = "Mora temprana";
+                unit.ColorCode = "yellow";
+                unit.Status = "Mora temprana";
             }
             else if (maxDaysOverdue <= 90)
             {
-                colorCode = "orange";
-                status = "Mora media";
+                unit.ColorCode = "orange";
+                unit.Status = "Mora media";
             }
             else
             {
-                colorCode = "red";
-                status = "Mora crítica";
+                unit.ColorCode = "red";
+                unit.Status = "Mora crítica";
             }
-
-            if (unit.Status == UnitStatus.ActiveUnoccupied)
-            {
-                colorCode = "gray";
-                status = "Desocupada";
-            }
-
-            unitOwners.TryGetValue(unit.Id, out var ownerName);
-
-            result.Add(new UnitMoraDto
-            {
-                UnitId = unit.Id,
-                Identifier = unit.Identifier,
-                TowerOrBlock = unit.TowerOrBlock,
-                FloorLevel = unit.FloorLevel,
-                OwnerName = ownerName ?? "Sin propietario",
-                OverdueBalance = totalOverdue,
-                DaysOverdue = maxDaysOverdue,
-                ColorCode = colorCode,
-                Status = status
-            });
         }
 
         var cacheOptions = new MemoryCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromMinutes(5))
             .SetPriority(CacheItemPriority.Normal);
 
-        _memoryCache.Set(cacheKey, result, cacheOptions);
+        _memoryCache.Set(cacheKey, units, cacheOptions);
 
-        return result;
+        return units;
     }
 
     private async Task<List<UnitSummaryDto>> GetUnitSummariesAsync(string tenantId)
     {
         var units = await _context.Units
             .Where(u => u.TenantId == tenantId)
+            .Select(u => new UnitSummaryDto
+            {
+                UnitId = u.Id,
+                Identifier = u.Identifier,
+                TowerOrBlock = u.TowerOrBlock,
+                FloorLevel = u.FloorLevel,
+                OwnerName = "Sin propietario",
+                CurrentBalance = 0m,
+                ColorCode = (u.Status == UnitStatus.Inactive || u.Status == UnitStatus.DeliveryProcess) ? "gray" : "green",
+                Status = (u.Status == UnitStatus.Inactive || u.Status == UnitStatus.DeliveryProcess) ? "Inactiva" : "Al día"
+            })
             .ToListAsync();
 
-        var unitIds = units.Select(u => u.Id).ToList();
+        if (units.Count == 0)
+        {
+            return units;
+        }
 
-        var unitOwners = await _context.UnitOwners
+        var unitIds = units.Select(u => u.UnitId).ToList();
+
+        var spokespersons = await _context.UnitOwners
             .Where(uo => uo.TenantId == tenantId
                 && unitIds.Contains(uo.UnitId)
                 && uo.IsActive
@@ -522,7 +531,7 @@ public class DashboardService
                 && uf.BalanceAmount > 0)
             .GroupBy(uf => uf.UnitId)
             .Select(g => new { UnitId = g.Key, Balance = g.Sum(uf => uf.BalanceAmount) })
-            .ToListAsync();
+            .ToDictionaryAsync(g => g.UnitId, g => g.Balance);
 
         var overdueExtra = await _context.ExtraordinaryFeeDistributions
             .Where(efd => efd.TenantId == tenantId
@@ -530,7 +539,7 @@ public class DashboardService
                 && efd.BalanceAmount > 0)
             .GroupBy(efd => efd.UnitId)
             .Select(g => new { UnitId = g.Key, Balance = g.Sum(efd => efd.BalanceAmount) })
-            .ToListAsync();
+            .ToDictionaryAsync(g => g.UnitId, g => g.Balance);
 
         var overdueCharges = await _context.IndividualCharges
             .Where(ic => ic.TenantId == tenantId
@@ -538,56 +547,32 @@ public class DashboardService
                 && ic.BalanceAmount > 0)
             .GroupBy(ic => ic.UnitId)
             .Select(g => new { UnitId = g.Key, Balance = g.Sum(ic => ic.BalanceAmount) })
-            .ToListAsync();
-
-        var feeDict = overdueFees.ToDictionary(x => x.UnitId, x => x.Balance);
-        var extraDict = overdueExtra.ToDictionary(x => x.UnitId, x => x.Balance);
-        var chargeDict = overdueCharges.ToDictionary(x => x.UnitId, x => x.Balance);
-
-        var result = new List<UnitSummaryDto>();
+            .ToDictionaryAsync(g => g.UnitId, g => g.Balance);
 
         foreach (var unit in units)
         {
-            var balance = (feeDict.GetValueOrDefault(unit.Id, 0)
-                + extraDict.GetValueOrDefault(unit.Id, 0)
-                + chargeDict.GetValueOrDefault(unit.Id, 0));
+            spokespersons.TryGetValue(unit.UnitId, out var ownerName);
+            if (ownerName != null) unit.OwnerName = ownerName;
 
-            string colorCode;
-            string status;
+            overdueFees.TryGetValue(unit.UnitId, out var feeBalance);
+            overdueExtra.TryGetValue(unit.UnitId, out var extraBalance);
+            overdueCharges.TryGetValue(unit.UnitId, out var chargeBalance);
 
-            if (balance <= 0)
+            var balance = feeBalance + extraBalance + chargeBalance;
+            unit.CurrentBalance = balance;
+
+            if (unit.ColorCode == "gray")
             {
-                colorCode = "green";
-                status = "Al día";
+                // Already set for Inactive/DeliveryProcess
             }
-            else if (unit.Status == UnitStatus.Inactive
-                || unit.Status == UnitStatus.DeliveryProcess)
+            else if (balance > 0)
             {
-                colorCode = "gray";
-                status = "Inactiva";
+                unit.ColorCode = "red";
+                unit.Status = "En mora";
             }
-            else
-            {
-                colorCode = "red";
-                status = "En mora";
-            }
-
-            unitOwners.TryGetValue(unit.Id, out var ownerName);
-
-            result.Add(new UnitSummaryDto
-            {
-                UnitId = unit.Id,
-                Identifier = unit.Identifier,
-                TowerOrBlock = unit.TowerOrBlock,
-                FloorLevel = unit.FloorLevel,
-                OwnerName = ownerName ?? "Sin propietario",
-                CurrentBalance = balance,
-                ColorCode = colorCode,
-                Status = status
-            });
         }
 
-        return result;
+        return units;
     }
 
     private async Task<List<AlertDto>> EvaluateAlertsAsync(string tenantId, string role)

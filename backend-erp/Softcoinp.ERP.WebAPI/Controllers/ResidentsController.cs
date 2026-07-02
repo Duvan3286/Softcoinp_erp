@@ -51,11 +51,10 @@ public class ResidentsController : BaseController
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.ToLower();
             query = query.Where(o =>
-                o.FullNameOrCompanyName.ToLower().Contains(term) ||
-                o.DocumentNumber.Contains(term) ||
-                o.Email.ToLower().Contains(term));
+                o.FullNameOrCompanyName.Contains(search) ||
+                o.DocumentNumber.Contains(search) ||
+                o.Email.Contains(search));
         }
 
         var owners = await query
@@ -1238,12 +1237,11 @@ public class ResidentsController : BaseController
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var lower = search.ToLower();
             query = query.Where(t =>
-                t.FullName.ToLower().Contains(lower) ||
-                t.DocumentNumber.Contains(lower) ||
-                t.Email.ToLower().Contains(lower) ||
-                (t.Unit != null && t.Unit.Identifier.ToLower().Contains(lower)));
+                t.FullName.Contains(search) ||
+                t.DocumentNumber.Contains(search) ||
+                t.Email.Contains(search) ||
+                (t.Unit != null && t.Unit.Identifier.Contains(search)));
         }
 
         var rawList = await query
