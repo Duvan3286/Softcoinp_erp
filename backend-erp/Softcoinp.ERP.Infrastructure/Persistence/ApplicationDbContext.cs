@@ -930,7 +930,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => new { e.TenantId, e.BillingPeriodId, e.UnitId }).IsUnique();
-            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status, e.BalanceAmount, e.DueDate })
                   .HasDatabaseName("IX_unit_fees_overdue_balance");
             entity.HasIndex(e => new { e.TenantId, e.BillingPeriodId, e.FeeValue, e.PaidAmount })
