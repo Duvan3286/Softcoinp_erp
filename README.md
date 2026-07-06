@@ -22,6 +22,42 @@ Ecosystem for Enterprise Resource Planning, following Clean Architecture and Doc
 - **Docker Compose**: Orquestration of DB, Backend, and Frontend.
 - **MySQL 8.0**: Relational database.
 
+## Quick Start
+
+### Production
+
+```bash
+make up
+```
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| Frontend | http://test.localhost:3001 | Next.js (production) |
+| Backend | http://localhost:5005 | ASP.NET Core API |
+| phpMyAdmin | http://localhost:8080 | Database administration |
+| MySQL | localhost:3307 | Direct database connection |
+
+### Development (hot-reload)
+
+```bash
+make dev
+```
+
+Any change in `frontend-erp/src/` reflects instantly in the browser.
+
+### Stop
+
+```bash
+make down         # Production
+make dev-down     # Development
+```
+
+### Clean rebuild
+
+```bash
+make deploy       # Build in host + Docker + up (recommended)
+```
+
 ## Default Credentials
 
 ### Database (erp-db)
@@ -32,12 +68,27 @@ Ecosystem for Enterprise Resource Planning, following Clean Architecture and Doc
 - **Root Password**: rootpassword
 
 ### Backend API
-- **URL**: http://localhost:5000
+- **URL**: http://localhost:5000 (internal) / http://localhost:5005 (compose)
 
 ### Frontend
 - **URL**: http://localhost:3001
 
+## Docker Architecture
+
+```
+softcoinp-erp/
+├── docker-compose.yml         # Base compose (production)
+├── docker-compose.dev.yml     # Override for development (hot-reload)
+├── Makefile                   # Management commands
+└── frontend-erp/
+    ├── Dockerfile             # Production image (multi-stage, optimized)
+    └── Dockerfile.dev         # Development image (build tools + next dev)
+```
+
+Two Dockerfiles are provided: **Dockerfile** uses multi-stage build with only production dependencies (~200 MB), while **Dockerfile.dev** includes all dev dependencies and compilers for hot-reload (~800 MB).
+
 ## Networking
+
 This project connects to `softcoinp-network` to allow communication with the `softcoinp-backend` container from Project A.
 
 ## Tenant Management
