@@ -24,10 +24,12 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 12. [Módulo de Proveedores y Contratos](#12-módulo-de-proveedores-y-contratos)
 13. [Módulo de Mantenimiento y Zonas Comunes](#13-módulo-de-mantenimiento-y-zonas-comunes)
 14. [Módulo de Comunicados y Notificaciones](#14-módulo-de-comunicados-y-notificaciones)
-15. [Roles y Permisos](#15-roles-y-permisos)
-16. [Preguntas Frecuentes](#16-preguntas-frecuentes)
-17. [Glosario](#17-glosario)
-18. [Módulo de Reportes y Exportaciones](#18-módulo-de-reportes-y-exportaciones)
+15. [Módulo de Asambleas](#15-módulo-de-asambleas)
+16. [Módulo de Reservas](#16-módulo-de-reservas)
+17. [Roles y Permisos](#17-roles-y-permisos)
+18. [Preguntas Frecuentes](#18-preguntas-frecuentes)
+19. [Glosario](#19-glosario)
+20. [Módulo de Reportes y Exportaciones](#20-módulo-de-reportes-y-exportaciones)
 
 ---
 
@@ -1249,7 +1251,526 @@ Configura la progresión automática de avisos para unidades en mora.
 
 ---
 
-## 15. Roles y Permisos
+## 15. Módulo de Asambleas
+
+La Ley 675 de 2001 establece que toda copropiedad debe celebrar asambleas generales de propietarios al menos una vez al año (asamblea ordinaria) y adicionalmente cuando se requiera (asambleas extraordinarias). Este módulo gestiona todo el ciclo de vida de las asambleas: convocatoria, registro de asistencia, orden del día, votación, constancias, generación de actas, publicación y propagación de decisiones a otros módulos.
+
+### 15.1 Ciclo de vida de una asamblea
+
+El sistema maneja los siguientes estados:
+
+| Estado | Descripción |
+|--------|-------------|
+| **Borrador** | La asamblea ha sido creada pero aún no se ha convocado. |
+| **Convocada** | Se ha enviado la convocatoria a los propietarios. |
+| **En Sesión** | La sesión está activa. |
+| **Cerrada** | La sesión ha finalizado, lista para generar acta. |
+| **Acta Aprobada** | El acta ha sido aprobada por el Consejo o Comisión. |
+| **Publicada** | El acta ha sido publicada y notificada a los propietarios. |
+
+**Transiciones de estado permitidas:**
+
+```
+Borrador → Convocada → En Sesión → Cerrada → Acta Aprobada → Publicada
+```
+
+### 15.2 Lista de asambleas
+
+**Ruta:** `Asambleas`
+
+Acceda desde el menú lateral. La página muestra el listado completo de asambleas con:
+
+**Indicadores en tarjetas:**
+- Total de asambleas
+- Ordinarias
+- Extraordinarias
+- Publicadas
+
+**Filtros disponibles:**
+- **Estado**: Borrador, Convocada, En Sesión, Cerrada, Acta Aprobada, Publicada.
+- **Tipo**: Ordinaria, Extraordinaria.
+- **Búsqueda libre**: Por título o lugar.
+
+**Tabla de asambleas:**
+| Columna | Descripción |
+|---------|-------------|
+| Título | Nombre de la asamblea. |
+| Tipo | Ordinaria o Extraordinaria. |
+| Estado | Estado actual con badge de color. |
+| Fecha | Fecha programada. |
+| Lugar | Ubicación de la asamblea. |
+| Asistentes | Número de asistentes registrados. |
+| Quórum | Indicador de quórum alcanzado en primera convocatoria. |
+
+**Acción:** "Ver" para acceder al detalle de la asamblea.
+
+### 15.3 Crear una nueva asamblea
+
+**Ruta:** `Asambleas > Nueva Asamblea`
+
+1. Haga clic en **Nueva Asamblea**.
+2. Complete los campos:
+
+| Sección | Campos | Obligatorio |
+|---------|--------|-------------|
+| **Información General** | Título, Tipo (Ordinaria/Extraordinaria), Modalidad (Presencial/Remota/Híbrida), Descripción | Título |
+| **Fecha y Lugar** | Fecha, Hora, Lugar | Todos |
+| **Segunda Convocatoria** | Fecha, Hora, Lugar (opcional) | — |
+
+3. Haga clic en **Crear Asamblea**.
+
+> La asamblea se crea en estado **Borrador**. Para continuar, debe **Convocarla** desde el detalle.
+
+### 15.4 Detalle de la asamblea
+
+**Ruta:** `Asambleas > [Asamblea]`
+
+La página de detalle está organizada en **7 pestañas**:
+
+| Pestaña | Descripción |
+|---------|-------------|
+| **Información** | Datos generales: tipo, fecha, lugar, coeficiente total, umbrales de quórum, presidente y secretario. |
+| **Convocatoria** | Gestión de convocatorias: crear, enviar y hacer seguimiento de entrega. |
+| **Asistencia** | Registro de asistentes, control de quórum y gestión de representantes. |
+| **Orden del Día** | Puntos a tratar, registro de votación por punto y resultados. |
+| **Constancias** | Registro de constancias presentadas por los asistentes. |
+| **Acta** | Generación automática, revisión, aprobación y publicación del acta. |
+| **Propagación** | Seguimiento de la propagación de decisiones aprobadas a otros módulos. |
+
+**Botones de acción contextuales (según estado):**
+
+| Estado de la asamblea | Botón disponible |
+|-----------------------|------------------|
+| Borrador | **Convocar** |
+| Convocada | **Iniciar Sesión** |
+| En Sesión | **Cerrar Sesión** |
+| Cerrada | **Generar Acta** |
+
+### 15.5 Convocatoria
+
+Desde la pestaña **Convocatoria** puede:
+
+1. **Crear una convocatoria**:
+   - Número de convocatoria (1, 2, etc.)
+   - Canal de envío: Email, WhatsApp, SMS.
+   - Asunto y notas adicionales.
+
+2. **Enviar la convocatoria**: El sistema distribuye la convocatoria a todos los propietarios según el canal seleccionado.
+
+3. **Seguimiento de entrega**: Para cada destinatario se muestra:
+   - Nombre del propietario y unidad.
+   - Estado de entrega: Entregado (verde) o No entregado (rojo).
+
+> Solo puede haber una convocatoria activa a la vez. La segunda convocatoria se crea después de la primera si no se alcanza quórum.
+
+### 15.6 Registro de asistencia
+
+**Ruta:** `Asambleas > [Asamblea] > Asistencia`
+
+#### Panel de quórum
+
+Muestra en tiempo real:
+- **Porcentaje de quórum**: coeficiente presente / coeficiente total.
+- **Indicador**: "Quórum Logrado" o "Quórum No Logrado" para primera y segunda convocatoria.
+- **Resumen**: Propietarios presentes, ausentes, con mora y con voto restringido.
+
+#### Registrar asistencia
+
+1. Seleccione la **unidad/propietario** de la lista.
+2. Indique si asiste **personalmente** o mediante **representante**:
+   - Si es representante: ingrese nombre y documento del representante, y opcionalmente el documento de poder.
+3. Opciones adicionales:
+   - **Miembro de comisión**: marque y seleccione el rol (Presidente, Secretario, Vocal).
+   - **Notas**: campo opcional.
+4. Haga clic en **Registrar Asistencia**.
+
+#### Tabla de asistentes
+
+| Columna | Descripción |
+|---------|-------------|
+| Unidad | Identificador de la unidad. |
+| Propietario | Nombre del propietario. |
+| Coeficiente | Porcentaje de participación. |
+| Tipo | Personal o Representante. |
+| Estado | Presente, Retirado. |
+| Mora | Si/No (si la unidad está en mora). |
+| Voto | Habilitado o Restringido. |
+
+**Acciones sobre asistentes:**
+- **Salida**: Registra la salida del propietario con hora.
+- **Levantar restricción**: Permite habilitar el voto de un propietario con voto restringido, registrando el motivo.
+
+### 15.7 Orden del día y votación
+
+**Ruta:** `Asambleas > [Asamblea] > Orden del Día`
+
+#### Crear un punto en la orden del día
+
+1. Vaya a la pestaña **Orden del Día**.
+2. Haga clic en **Nuevo Punto**.
+3. Complete:
+
+| Campo | Descripción |
+|-------|-------------|
+| **Título** | Nombre del punto a tratar. |
+| **Descripción** | Detalle del punto (opcional). |
+| **Presentador** | Persona que presenta el punto (opcional). |
+| **Mayoría Requerida** | Simple (>50%), Calificada (>=2/3) o Unanimidad (100%). |
+| **Modo de Votación** | Por Coeficiente, Aplausos, Escrito o Electrónico. |
+| **Solo Informativo** | Marcar si el punto es informativo (no requiere votación). |
+
+#### Registrar votación
+
+1. Haga clic en **Registrar Voto** en el punto correspondiente.
+2. Ingrese los resultados:
+
+| Campo | Descripción |
+|-------|-------------|
+| Votos a Favor (Coeficiente) | Suma de coeficientes de votos a favor. |
+| Votos en Contra (Coeficiente) | Suma de coeficientes de votos en contra. |
+| Abstenciones (Coeficiente) | Suma de coeficientes de abstenciones. |
+| Cantidad Votos a Favor | Número de votos a favor. |
+| Cantidad Votos en Contra | Número de votos en contra. |
+| Cantidad Abstenciones | Número de abstenciones. |
+| Observaciones | Notas adicionales (opcional). |
+
+3. Confirme. El sistema muestra el resultado con indicador visual (Aprobado/Rechazado).
+
+> Para mayoría calificada, el sistema verifica que los votos a favor representen al menos 2/3 de los coeficientes presentes.
+
+### 15.8 Constancias
+
+**Ruta:** `Asambleas > [Asamblea] > Constancias`
+
+Las constancias son manifestaciones formales que un propietario solicita que queden registradas en el acta.
+
+#### Registrar una constancia
+
+1. Seleccione el **propietario** de la lista de asistentes.
+2. Opcional: vincule la constancia a un **punto del orden del día** específico.
+3. Redacte el **texto** de la constancia.
+4. Haga clic en **Agregar Constancia**.
+
+### 15.9 Gestión del acta
+
+**Ruta:** `Asambleas > [Asamblea] > Acta`
+
+El acta es el documento oficial que resume todo lo ocurrido en la asamblea.
+
+#### Generar acta
+
+Cuando la asamblea está en estado **Cerrada**:
+1. Vaya a la pestaña **Acta**.
+2. Complete:
+   - **Nombre del Presidente**.
+   - **Nombre del Secretario**.
+   - **Miembros de Comisión** (separados por coma, opcional).
+3. Haga clic en **Generar Acta**.
+
+El sistema genera automáticamente el acta con los datos de la asamblea, asistentes, resultados de votación y constancias.
+
+#### Flujo de aprobación del acta
+
+| Estado | Acción disponible |
+|--------|-------------------|
+| Generada | **Enviar a Revisión** o **Aprobar** directamente. |
+| En Revisión | La comisión revisa y puede **Aprobar**. |
+| Aprobada | **Publicar** el acta para los propietarios. |
+| Publicada | El acta es visible para todos los propietarios. Notificaciones enviadas. |
+
+**Opciones durante la revisión:**
+- Fecha límite de revisión.
+- Notas y comentarios de la comisión.
+- **Carga de firmas**: Suba las imágenes de las firmas del Presidente y el Secretario (formato PNG).
+
+> Una vez publicada, el acta no puede modificarse. Se notifica automáticamente a todos los propietarios.
+
+### 15.10 Propagación de decisiones
+
+**Ruta:** `Asambleas > [Asamblea] > Propagación`
+
+Cuando un punto del orden del día es aprobado, sus decisiones pueden propagarse a otros módulos del sistema:
+
+| Módulo destino | Ejemplo |
+|----------------|---------|
+| **Presupuesto** | Aprobación de traslados o adiciones presupuestales. |
+| **Cuota Extraordinaria** | Creación de una cuota extraordinaria aprobada en asamblea. |
+| **Roles y Permisos** | Cambios en la junta directiva o consejo. |
+| **Asiento Contable** | Registro contable de una decisión. |
+| **Contrato** | Aprobación de un contrato que requería visto de asamblea. |
+
+La tabla de propagación muestra:
+- Punto del orden del día.
+- Módulo destino.
+- Descripción de la propagación.
+- Estado: Pendiente, Propagada o Fallida.
+- Fecha y mensaje de error si falló.
+
+### 15.11 Sesión en vivo
+
+**Ruta:** `Asambleas > [Asamblea] > Sesión`
+
+Página dedicada para gestionar la asamblea durante su desarrollo en tiempo real:
+
+- **Panel de información**: fecha, hora, presidente, secretario, convocatoria.
+- **Orden del día completo**: cada punto con opción de registrar voto y ver resultados con barras de progreso.
+- **Registro de constancias**: formulario rápido vinculado a la lista de asistentes.
+- Los resultados de votación se muestran con indicadores visuales de umbral (línea punteada para mayoría calificada).
+
+### 15.12 Reportes
+
+El sistema permite generar un reporte consolidado de asambleas para un período determinado, útil para el Informe Anual de Gestión.
+
+---
+
+## 16. Módulo de Reservas
+
+Este módulo gestiona la reserva de espacios comunes del conjunto (salón social, piscina, zonas BBQ, canchas, gimnasio, etc.). Los residentes pueden solicitar reservas y la administración las aprueba, gestiona check-in/check-out y administra depósitos de garantía.
+
+### 16.1 Ciclo de vida de una reserva
+
+| Estado | Descripción |
+|--------|-------------|
+| **Pendiente** | Solicitud creada, esperando aprobación del administrador. |
+| **Aprobada** | Reserva confirmada, pendiente de check-in. |
+| **En Uso** | El espacio está siendo ocupado (check-in realizado). |
+| **Completada** | Reserva finalizada normalmente (check-out realizado). |
+| **Cancelada** | Cancelada por el administrador o el residente. |
+| **Rechazada** | Rechazada por el administrador. |
+| **Con Incidente** | Se reportó un incidente durante el uso. |
+
+**Transiciones de estado:**
+
+```
+Pendiente → Aprobada → En Uso → Completada
+    \          \          \
+     \          \          +→ Con Incidente → Completada
+      \          \
+       \          +→ Cancelada
+        \
+         +→ Rechazada
+```
+
+### 16.2 Estados del depósito de garantía
+
+| Estado | Descripción |
+|--------|-------------|
+| **No Requerido** | El espacio no requiere depósito. |
+| **Pendiente** | Depósito requerido pero aún no pagado. |
+| **Pagado** | Depósito pagado por el residente. |
+| **Devuelto** | Depósito devuelto al residente (sin novedad). |
+| **Aplicado a Daño** | Depósito aplicado a cubrir daños. |
+
+### 16.3 Lista de reservas
+
+**Ruta:** `Reservas > Reservas`
+
+Muestra todas las reservas del conjunto en tarjetas con:
+
+**Filtros:**
+- **Búsqueda libre**: Por número de reserva, espacio, unidad o propietario.
+- **Estado**: Pendiente, Aprobada, En Uso, Completada, Cancelada, Rechazada, Con Incidente.
+- **Rango de fechas**: Desde / Hasta.
+
+**Cada tarjeta muestra:**
+- Número de reserva y estado (con badge de color).
+- Espacio, unidad y propietario.
+- Fecha y hora de inicio/fin.
+- Costo total y estado del depósito.
+- Asistentes estimados.
+
+### 16.4 Crear una nueva reserva
+
+**Ruta:** `Reservas > Nueva Reserva`
+
+1. Seleccione el **Espacio** a reservar.
+2. Seleccione la **Unidad** que realiza la reserva (búsqueda por identificador o propietario).
+3. Defina la **fecha y hora de inicio** y **fin**.
+4. Ingrese el número de **asistentes estimados**.
+5. Complete los detalles del evento:
+   - **Descripción del evento** (opcional).
+   - **Incluye música**: si aplica, especifique la hora de finalización.
+6. Acepte las **reglas del espacio**.
+7. El sistema verifica automáticamente la **disponibilidad** en tiempo real y muestra el **costo estimado** + **depósito requerido**.
+8. Haga clic en **Crear Reserva**.
+
+> Si la unidad tiene mora, el sistema muestra una advertencia. Dependiendo de la configuración del espacio, puede bloquear la reserva o solo advertir.
+
+### 16.5 Detalle de la reserva
+
+**Ruta:** `Reservas > [Reserva]`
+
+#### Información general
+
+| Campo | Descripción |
+|-------|-------------|
+| Espacio | Nombre del espacio reservado. |
+| Unidad | Unidad que realizó la reserva. |
+| Propietario | Nombre y email del propietario. |
+| Inicio / Fin | Fecha y hora del evento. |
+| Asistentes | Número estimado. |
+| Música | Sí/No con hora de finalización. |
+| Descripción | Notas del evento. |
+
+#### Costos
+
+| Campo | Descripción |
+|-------|-------------|
+| Costo Total | Valor de la reserva. |
+| Estado Depósito | Estado actual del depósito. |
+| Monto Depósito | Valor del depósito de garantía. |
+
+#### Acciones por estado
+
+| Estado de la reserva | Acciones disponibles |
+|----------------------|---------------------|
+| **Pendiente** | Aprobar, Rechazar (con motivo). |
+| **Aprobada** | Check-In, Cancelar. |
+| **En Uso** | Check-Out, Reportar Incidente. |
+| **Completada** | Gestión del depósito (si aplica). |
+
+#### Gestión del depósito
+
+| Estado del depósito | Acción disponible |
+|---------------------|-------------------|
+| Pendiente | **Registrar Pago de Depósito**. |
+| Pagado | **Devolver Depósito** o **Aplicar a Daño**. |
+
+#### Incidentes
+
+Si se reporta un incidente durante el uso del espacio:
+1. Haga clic en **Reportar Incidente**.
+2. Complete:
+   - **Descripción** del incidente.
+   - **Severidad**: Menor, Moderado, Grave, Crítico.
+   - **Monto del Daño** (si aplica).
+3. Guarde. El sistema cambia el estado de la reserva a **Con Incidente**.
+
+### 16.6 Bandeja de administración
+
+**Ruta:** `Reservas > Bandeja Admin`
+
+Panel simplificado para acciones rápidas del administrador:
+
+**Sección 1: Reservas Pendientes**
+- Lista de reservas en estado Pendiente.
+- Botones **Aprobar** y **Rechazar** directamente desde la bandeja.
+
+**Sección 2: Reservas Aprobadas**
+- Lista de reservas en estado Aprobada.
+- Botón **Check-In** para iniciar el uso del espacio.
+
+> Diseñado para flujo rápido: el administrador puede aprobar/rechazar y gestionar check-in sin entrar al detalle de cada reserva.
+
+### 16.7 Calendario de reservas
+
+**Ruta:** `Reservas > Calendario`
+
+Vista mensual que muestra las reservas de un espacio seleccionado:
+
+- **Selector de espacio**: elija el espacio a visualizar.
+- **Navegación mensual**: botones anterior/siguiente.
+- **Cuadrícula mensual**: cada día muestra las reservas como chips de color:
+  - Amarillo: Pendiente.
+  - Verde: Aprobada.
+  - Azul: En Uso.
+  - Gris: Completada.
+  - Rojo: Cancelada/Rechazada.
+  - Naranja: Con Incidente.
+- Los chips son clickables para ir al detalle de la reserva.
+
+### 16.8 Gestión de espacios reservables
+
+**Ruta:** `Reservas > Espacios`
+
+#### Lista de espacios
+
+Muestra todos los espacios configurados en tarjetas con:
+
+| Dato | Descripción |
+|------|-------------|
+| Nombre | Nombre del espacio. |
+| Ubicación | Dónde se encuentra. |
+| Estado | Activo o Inactivo. |
+| Capacidad | Número máximo de personas. |
+| Costo | Tipo de cobro (Por Hora, Por Evento, Sin costo). |
+| Aprobación | Automática o Manual. |
+| Política de Mora | Bloquear o Advertir. |
+| Depósito | Monto del depósito si aplica. |
+
+**Filtros:**
+- **Búsqueda libre**: Por nombre o ubicación.
+- **Estado**: Todos, Activos, Inactivos.
+
+#### Crear un nuevo espacio
+
+**Ruta:** `Reservas > Espacios > Nuevo Espacio`
+
+1. Complete la **información general**:
+
+| Campo | Descripción |
+|-------|-------------|
+| Nombre | Nombre del espacio (ej. "Salón Social"). |
+| Descripción | Detalles del espacio (opcional). |
+| Ubicación | Dónde se encuentra (opcional). |
+| Capacidad Máxima | Número máximo de personas. |
+
+2. Configure las **reglas de reserva**:
+
+| Campo | Descripción |
+|-------|-------------|
+| Mínimo de Horas | Duración mínima de la reserva. |
+| Máximo de Horas | Duración máxima de la reserva. |
+| Anticipación Mínima | Horas mínimas antes de la reserva. |
+| Anticipación Máxima | Días máximos de anticipación. |
+| Reservas Simultáneas | Máximo de reservas activas por unidad. |
+
+3. Configure **costos y depósito**:
+
+| Campo | Descripción |
+|-------|-------------|
+| Cobro Adicional | Activar/desactivar cobro por el espacio. |
+| Tipo de Cobro | Por Hora, Por Evento u Otro. |
+| Tarifa | Valor según el tipo de cobro. |
+| Requiere Depósito | Si se requiere depósito de garantía. |
+| Monto del Depósito | Valor del depósito. |
+
+4. Seleccione las **políticas**:
+
+| Campo | Opciones |
+|-------|----------|
+| Modo de Aprobación | Automática (las reservas se aprueban solas) o Manual (requiere aprobación del admin). |
+| Política de Mora | Bloquear (no permite reservar si hay mora) o Advertir (permite pero muestra advertencia). |
+
+5. Haga clic en **Guardar Espacio**.
+
+#### Detalle del espacio
+
+**Ruta:** `Reservas > Espacios > [Espacio]`
+
+Muestra toda la configuración del espacio y permite gestionar **horarios de disponibilidad**:
+
+**Horarios por día de la semana:**
+- Cada día (domingo a sábado) puede tener un horario configurado.
+- Haga clic en **Agregar** para añadir un horario: seleccione el día, hora de inicio y hora de fin.
+- Puede eliminar horarios existentes.
+
+> Un espacio sin horarios configurados no estará disponible para reservas, aunque esté activo.
+
+### 16.9 Notificaciones automáticas
+
+El módulo de reservas genera las siguientes notificaciones automáticas:
+
+| Evento | Descripción |
+|--------|-------------|
+| Reserva Aprobada | Notifica al residente que su reserva fue confirmada. |
+| Reserva Rechazada | Notifica al residente que su solicitud fue rechazada (con motivo). |
+| Recordatorio 24h | Recordatorio un día antes de la reserva. |
+| Recordatorio 2h | Recordatorio dos horas antes de la reserva. |
+| Depósito Devuelto | Confirmación de devolución del depósito de garantía. |
+
+
+## 17. Roles y Permisos
 
 El sistema cuenta con los siguientes roles:
 
@@ -1280,10 +1801,12 @@ El sistema cuenta con los siguientes roles:
 | Contratos | CRUD | Aprobar, Alertas | CRUD | Lectura | — |
 | Mantenimiento | CRUD | Lectura | Lectura | Lectura | — |
 | Comunicaciones | CRUD | Lectura | Lectura | Lectura | Cartelera, Preferencias |
+| Asambleas | CRUD | Participar, Votar | Lectura | Lectura | Participar, Votar |
+| Reservas | CRUD | Lectura | Lectura | Lectura | Solicitar |
 
 ---
 
-## 16. Preguntas Frecuentes
+## 18. Preguntas Frecuentes
 
 **¿Cómo recupero mi contraseña?**
 Actualmente debe contactar al administrador del sistema para restablecerla.
@@ -1320,7 +1843,7 @@ El administrador puede reenviar el comunicado solo a los no confirmantes desde l
 
 ---
 
-## 17. Glosario
+## 19. Glosario
 
 | Término | Definición |
 |---------|------------|
@@ -1366,7 +1889,7 @@ El administrador puede reenviar el comunicado solo a los no confirmantes desde l
 
 ---
 
-## 18. Módulo de Reportes y Exportaciones
+## 20. Módulo de Reportes y Exportaciones
 
 Este módulo centraliza todos los reportes del sistema. Podrá generar informes financieros, de cartera, operativos, de asamblea y anuales, consultar el historial de reportes generados, configurar reportes recurrentes, construir el informe anual de gestión, personalizar la apariencia de los PDF y controlar el acceso según su rol.
 

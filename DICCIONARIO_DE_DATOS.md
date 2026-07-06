@@ -846,6 +846,14 @@ Alertas generadas automáticamente por el motor de vencimiento de tiempos.
 | `erp_clearance_certificates` | Cuotas y Cartera | Paz y salvos expedidos |
 | `erp_configuration_audit_logs` | Configuración | Auditoría de cambios en parámetros del conjunto |
 | `erp_notifications` | Notificaciones | Notificaciones in-app para propietarios |
+| `erp_communications` | Comunicaciones | Comunicados formales enviados por la administración |
+| `erp_communication_recipients` | Comunicaciones | Estado de entrega individual por destinatario y canal |
+| `erp_communication_preferences` | Comunicaciones | Preferencias de canales de comunicación por residente |
+| `erp_notification_templates` | Comunicaciones | Plantillas configurables para notificaciones automáticas |
+| `erp_automatic_notifications` | Comunicaciones | Notificaciones generadas automáticamente por eventos del sistema |
+| `erp_bulletin_board_posts` | Comunicaciones | Publicaciones en la cartelera digital del portal |
+| `erp_delinquency_sequence_configs` | Comunicaciones | Configuración de pasos de la secuencia de avisos de mora |
+| `erp_delinquency_sequence_pauses` | Comunicaciones | Pausas de secuencia de mora por unidad |
 | `erp_indicator_caches` | Caché | Caché persistente de indicadores del dashboard |
 | `erp_pqr_records` | PQR | Solicitudes formales (Peticiones, Quejas, Reclamos) |
 | `erp_pqr_follow_ups` | PQR | Historial de cambios de estado de PQR |
@@ -867,6 +875,22 @@ Alertas generadas automáticamente por el motor de vencimiento de tiempos.
 | `erp_recurring_report_configs` | Reportes | Configuración de reportes programados recurrentes |
 | `erp_management_report_sections` | Reportes | Secciones del generador de informes anuales |
 | `erp_pdf_templates` | Reportes | Personalización visual de reportes PDF |
+| `erp_assemblies` | Asambleas | Cabecera de asambleas de copropietarios |
+| `erp_assembly_convocations` | Asambleas | Registro de envíos de convocatoria |
+| `erp_convocation_documents` | Asambleas | Documentos adjuntos a convocatorias |
+| `erp_convocation_recipients` | Asambleas | Destinatarios de convocatorias por propietario |
+| `erp_assembly_attendances` | Asambleas | Registro de asistencia y representación |
+| `erp_assembly_agenda_items` | Asambleas | Puntos del orden del día y resultados de votación |
+| `erp_assembly_constancies` | Asambleas | Constancias y objeciones presentadas en asamblea |
+| `erp_assembly_minutes` | Asambleas | Actas oficiales de asambleas |
+| `erp_assembly_decision_propagations` | Asambleas | Propagación de decisiones a otros módulos |
+| `erp_reservable_spaces` | Reservas | Catálogo de espacios comunes reservables |
+| `erp_space_schedules` | Reservas | Horarios de operación de espacios |
+| `erp_space_blocks` | Reservas | Bloqueos por mantenimiento, administrativos o emergencias |
+| `erp_reservations` | Reservas | Reservas de espacios comunes realizadas por residentes |
+| `erp_reservation_deposits` | Reservas | Depósitos de garantía de reservas |
+| `erp_reservation_incidents` | Reservas | Incidentes reportados durante uso de espacios |
+| `erp_reservation_reminders` | Reservas | Recordatorios automáticos enviados antes de la reserva |
 
 ---
 
@@ -1640,3 +1664,441 @@ Personalización visual de los reportes PDF generados por el sistema. Cada conju
 4. **Almacenamiento de archivos**: Los reportes generados se almacenan en `wwwroot/reports/{tenantId}/{reportTypeCode}/{fileName}`.
 
 5. **Motor recurrente**: El `RecurringReportEngine` ejecuta cada 5 minutos consultando todas las configuraciones activas con `NextExecutionAt ≤ now`. Genera el reporte, lo almacena y lo envía por correo a los destinatarios configurados. Luego recalcula `NextExecutionAt` según la frecuencia definida.
+
+---
+
+## 14. M�dulo de Asambleas
+
+Gest�n del ciclo de vida completo de las asambleas de copropietarios (Ordinarias y Extraordinarias), incluyendo convocatoria, quorum, registro de asistencia, votaci�n por puntos del orden del d�a, generaci�n de actas y propagaci�n de decisiones a otros m�dulos del sistema.
+
+> [!IMPORTANT]
+> Este m�dulo implementa los requisitos de la **Ley 675 de 2001** para propiedades horizontales en Colombia: convocatoria con antelaci�n m�nima, c�lculo de quorum (primera y segunda convocatoria), mayor�as calificadas y simples, y registro de constancias.
+
+### 14.1 Asamblea (`Assembly`) � Tabla: `erp_assemblies`
+
+Cabecera de cada asamblea. Contiene los datos de planificaci�n, fechas, umbrales de quorum y estado del ciclo de vida.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Tipo (`type`)** | `Enum` string | S� | `Ordinary` = Ordinaria (anual, obligatoria por ley) � `Extraordinary` = Extraordinaria (convocada para temas espec�ficos). |
+| **Estado (`status`)** | `Enum` string | S� | `Draft` = Planificaci�n � `Convoked` = Convocada � `InSession` = En sesi�n � `Closed` = Cerrada � `MinutesApproved` = Acta aprobada � `Published` = Acta publicada. |
+| **Tipo de Participaci�n (`participationType`)** | `Enum` string | S� | `InPerson` = Presencial � `Remote` = Virtual � `Hybrid` = Mixta. |
+| **T�tulo (`title`)** | `string` max 500 | S� | T�tulo descriptivo. Ej. "Asamblea General Ordinaria 2026". |
+| **Descripci�n (`description`)** | `string` max 4000 | No | Informaci�n adicional sobre el prop�sito de la asamblea. |
+| **Fecha Programada (`scheduledDate`)** | `datetime` | S� | Fecha de la asamblea en primera convocatoria. |
+| **Hora Programada (`scheduledTime`)** | `string` max 10 | S� | Hora de inicio en formato HH:mm. |
+| **Lugar (`location`)** | `string` max 300 | S� | Direcci�n o sala donde se realizar� la asamblea. |
+| **Fecha 2da Convocatoria (`secondConvocationDate`)** | `datetime` | No | Fecha alternativa si no se alcanza quorum en primera convocatoria. |
+| **Hora 2da Convocatoria (`secondConvocationTime`)** | `string` max 10 | No | Hora de la segunda convocatoria. |
+| **Lugar 2da Convocatoria (`secondConvocationLocation`)** | `string` max 300 | No | Lugar de la segunda convocatoria (puede ser el mismo). |
+| **Coeficiente Total (`totalCoefficients`)** | `decimal(18,4)` | Autom�tico | Suma de coeficientes de todas las unidades activas. Se calcula al momento de convocar. |
+| **Umbral Quorum 1ra (`quorumThresholdFirstCall`)** | `decimal(18,4)` | Autom�tico | `totalCoefficients � 0.50` (mitad m�s uno de coeficientes representados). |
+| **Umbral Quorum 2da (`quorumThresholdSecondCall`)** | `decimal(18,4)` | Autom�tico | `totalCoefficients � 0.25` (m�nimo 25% del coeficiente total para segunda convocatoria). |
+| **Quorum Alcanzado 1ra (`quorumAchievedFirstCall`)** | `boolean` | S� | Se marca `true` cuando la asistencia registrada supera el umbral de primera convocatoria. Si es `false`, se procede a segunda convocatoria. |
+| **Quorum Alcanzado 2da (`quorumAchievedSecondCall`)** | `boolean` | S� | `true` si se alcanz� quorum en segunda convocatoria. |
+| **N�mero de Convocatoria (`convocationNumber`)** | `int` | Autom�tico | `1` = Primera convocatoria � `2` = Segunda convocatoria (se incrementa autom�ticamente). |
+| **Inicio de Sesi�n (`sessionStartTime`)** | `datetime` | No | Fecha/hora real de inicio registrada por el presidente. |
+| **Fin de Sesi�n (`sessionEndTime`)** | `datetime` | No | Fecha/hora real de cierre. |
+| **Presidente (`presidentName`)** | `string` max 300 | No | Nombre del propietario elegido como presidente de la asamblea. |
+| **Secretario (`secretaryName`)** | `string` max 300 | No | Nombre del propietario elegido como secretario. |
+| **ID Propietario Presidente (`presidentOwnerId`)** | `string` max 100 | No | ID del propietario que ejerce como presidente. |
+| **ID Propietario Secretario (`secretaryOwnerId`)** | `string` max 100 | No | ID del propietario que ejerce como secretario. |
+| **Convocatoria Enviada (`convocationSentAt`)** | `datetime` | No | Marca temporal del env�o masivo de la convocatoria. |
+| **Plazo Convocatoria Cumplido (`convocationDeadlineMet`)** | `boolean` | S� | `true` si la convocatoria se envi� con al menos 10 d�as h�biles de antelaci�n (Ordinaria) o 7 d�as (Extraordinaria). |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que cre� la asamblea. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del �ltimo usuario que modific� la asamblea. |
+
+> [!NOTE]
+> **�ndices**: `(TenantId, Status)`, `(TenantId, ScheduledDate)`, `(TenantId, Type)`. Soft delete aplicado. Todos los hijos (convocatorias, asistencias, agenda, etc.) se eliminan en cascada al eliminar la asamblea.
+
+### 14.2 Convocatoria (`AssemblyConvocation`) � Tabla: `erp_assembly_convocations`
+
+Registro de cada env�o de convocatoria asociado a una asamblea. Pueden existir m�ltiples convocatorias (primera, segunda, reenv�os).
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asamblea (`assemblyId`)** | `Guid` FK | S� | Asamblea a la que pertenece la convocatoria. Cascade delete. |
+| **N�mero de Convocatoria (`convocationNumber`)** | `int` | S� | `1` = Primera � `2` = Segunda. |
+| **Asunto (`subject`)** | `string` max 500 | S� | Asunto del mensaje de convocatoria. |
+| **Notas (`notes`)** | `string` max 4000 | No | Instrucciones adicionales o notas para los destinatarios. |
+| **Fecha de Env�o (`sentAt`)** | `datetime` | No | Fecha en que se proces� el env�o masivo. |
+| **Enviado Por (`sentByUserId`)** | `string` max 450 | S� | ID del usuario que envi� la convocatoria. |
+| **Canal (`channel`)** | `Enum` string | S� | `Email` � `Sms` � `PortalNotification`. Canal principal de env�o. |
+| **Total Destinatarios (`totalRecipients`)** | `int` | S� | N�mero de destinatarios a los que se intent� enviar. |
+| **Entregados (`deliveredCount`)** | `int` | S� | N�mero de env�os exitosos. |
+| **Fallidos (`failedCount`)** | `int` | S� | N�mero de env�os que fallaron. |
+
+> [!NOTE]
+> **�ndices**: `(TenantId, AssemblyId)`. Al crear una convocatoria, el sistema genera autom�ticamente los registros en `erp_convocation_recipients` para todos los propietarios activos.
+
+#### 14.2.1 Documento de Convocatoria (`ConvocationDocument`) � Tabla: `erp_convocation_documents`
+
+Documentos adjuntos a la convocatoria (orden del d�a, estados financieros, soportes).
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Convocatoria (`convocationId`)** | `Guid` FK | S� | Convocatoria a la que pertenece el documento. Cascade delete. |
+| **Nombre (`documentName`)** | `string` max 300 | S� | Nombre descriptivo del documento. |
+| **Tipo (`documentType`)** | `string` max 50 | S� | Tipo de documento. Ej. "PDF", "Excel", "Imagen". |
+| **Ruta (`filePath`)** | `string` max 500 | S� | Ruta de almacenamiento del archivo. |
+| **Descripci�n (`description`)** | `string` max 500 | No | Nota adicional sobre el contenido del documento. |
+
+#### 14.2.2 Destinatario de Convocatoria (`ConvocationRecipient`) � Tabla: `erp_convocation_recipients`
+
+Registro individual de entrega por cada propietario destinatario.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Convocatoria (`convocationId`)** | `Guid` FK | S� | Convocatoria asociada. Cascade delete. |
+| **Unidad (`unitId`)** | `Guid` FK | S� | Unidad del destinatario. FK a `erp_units` (Restrict). |
+| **Propietario (`ownerId`)** | `Guid` FK | S� | Propietario destinatario. FK a `erp_owners` (Restrict). |
+| **Nombre (`ownerName`)** | `string` max 300 | S� | Nombre del propietario al momento del env�o (snapshot). |
+| **Email (`ownerEmail`)** | `string` max 300 | S� | Email al momento del env�o (snapshot). |
+| **Tel�fono (`ownerPhone`)** | `string` max 50 | No | Tel�fono al momento del env�o (snapshot). |
+| **Entregado (`delivered`)** | `boolean` | S� | `true` si el env�o fue exitoso. |
+| **Entregado El (`deliveredAt`)** | `datetime` | No | Fecha de entrega confirmada. |
+| **Error (`deliveryError`)** | `string` max 500 | No | Descripci�n del error si fall� el env�o. |
+
+> [!IMPORTANT]
+> Los snapshots de nombre, email y tel�fono garantizan la trazabilidad legal: si el propietario cambia sus datos despu�s de la convocatoria, el registro hist�rico conserva los datos que ten�a al momento del env�o.
+
+### 14.3 Registro de Asistencia (`AssemblyAttendance`) � Tabla: `erp_assembly_attendances`
+
+Registro de cada propietario que asiste a la asamblea, con su representaci�n y derechos de voto.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asamblea (`assemblyId`)** | `Guid` FK | S� | Asamblea a la que asiste. Cascade delete. |
+| **Unidad (`unitId`)** | `Guid` FK | S� | Unidad representada. FK a `erp_units` (Restrict). |
+| **Propietario (`ownerId`)** | `Guid` FK | S� | Propietario que asiste. FK a `erp_owners` (Restrict). |
+| **Coeficiente (`coefficient`)** | `decimal(18,4)` | Autom�tico | Coeficiente de copropiedad de la unidad al momento de la asamblea. |
+| **Estado (`status`)** | `Enum` string | S� | `Present` = Presente � `Represented` = Representado por poder � `Absent` = Ausente. |
+| **Asiste Personalmente (`attendsPersonally`)** | `boolean` | S� | `true` = asiste en persona � `false` = representado por poder. |
+| **Propietario Representante (`representativeOwnerId`)** | `Guid?` FK | Cond. | Si `attendsPersonally = false`, propietario que otorg� el poder. FK a `erp_owners` (SetNull). |
+| **Nombre Representante (`representativeName`)** | `string` max 300 | Cond. | Nombre de la persona que ejerce la representaci�n. |
+| **Documento Representante (`representativeDocumentNumber`)** | `string` max 50 | Cond. | Documento de identidad del representante. |
+| **Ruta Poder (`powerOfAttorneyFilePath`)** | `string` max 500 | Cond. | Ruta del archivo del poder notarial escaneado. |
+| **Hora Llegada (`arrivalTime`)** | `datetime` | S� | Hora de registro de asistencia. |
+| **Hora Salida (`departureTime`)** | `datetime` | No | Hora de retiro (si aplica). |
+| **Tiene Deuda (`hasDuesArrears`)** | `boolean` | S� | `true` si la unidad tiene cartera morosa al momento de la asamblea. |
+| **Derecho de Voto Restringido (`votingRightRestricted`)** | `boolean` | S� | `true` si el propietario no puede votar por morosidad. |
+| **Motivo Restricci�n (`votingRestrictionReason`)** | `string` max 1000 | Cond. | Explicaci�n si el derecho de voto est� restringido. |
+| **Restricci�n Levantada Por (`votingRestrictionLiftedByUserId`)** | `string` max 450 | No | ID del usuario que levant� la restricci�n. |
+| **Motivo Levantamiento (`votingRestrictionLiftedReason`)** | `string` max 1000 | Cond. | Raz�n del levantamiento de la restricci�n. |
+| **Es Miembro Comisi�n (`isCommissionMember`)** | `boolean` | S� | `true` si el asistente es miembro de la comisi�n de revisi�n de acta. |
+| **Rol Comisi�n (`commissionRole`)** | `string` max 100 | Cond. | Cargo en la comisi�n si aplica. |
+| **Notas (`notes`)** | `string` max 2000 | No | Observaciones sobre la asistencia. |
+| **Registrado Por (`registeredByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que registr� la asistencia. |
+
+> [!IMPORTANT]
+> **�ndice �nico**: `(TenantId, AssemblyId, UnitId)` � una sola asistencia por unidad por asamblea. Los coeficientes se almacenan como snapshot al momento del registro para evitar que cambios posteriores en unidades alteren el hist�rico de la asamblea.
+
+
+### 14.4 Punto del Orden del D�a (`AssemblyAgendaItem`) � Tabla: `erp_assembly_agenda_items`
+
+Cada tema a tratar en la asamblea, con su sistema de votaci�n y resultado.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asamblea (`assemblyId`)** | `Guid` FK | S� | Asamblea a la que pertenece. Cascade delete. |
+| **N�mero de Orden (`sequenceNumber`)** | `int` | S� | Posici�n en el orden del d�a. |
+| **T�tulo (`title`)** | `string` max 500 | S� | Nombre del punto a tratar. |
+| **Descripci�n (`description`)** | `string` max 4000 | No | Detalle del tema. |
+| **Presentador (`presenterName`)** | `string` max 300 | No | Nombre de la persona que presenta el punto. |
+| **Mayor�a Requerida (`majorityRequired`)** | `Enum` string | S� | `Simple` = Mayor�a simple (mitad + 1) � `Qualified` = Mayor�a calificada (70%) � `Unanimity` = Unanimidad (100%). |
+| **Modo de Votaci�n (`votingMode`)** | `Enum` string | S� | `Public` = Voto p�blico nominal � `Secret` = Voto secreto. |
+| **Es Solo Informativo (`isInformationOnly`)** | `boolean` | S� | `true` = punto informativo, no requiere votaci�n. |
+| **Requiere Votaci�n (`requiresVoting`)** | `boolean` | S� | `true` = se somete a votaci�n (default). |
+| **Coeficientes Totales (`totalCoefficientsForVote`)** | `decimal(18,4)` | Autom�tico | Suma de coeficientes representados en la votaci�n. |
+| **Coeficientes a Favor (`votesInFavorCoefficients`)** | `decimal(18,4)` | Autom�tico | Suma de coeficientes de votos a favor. |
+| **Coeficientes en Contra (`votesAgainstCoefficients`)** | `decimal(18,4)` | Autom�tico | Suma de coeficientes de votos en contra. |
+| **Coeficientes Abstenci�n (`abstentionCoefficients`)** | `decimal(18,4)` | Autom�tico | Suma de coeficientes de abstenciones. |
+| **Votos a Favor (conteo) (`votesInFavorCount`)** | `int` | Autom�tico | N�mero de votos a favor (personas). |
+| **Votos en Contra (conteo) (`votesAgainstCount`)** | `int` | Autom�tico | N�mero de votos en contra. |
+| **Abstenciones (conteo) (`abstentionCount`)** | `int` | Autom�tico | N�mero de abstenciones. |
+| **Aprobado (`isApproved`)** | `boolean?` | No | `true` = aprobado � `false` = rechazado � `null` = pendiente. |
+| **Motivo Rechazo (`rejectionReason`)** | `string` max 1000 | Cond. | Explicaci�n si el punto fue rechazado. |
+| **Observaciones (`observations`)** | `string` max 4000 | No | Notas del secretario sobre la discusi�n. |
+| **Notas del Propietario (`ownerNotes`)** | `string` max 4000 | No | Notas visibles solo para el propietario que las registr�. |
+| **Voto Registrado (`voteRegistered`)** | `boolean` | S� | `true` cuando se han registrado los resultados de la votaci�n. |
+| **Registrado Por (`registeredByUserId`)** | `string` max 450 | No | ID del usuario que registr� la votaci�n. |
+| **Voto Registrado El (`voteRegisteredAt`)** | `datetime` | No | Marca temporal del registro de votaci�n. |
+
+> [!IMPORTANT]
+> **Mayor�as seg�n Ley 675**: `Simple` = coeficientes a favor > coeficientes en contra + abstenciones (sobre los representados). `Qualified` = coeficientes a favor >= 70% de los coeficientes totales del conjunto. `Unanimity` = 100% de coeficientes totales.
+
+### 14.5 Constancia (`AssemblyConstancy`) � Tabla: `erp_assembly_constancies`
+
+Registro de constancias, objeciones o salvedades presentadas por un propietario durante la asamblea.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asamblea (`assemblyId`)** | `Guid` FK | S� | Asamblea donde se presenta la constancia. Cascade delete. |
+| **Punto del Orden del D�a (`agendaItemId`)** | `Guid?` FK | No | Punto al que se refiere la constancia. FK (SetNull). |
+| **Propietario (`ownerId`)** | `Guid` FK | S� | Propietario que presenta la constancia. FK a `erp_owners` (Restrict). |
+| **Nombre (`ownerName`)** | `string` max 300 | S� | Nombre del propietario (snapshot). |
+| **Texto (`text`)** | `string` max 4000 | S� | Contenido de la constancia u objeci�n. |
+| **Registrado Por (`registeredByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que registr� la constancia. |
+
+> [!NOTE]
+> Las constancias forman parte integral del acta y no pueden eliminarse una vez registradas.
+
+
+### 14.6 Acta (`AssemblyMinutes`) � Tabla: `erp_assembly_minutes`
+
+Documento oficial de la asamblea. Pasa por estados: Draft -> UnderReview (comisi�n) -> Approved -> Published.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asamblea (`assemblyId`)** | `Guid` FK | S� | Asamblea asociada. Cascade delete. |
+| **Estado (`status`)** | `Enum` string | S� | `Draft` = Borrador � `UnderReview` = En revisi�n (comisi�n) � `Approved` = Aprobada � `Published` = Publicada a residentes. |
+| **Presidente (`presidentName`)** | `string` max 300 | No | Nombre del presidente al momento de generar el acta. |
+| **Secretario (`secretaryName`)** | `string` max 300 | No | Nombre del secretario al momento de generar el acta. |
+| **Texto Completo (`fullText`)** | `string` (longtext) | S� | Contenido completo del acta en formato enriquecido. Generado autom�ticamente por `AssemblyMinutesGenerator`. |
+| **Generada El (`generatedAt`)** | `datetime` | Autom�tico | Fecha de generaci�n del borrador del acta. |
+| **Generada Por (`generatedByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que gener� el acta. |
+| **Miembros Comisi�n (`commissionMemberNames`)** | `string` max 2000 | No | Nombres de los miembros de la comisi�n revisora. |
+| **Fecha L�mite Revisi�n (`commissionReviewDeadline`)** | `datetime` | No | Fecha m�xima para que la comisi�n emita comentarios. |
+| **Comentarios Comisi�n (`commissionComments`)** | `string` max 4000 | No | Observaciones de la comisi�n revisora. |
+| **Ruta Firma Presidente (`presidentSignatureFilePath`)** | `string` max 500 | No | Ruta de la imagen de la firma del presidente. |
+| **Ruta Firma Secretario (`secretarySignatureFilePath`)** | `string` max 500 | No | Ruta de la imagen de la firma del secretario. |
+| **Aprobada El (`approvedAt`)** | `datetime` | No | Fecha de aprobaci�n del acta. |
+| **Aprobada Por (`approvedByUserId`)** | `string` max 450 | No | ID del usuario que aprob� el acta en el sistema. |
+| **Publicada El (`publishedAt`)** | `datetime` | No | Fecha de publicaci�n del acta a los residentes. |
+| **Publicada Por (`publishedByUserId`)** | `string` max 450 | No | ID del usuario que public� el acta. |
+| **Conteo Notificaciones (`publishNotificationCount`)** | `int` | No | N�mero de notificaciones enviadas al publicar el acta. |
+| **Notas de Revisi�n (`revisionNotes`)** | `string` max 4000 | No | Notas sobre correcciones solicitadas por la comisi�n. |
+
+> [!IMPORTANT]
+> **Ciclo del acta**: Al cerrar la asamblea, el sistema genera autom�ticamente un borrador de acta con los datos registrados (asistencia, resultados de votaci�n, constancias). La comisi�n designada revisa y aprueba. Una vez aprobada, se publica a los residentes y se env�a notificaci�n masiva. El acta publicada es **inmutable**.
+
+### 14.7 Propagaci�n de Decisiones (`AssemblyDecisionPropagation`) � Tabla: `erp_assembly_decision_propagations`
+
+Registro de las decisiones de la asamblea que deben propagarse a otros m�dulos del sistema.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Asamblea (`assemblyId`)** | `Guid` FK | S� | Asamblea que tom� la decisi�n. Cascade delete. |
+| **Punto del Orden del D�a (`agendaItemId`)** | `Guid` FK | S� | Punto que origin� la decisi�n. Cascade delete. |
+| **M�dulo Destino (`targetModule`)** | `Enum` string | S� | `Budget` � `ExtraordinaryFee` � `AuthRoles` � `AccountingEntry` � `Contract` � `Other`. |
+| **Estado (`status`)** | `Enum` string | S� | `Pending` � `Propagated` � `Failed`. |
+| **Descripci�n (`description`)** | `string` max 2000 | S� | Acci�n a ejecutar en el m�dulo destino. |
+| **ID Entidad Destino (`targetEntityId`)** | `string` max 100 | No | ID de la entidad creada/actualizada en el m�dulo destino. |
+| **Tipo Entidad Destino (`targetEntityType`)** | `string` max 100 | No | Tipo de entidad destino. Ej. "ExtraordinaryFee". |
+| **Error (`errorMessage`)** | `string` max 4000 | No | Mensaje de error si la propagaci�n fall�. |
+| **Reintentos (`retryCount`)** | `int` | Autom�tico | N�mero de intentos de propagaci�n. |
+| **Propagada El (`propagatedAt`)** | `datetime` | No | Fecha de propagaci�n exitosa. |
+| **Propagada Por (`propagatedByUserId`)** | `string` max 450 | No | ID del usuario o servicio que propag�. |
+
+> [!NOTE]
+> Al aprobar un punto de agenda con `DecisionPropagationTarget`, el motor intenta ejecutar la acci�n en el m�dulo destino. Si falla, queda en `Pending` para reintento o intervenci�n manual.
+
+### 14.8 Reglas de Negocio del M�dulo
+
+1. **Convocatoria**: Debe enviarse con al menos **10 d�as h�biles** para Asamblea Ordinaria y **7 d�as h�biles** para Extraordinaria (Ley 675 Arts. 37-38).
+
+2. **C�lculo de quorum**: `totalCoefficients` = suma de coeficientes de unidades activas al convocar. `quorumThresholdFirstCall = totalCoefficients / 2`. `quorumThresholdSecondCall = totalCoefficients x 0.25`.
+
+3. **Votaci�n por coeficiente**: Cada unidad tiene tantos votos como su coeficiente. Decisiones se toman por mayor�a de coeficientes, no por n�mero de asistentes.
+
+4. **Restricci�n de voto por mora**: Propietarios con deudas vencidas no pueden votar (Ley 675 Art. 60). La restricci�n puede levantarse manualmente si el propietario se pone al d�a.
+
+5. **Mayor�as**: `Simple` = sobre coeficientes representados. `Qualified` (70%) = sobre coeficiente total del conjunto. `Unanimity` = 100%.
+
+6. **Actas**: El acta generada autom�ticamente incluye datos de la asamblea, lista de asistentes, resultados de votaci�n y constancias. Una vez publicada es **inmutable**.
+
+7. **Propagaci�n autom�tica**: Aprobaci�n de presupuesto -> activa presupuesto en m�dulo contable. Cuota extraordinaria -> genera distribuciones en cartera. Cambios en administraci�n -> actualiza roles de acceso.
+
+---
+
+## 15. M�dulo de Reservas de Zonas Comunes
+
+Gesti�n integral de la reserva de espacios comunes (salones sociales, piscinas, canchas, parques infantiles, BBQ) por parte de los propietarios y residentes. Incluye disponibilidad por horario, dep�sitos de garant�a, control de acceso, registro de incidentes y recordatorios autom�ticos.
+
+> [!IMPORTANT]
+> Cada espacio tiene reglas configurables: horario de operaci�n, capacidad m�xima, anticipaci�n m�nima/m�xima, pol�tica de mora, modo de aprobaci�n y costo asociado.
+
+### 15.1 Espacio Reservable (`ReservableSpace`) � Tabla: `erp_reservable_spaces`
+
+Cat�logo de espacios comunes que los residentes pueden reservar. Hereda de `BaseEntity` (soft delete).
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Nombre (`name`)** | `string` max 300 | S� | Nombre del espacio. Ej. "Sal�n Social", "Piscina". |
+| **Descripci�n (`description`)** | `string` max 2000 | No | Descripci�n del espacio, servicios incluidos y condiciones de uso. |
+| **Ubicaci�n (`location`)** | `string` max 300 | No | Ubicaci�n f�sica dentro del conjunto. |
+| **Capacidad M�xima (`maxCapacity`)** | `int` | S� | N�mero m�ximo de personas permitidas. |
+| **Horas M�nimas Reserva (`minReservationHours`)** | `int` | S� | Duraci�n m�nima en horas. Default: 1. |
+| **Horas M�ximas Reserva (`maxReservationHours`)** | `int` | S� | Duraci�n m�xima en horas. Default: 8. |
+| **Anticipaci�n M�nima (`minAdvanceHours`)** | `int` | S� | Horas m�nimas de anticipaci�n. Default: 2. |
+| **Anticipaci�n M�xima (`maxAdvanceDays`)** | `int` | S� | D�as m�ximos de anticipaci�n. Default: 30. |
+| **M�x. Reservas Simult�neas (`maxSimultaneousReservationsPerUnit`)** | `int` | S� | M�ximo de reservas activas por unidad al mismo tiempo. Default: 2. |
+| **Requiere Dep�sito (`requiresDeposit`)** | `boolean` | S� | `true` = requiere dep�sito de garant�a. |
+| **Monto Dep�sito (`depositAmount`)** | `decimal(18,2)` | Cond. | Obligatorio si `requiresDeposit = true`. |
+| **Tiene Costo Adicional (`hasAdditionalCost`)** | `boolean` | S� | `true` = el uso del espacio tiene costo. |
+| **Tipo de Cobro (`chargeType`)** | `Enum` string | Cond. | `PerHour` = Por hora � `PerEvent` = Por evento. |
+| **Tarifa por Hora (`hourlyRate`)** | `decimal(18,2)` | Cond. | Obligatorio si `chargeType = PerHour`. |
+| **Tarifa por Evento (`eventRate`)** | `decimal(18,2)` | Cond. | Obligatorio si `chargeType = PerEvent`. |
+| **Modo de Aprobaci�n (`approvalMode`)** | `Enum` string | S� | `Automatic` = Autom�tica � `Manual` = Requiere revisi�n del administrador. |
+| **Pol�tica de Mora (`arrearsPolicy`)** | `Enum` string | S� | `Block` = Bloquear si en mora � `Warn` = Advertir pero permitir. |
+| **Disponible para Mantenimiento (`isAvailableForMaintenance`)** | `boolean` | S� | `true` = disponible para bloqueos por mantenimiento. |
+| **Activo (`isActive`)** | `boolean` | S� | `false` = espacio desactivado. |
+| **Ruta Reglamento (`rulesFilePath`)** | `string` max 500 | No | Ruta del PDF con reglamento de uso. |
+| **Ruta Imagen (`imageFilePath`)** | `string` max 500 | No | Ruta de imagen representativa. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que cre� el espacio. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del �ltimo usuario que modific� el espacio. |
+
+> [!NOTE]
+> **�ndices**: `(TenantId, Name)` �nico � `(TenantId, IsActive)`. Soft delete aplicado. Todos los hijos (horarios, bloques, reservas) se eliminan en cascada.
+
+### 15.2 Horario del Espacio (`SpaceSchedule`) � Tabla: `erp_space_schedules`
+
+Define los d�as y horas de operaci�n de cada espacio.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Espacio (`spaceId`)** | `Guid` FK | S� | Espacio al que pertenece el horario. Cascade delete. |
+| **D�a de la Semana (`dayOfWeek`)** | `int` | S� | `0` = Domingo � `1` = Lunes � ... � `6` = S�bado. |
+| **Hora Inicio (`startTime`)** | `string` max 10 | S� | Hora de apertura en formato HH:mm. |
+| **Hora Fin (`endTime`)** | `string` max 10 | S� | Hora de cierre en formato HH:mm. |
+| **Activo (`isActive`)** | `boolean` | S� | `false` si el horario est� desactivado temporalmente. |
+
+> [!NOTE]
+> �ndices: `(TenantId, SpaceId)` � `(TenantId, SpaceId, DayOfWeek)`.
+
+### 15.3 Bloqueo del Espacio (`SpaceBlock`) � Tabla: `erp_space_blocks`
+
+Per�odos en los que un espacio no est� disponible para reservas (mantenimiento, eventos administrativos, emergencias).
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Espacio (`spaceId`)** | `Guid` FK | S� | Espacio bloqueado. Cascade delete. |
+| **Fecha Inicio (`startDate`)** | `datetime` | S� | Inicio del per�odo de bloqueo. |
+| **Fecha Fin (`endDate`)** | `datetime` | S� | Fin del per�odo de bloqueo. |
+| **Hora Inicio (`startTime`)** | `string` max 10 | S� | Hora de inicio del bloqueo. |
+| **Hora Fin (`endTime`)** | `string` max 10 | S� | Hora de fin del bloqueo. |
+| **Origen (`origin`)** | `Enum` string | S� | `Maintenance` = Mantenimiento � `Administrative` = Administrativo � `Emergency` = Emergencia � `Other` = Otro. |
+| **Motivo (`reason`)** | `string` max 1000 | No | Raz�n del bloqueo. |
+| **Orden de Trabajo Relacionada (`relatedWorkOrderId`)** | `Guid?` | No | Referencia a la orden de trabajo si el bloqueo es por mantenimiento. |
+| **Nro. Orden (`relatedWorkOrderNumber`)** | `string` max 100 | No | N�mero de la orden de trabajo relacionada. |
+| **Notificar Afectados (`notifyAffectedResidents`)** | `boolean` | S� | `true` = notificar a residentes con reservas afectadas. |
+| **Notificaci�n Enviada (`notificationSent`)** | `boolean` | S� | `true` si ya se envi� la notificaci�n. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que cre� el bloqueo. |
+
+> [!IMPORTANT]
+> Al crear un bloqueo, el sistema detecta autom�ticamente las reservas existentes en el per�odo afectado y, si `notifyAffectedResidents = true`, env�a notificaciones de cancelaci�n a los residentes afectados.
+
+### 15.4 Reserva (`Reservation`) � Tabla: `erp_reservations`
+
+Registro de cada reserva realizada por un propietario o residente para usar un espacio com�n.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **N�mero de Reserva (`reservationNumber`)** | `string` max 50 | Autom�tico | Formato `RES-000001`. Secuencia autoincremental por tenant. |
+| **Espacio (`spaceId`)** | `Guid` FK | S� | Espacio reservado. FK a `erp_reservable_spaces` (Restrict). |
+| **Unidad (`unitId`)** | `Guid` FK | S� | Unidad que realiza la reserva. FK a `erp_units` (Restrict). |
+| **Propietario (`ownerId`)** | `Guid` FK | S� | Propietario responsable. FK a `erp_owners` (Restrict). |
+| **Fecha/Hora Inicio (`startDateTime`)** | `datetime` | S� | Inicio de la reserva. |
+| **Fecha/Hora Fin (`endDateTime`)** | `datetime` | S� | Fin de la reserva. Debe ser posterior a `startDateTime`. |
+| **Asistentes Estimados (`estimatedAttendees`)** | `int` | S� | N�mero estimado de asistentes. No puede exceder `maxCapacity` del espacio. |
+| **Descripci�n del Evento (`eventDescription`)** | `string` max 2000 | No | Motivo o descripci�n del evento. |
+| **Tiene M�sica (`hasMusic`)** | `boolean` | S� | `true` si el evento incluye equipo de sonido. |
+| **Hora Fin M�sica (`musicEndTime`)** | `string` max 10 | Cond. | Obligatorio si `hasMusic = true`. Hora l�mite para m�sica. |
+| **Reglamento Aceptado (`rulesAccepted`)** | `boolean` | S� | `true` = el residente acept� el reglamento de uso del espacio. |
+| **Estado (`status`)** | `Enum` string | S� | `Requested` = Solicitada � `Approved` = Aprobada � `Rejected` = Rechazada � `Cancelled` = Cancelada � `InUse` = En uso � `Completed` = Completada � `WithIncident` = Con incidente. |
+| **Motivo Rechazo (`rejectionReason`)** | `string` max 1000 | Cond. | Obligatorio si `status = Rejected`. |
+| **Costo Total (`totalCost`)** | `decimal(18,2)` | Autom�tico | Calculado seg�n `chargeType` del espacio. |
+| **Estado Dep�sito (`depositStatus`)** | `Enum` string | S� | `NotRequired` � `Pending` � `Paid` � `Returned` � `AppliedToDamage`. |
+| **Monto Dep�sito (`depositAmount`)** | `decimal(18,2)` | Autom�tico | Copia del `depositAmount` del espacio al momento de la reserva. |
+| **Notas Admin (`adminNotes`)** | `string` max 2000 | No | Notas internas de la administraci�n. |
+| **Admin a Cargo (`adminUserId`)** | `string` max 450 | No | ID del administrador que gestion� la reserva. |
+| **Check-In (`checkedInAt`)** | `datetime` | No | Hora real de ingreso al espacio. |
+| **Check-Out (`checkedOutAt`)** | `datetime` | No | Hora real de salida. |
+| **Ruta Firma Checkout (`checkoutSignaturePath`)** | `string` max 500 | No | Ruta de la firma digital del residente al retirarse. |
+| **Excepci�n Concedida (`exceptionGranted`)** | `boolean` | S� | `true` si se concedi� una excepci�n a las reglas del espacio. |
+| **Motivo Excepci�n (`exceptionReason`)** | `string` max 1000 | Cond. | Raz�n de la excepci�n. |
+| **Excepci�n Concedida Por (`exceptionGrantedByUserId`)** | `string` max 450 | Cond. | ID del administrador que concedi� la excepci�n. |
+| **Creado Por (`createdByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que cre� la reserva. |
+| **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del �ltimo usuario que modific� la reserva. |
+
+> [!IMPORTANT]
+> **Validaciones**: El motor de disponibilidad verifica: (1) que el espacio est� activo, (2) que la fecha/hora est� dentro del horario de operaci�n, (3) que no haya bloqueos ni reservas que se solapen, (4) que no se exceda `maxSimultaneousReservationsPerUnit`, (5) que la unidad no est� en mora si la pol�tica es `Block`. Si `approvalMode = Automatic` y todas las validaciones pasan, la reserva se crea en estado `Approved`.
+
+### 15.5 Dep�sito de Garant�a (`ReservationDeposit`) � Tabla: `erp_reservation_deposits`
+
+Registro de dep�sitos de garant�a asociados a una reserva.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Reserva (`reservationId`)** | `Guid` FK | S� | Reserva asociada. Cascade delete. |
+| **Monto (`amount`)** | `decimal(18,2)` | S� | Valor del dep�sito. |
+| **Estado (`status`)** | `Enum` string | S� | `Pending` � `Paid` � `Returned` � `AppliedToDamage`. |
+| **M�todo de Pago (`paymentMethod`)** | `Enum` string | Cond. | `Cash` � `BankTransfer` � `CreditCard` � `DebitCard` � `OnlinePayment` � `AppliedToAccount`. |
+| **ID Cobro (`chargeId`)** | `Guid?` | No | Referencia al cobro individual generado por el dep�sito. |
+| **Nro. Cobro (`chargeNumber`)** | `string` max 100 | No | N�mero del cobro generado. |
+| **ID Devoluci�n (`returnChargeId`)** | `Guid?` | No | Referencia al cobro de devoluci�n del dep�sito. |
+| **Nro. Devoluci�n (`returnChargeNumber`)** | `string` max 100 | No | N�mero del cobro de devoluci�n. |
+| **Monto Da�o (`damageAmount`)** | `decimal(18,2)` | No | Monto aplicado a da�os. |
+| **Descripci�n Da�o (`damageDescription`)** | `string` max 2000 | Cond. | Descripci�n de los da�os si `status = AppliedToDamage`. |
+| **Pagado El (`paidAt`)** | `datetime` | No | Fecha de pago del dep�sito. |
+| **Devuelto El (`returnedAt`)** | `datetime` | No | Fecha de devoluci�n. |
+| **Aplicado El (`appliedAt`)** | `datetime` | No | Fecha de aplicaci�n a da�os. |
+| **Procesado Por (`processedByUserId`)** | `string` max 450 | No | ID del usuario que proces� el dep�sito. |
+| **Notas (`notes`)** | `string` max 2000 | No | Observaciones sobre el dep�sito. |
+
+### 15.6 Incidente de Reserva (`ReservationIncident`) � Tabla: `erp_reservation_incidents`
+
+Registro de incidentes ocurridos durante el uso de un espacio reservado.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Reserva (`reservationId`)** | `Guid` FK | S� | Reserva asociada. Cascade delete. |
+| **Descripci�n (`description`)** | `string` max 4000 | S� | Detalle del incidente. |
+| **Gravedad (`severity`)** | `Enum` string | S� | `Minor` = Leve � `Moderate` = Moderado � `Severe` = Grave � `Critical` = Cr�tico. |
+| **Monto Da�o (`damageAmount`)** | `decimal(18,2)` | S� | Valor estimado del da�o. |
+| **Da�o Evaluado (`damageAssessed`)** | `boolean` | S� | `true` si el da�o fue evaluado formalmente. |
+| **Dep�sito Aplicado (`depositAppliedToDamage`)** | `boolean` | S� | `true` si el dep�sito se aplic� al da�o. |
+| **Ruta Evidencia (`evidenceFilePath`)** | `string` max 500 | No | Ruta del archivo de evidencia (foto/video). |
+| **Reportado Por (`reportedByUserId`)** | `string` max 450 | Autom�tico | ID del usuario que report� el incidente. |
+| **Nombre Reportante (`reportedByName`)** | `string` max 300 | No | Nombre de la persona que report�. |
+
+> [!IMPORTANT]
+> Al registrar un incidente con `severity = Severe` o `Critical`, el sistema notifica autom�ticamente al administrador y al consejo. Si `depositAppliedToDamage = true`, se actualiza el estado del dep�sito de la reserva.
+
+### 15.7 Recordatorio de Reserva (`ReservationReminder`) � Tabla: `erp_reservation_reminders`
+
+Recordatorios autom�ticos enviados a los residentes antes de su reserva.
+
+| Campo | Tipo de Dato | Obligatorio | Descripci�n / Reglas |
+|-------|--------------|-------------|----------------------|
+| **Reserva (`reservationId`)** | `Guid` FK | S� | Reserva asociada. Cascade delete. |
+| **Tipo (`reminderType`)** | `Enum` string | S� | `TwentyFourHours` = 24h antes � `TwoHours` = 2h antes � `Custom` = Personalizado. |
+| **Estado (`status`)** | `Enum` string | S� | `Pending` � `Sent` � `Failed`. |
+| **Programado Para (`scheduledFor`)** | `datetime` | S� | Fecha/hora programada para el env�o. |
+| **Enviado El (`sentAt`)** | `datetime` | No | Fecha/hora real de env�o. |
+| **Canal (`channel`)** | `string` max 30 | S� | Canal de env�o: `Email`, `Sms` o `Push`. |
+| **Email Destino (`recipientEmail`)** | `string` max 300 | No | Email del destinatario (snapshot). |
+| **Tel�fono Destino (`recipientPhone`)** | `string` max 50 | No | Tel�fono del destinatario (snapshot). |
+| **Error (`errorMessage`)** | `string` max 1000 | No | Mensaje de error si fall� el env�o. |
+| **Reintentos (`retryCount`)** | `int` | Autom�tico | N�mero de reintentos. |
+
+> [!NOTE]
+> El motor `ReservationReminderEngine` ejecuta peri�dicamente y env�a los recordatorios pendientes cuya `scheduledFor <= now`.
+
+### 15.8 Reglas de Negocio del M�dulo
+
+1. **Disponibilidad**: El motor `ReservationAvailabilityEngine` verifica superposici�n de horarios contra reservas existentes en estados `Requested`, `Approved` o `InUse`, y contra todos los bloqueos activos.
+
+2. **Aprobaci�n autom�tica**: Si `approvalMode = Automatic` y todas las validaciones pasan, la reserva se crea en estado `Approved`. Si `approvalMode = Manual`, queda en `Requested` pendiente de revisi�n del administrador.
+
+3. **Check-in y Check-out**: El administrador registra el ingreso (`checkedInAt`) y salida (`checkedOutAt`) del residente. A la salida, se inspecciona el espacio. Si hay da�os, se registra un incidente.
+
+4. **Dep�sito de garant�a**: Si `requiresDeposit = true`, la reserva no puede pasar a `Approved` hasta que el dep�sito est� en estado `Paid`. El dep�sito se devuelve despu�s del check-out exitoso o se aplica a da�os si aplica.
+
+5. **Pol�tica de mora**: Con `arrearsPolicy = Block`, el sistema verifica que la unidad no tenga deuda vencida al momento de crear la reserva. Con `Warn`, se muestra una advertencia pero se permite la reserva.
+
+6. **L�mite de reservas simult�neas**: Una unidad no puede tener m�s de `maxSimultaneousReservationsPerUnit` reservas en estados `Approved` o `InUse` al mismo tiempo en el mismo espacio.
+
+7. **Bloqueos por mantenimiento**: Los bloqueos se crean autom�ticamente cuando se genera una orden de trabajo preventivo que afecta un espacio. El sistema notifica a los residentes con reservas afectadas.
+
+8. **Costos**: Si `hasAdditionalCost = true`, el costo total se calcula seg�n el tipo de cobro. `totalCost` se registra en la reserva y puede integrarse con el m�dulo de cartera como un cobro individual.
