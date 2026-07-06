@@ -130,7 +130,6 @@ public class ContractService
             ApprovalLevel = contract.ApprovalLevel.ToString(),
             CouncilMeetingActNumber = contract.CouncilMeetingActNumber,
             AssemblyMeetingActNumber = contract.AssemblyMeetingActNumber,
-            BudgetAccountId = contract.BudgetAccountId?.ToString() ?? string.Empty,
             Status = contract.Status.ToString(),
             SignedContractFilePath = contract.SignedContractFilePath,
             CreatedAt = contract.CreatedAt,
@@ -229,7 +228,6 @@ public class ContractService
             HasAutoRenewal = request.HasAutoRenewal,
             AutoRenewalNoticeDays = request.AutoRenewalNoticeDays,
             ApprovalLevel = approvalLevel,
-            BudgetAccountId = request.BudgetAccountId,
             Status = ContractStatus.Draft,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
@@ -317,7 +315,6 @@ public class ContractService
         if (request.EndDate.HasValue) contract.EndDate = request.EndDate.Value;
         if (request.HasAutoRenewal.HasValue) contract.HasAutoRenewal = request.HasAutoRenewal.Value;
         if (request.AutoRenewalNoticeDays.HasValue) contract.AutoRenewalNoticeDays = request.AutoRenewalNoticeDays.Value;
-        if (request.BudgetAccountId.HasValue) contract.BudgetAccountId = request.BudgetAccountId.Value;
         if (request.SignedContractFilePath != null) contract.SignedContractFilePath = request.SignedContractFilePath;
 
         contract.UpdatedAt = DateTime.UtcNow;

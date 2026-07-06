@@ -26,9 +26,6 @@ public class ProviderPayment
 
     public PaymentStatus Status { get; set; } = PaymentStatus.Completed;
 
-    public Guid? AccountingEntryId { get; set; }
-    public AccountingEntry? AccountingEntry { get; set; }
-
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

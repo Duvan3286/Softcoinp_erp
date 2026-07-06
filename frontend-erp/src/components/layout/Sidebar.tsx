@@ -54,7 +54,7 @@ export const Sidebar = () => {
 
   // Auto-open groups based on current path
   useEffect(() => {
-    if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('accounting') || pathname.includes('budgets') || pathname.includes('contingency-fund')) setOpenGroup('finanzas');
+    if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('budgets')) setOpenGroup('finanzas');
 
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
     else if (pathname.startsWith('/suppliers') || pathname.startsWith('/contracts')) setOpenGroup('proveedores');
@@ -229,12 +229,7 @@ export const Sidebar = () => {
           >
             <NavItem text="Cartera" path="/portfolio" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Facturación" path="/billing" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Plan de Cuentas" path="/accounting-accounts" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Períodos Contables" path="/accounting/periods" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Libro Diario" path="/accounting/journal-entries" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Reportes Contables" path="/accounting/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Presupuesto" path="/budgets" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Fondo Imprevistos" path="/contingency-fund" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+
           </NavGroup>
 
           <NavItem

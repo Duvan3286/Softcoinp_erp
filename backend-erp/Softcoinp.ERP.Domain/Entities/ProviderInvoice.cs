@@ -35,9 +35,6 @@ public class ProviderInvoice
 
     public string InvoiceFilePath { get; set; } = string.Empty;
 
-    public Guid? AccountingEntryId { get; set; }
-    public AccountingEntry? AccountingEntry { get; set; }
-
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? UpdatedByUserId { get; set; }

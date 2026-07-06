@@ -9,9 +9,6 @@ public class BankAccount
     public Guid Id { get; set; }
     public string TenantId { get; set; } = string.Empty;
 
-    public Guid AccountingAccountId { get; set; }
-    public AccountingAccount? AccountingAccount { get; set; }
-
     public string BankName { get; set; } = string.Empty;
     public string AccountNumber { get; set; } = string.Empty;
     public BankAccountType AccountType { get; set; }

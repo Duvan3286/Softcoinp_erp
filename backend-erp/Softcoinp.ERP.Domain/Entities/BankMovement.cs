@@ -11,9 +11,6 @@ public class BankMovement
     public Guid BankAccountId { get; set; }
     public BankAccount? BankAccount { get; set; }
 
-    public Guid? AccountingEntryId { get; set; }
-    public AccountingEntry? AccountingEntry { get; set; }
-
     public BankMovementType MovementType { get; set; }
     public decimal Amount { get; set; }
     public DateTime MovementDate { get; set; }

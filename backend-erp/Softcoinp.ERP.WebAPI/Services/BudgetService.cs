@@ -13,41 +13,28 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class BudgetService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IndicatorCacheService _indicatorCache;
 
-    public BudgetService(ApplicationDbContext context, IndicatorCacheService indicatorCache)
+    public BudgetService(ApplicationDbContext context)
     {
         _context = context;
-        _indicatorCache = indicatorCache;
     }
 
-    /// <summary>
-    /// Crea un presupuesto en estado Borrador (Draft) para el período fiscal.
-    /// Si ya existe un presupuesto ACTIVO para ese período, bloquea la operación lanzando una excepción.
-    /// </summary>
-    public async Task<Budget> CreateBudgetAsync(
+    public async Task<BudgetDetailDto> CreateBudgetAsync(
         string tenantId,
-        int fiscalPeriod,
-        string meetingActNumber,
-        DateTime? approvalDate,
-        bool copyFromPrevious,
-        decimal? globalPercentageAdjustment,
-        Dictionary<string, decimal>? accountAdjustments,
-        List<CreateBudgetDetailRequestDto>? manualDetails,
+        CreateBudgetRequestDto request,
         string userId)
     {
-        // 1. Validar que no exista un presupuesto activo para el período
         var activeBudget = await _context.Budgets
-            .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.FiscalPeriod == fiscalPeriod && b.Status == BudgetStatus.Active);
+            .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.FiscalYear == request.FiscalYear && b.Status == BudgetStatus.Approved);
 
         if (activeBudget != null)
         {
-            throw new InvalidOperationException($"Operación bloqueada: Ya existe un presupuesto ACTIVO para el período fiscal {fiscalPeriod}.");
+            throw new InvalidOperationException($"Ya existe un presupuesto aprobado para el ano fiscal {request.FiscalYear}.");
         }
 
-        // Eliminar cualquier borrador previo para este periodo fiscal si se va a recrear
         var existingDraft = await _context.Budgets
-            .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.FiscalPeriod == fiscalPeriod && b.Status == BudgetStatus.Draft);
+            .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.FiscalYear == request.FiscalYear && b.Status == BudgetStatus.Draft);
+
         if (existingDraft != null)
         {
             _context.Budgets.Remove(existingDraft);
@@ -57,256 +44,319 @@ public class BudgetService
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            FiscalPeriod = fiscalPeriod,
-            MeetingActNumber = meetingActNumber,
-            ApprovalDate = approvalDate,
+            FiscalYear = request.FiscalYear,
+            MeetingActNumber = request.MeetingActNumber,
+            ApprovalDate = request.ApprovalDate,
             Status = BudgetStatus.Draft,
+            Observations = request.Observations,
             CreatedByUserId = userId
         };
 
-        // Cargar cuentas del tenant para validación de tipo e inactividad
-        var accounts = await _context.AccountingAccounts
-            .Where(a => a.TenantId == tenantId && a.IsActive)
-            .ToDictionaryAsync(a => a.Code);
-
-        if (copyFromPrevious)
+        if (request.CopyFromPrevious)
         {
-            // 2. Copiar presupuesto del período anterior
-            var previousPeriod = fiscalPeriod - 1;
+            var previousYear = request.FiscalYear - 1;
             var previousBudget = await _context.Budgets
-                .Include(b => b.BudgetDetails)
-                .ThenInclude(d => d.AccountingAccount)
-                .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.FiscalPeriod == previousPeriod && (b.Status == BudgetStatus.Active || b.Status == BudgetStatus.Closed));
+                .Include(b => b.IncomeItems)
+                .Include(b => b.ExpenseItems)
+                .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.FiscalYear == previousYear && b.Status == BudgetStatus.Approved);
 
             if (previousBudget == null)
             {
-                throw new InvalidOperationException($"No se encontró un presupuesto aprobado (Activo o Cerrado) para el período anterior ({previousPeriod}) para copiar.");
+                throw new InvalidOperationException($"No se encontro un presupuesto aprobado para el periodo anterior ({previousYear}).");
             }
 
-            foreach (var prevDetail in previousBudget.BudgetDetails)
+            var adjustment = request.GlobalPercentageAdjustment ?? 0m;
+
+            foreach (var prev in previousBudget.IncomeItems)
             {
-                var accountCode = prevDetail.AccountingAccount!.Code;
-
-                // Solo copiar si la cuenta está activa en el catálogo actual
-                if (accounts.TryGetValue(accountCode, out var currentAccount))
-                {
-                    // No presupuestar cuentas de agrupación
-                    if (currentAccount.IsGroup)
-                    {
-                        continue;
-                    }
-
-                    decimal adjustedValue = prevDetail.ApprovedValue;
-
-                    // Aplicar ajuste cuenta por cuenta si existe
-                    if (accountAdjustments != null && accountAdjustments.TryGetValue(accountCode, out var pct))
-                    {
-                        adjustedValue = prevDetail.ApprovedValue * (1m + (pct / 100m));
-                    }
-                    // O aplicar ajuste global
-                    else if (globalPercentageAdjustment.HasValue)
-                    {
-                        adjustedValue = prevDetail.ApprovedValue * (1m + (globalPercentageAdjustment.Value / 100m));
-                    }
-
-                    // Redondear a 2 decimales
-                    adjustedValue = Math.Round(adjustedValue, 2);
-
-                    budget.BudgetDetails.Add(new BudgetDetail
-                    {
-                        Id = Guid.NewGuid(),
-                        BudgetId = budget.Id,
-                        AccountingAccountId = currentAccount.Id,
-                        ApprovedValue = adjustedValue,
-                        Observations = $"Copiado de período {previousPeriod}. Valor original: {prevDetail.ApprovedValue}"
-                    });
-                }
-            }
-        }
-        else if (manualDetails != null)
-        {
-            // 3. Crear a partir de los detalles manuales proveídos
-            foreach (var detail in manualDetails)
-            {
-                var account = await _context.AccountingAccounts
-                    .FirstOrDefaultAsync(a => a.Id == detail.AccountingAccountId && a.TenantId == tenantId);
-
-                if (account == null)
-                {
-                    throw new KeyNotFoundException($"La cuenta contable con ID {detail.AccountingAccountId} no existe.");
-                }
-
-                if (!account.IsActive)
-                {
-                    throw new InvalidOperationException($"La cuenta contable {account.Code} - {account.Name} está inactiva y no puede recibir presupuesto.");
-                }
-
-                if (account.IsGroup)
-                {
-                    throw new InvalidOperationException($"La cuenta contable {account.Code} es de agrupación y no puede recibir presupuesto directo. Debe presupuestar a nivel auxiliar.");
-                }
-
-                budget.BudgetDetails.Add(new BudgetDetail
+                var adjustedValue = Math.Round(prev.AnnualValue * (1m + adjustment / 100m), 2);
+                budget.IncomeItems.Add(new IncomeItem
                 {
                     Id = Guid.NewGuid(),
                     BudgetId = budget.Id,
-                    AccountingAccountId = account.Id,
-                    ApprovedValue = Math.Round(detail.ApprovedValue, 2),
-                    Observations = detail.Observations
+                    Name = prev.Name,
+                    Description = prev.Description,
+                    AnnualValue = adjustedValue
                 });
+            }
+
+            foreach (var prev in previousBudget.ExpenseItems)
+            {
+                var adjustedValue = Math.Round(prev.AnnualValue * (1m + adjustment / 100m), 2);
+                budget.ExpenseItems.Add(new ExpenseItem
+                {
+                    Id = Guid.NewGuid(),
+                    BudgetId = budget.Id,
+                    Name = prev.Name,
+                    Description = prev.Description,
+                    Category = prev.Category,
+                    AnnualValue = adjustedValue,
+                    IsContingencyFund = prev.IsContingencyFund,
+                    ContingencyPercentage = prev.ContingencyPercentage,
+                    RequiresCouncilApproval = prev.RequiresCouncilApproval,
+                    ApprovalThreshold = prev.ApprovalThreshold
+                });
+            }
+        }
+        else
+        {
+            if (request.IncomeItems != null)
+            {
+                foreach (var item in request.IncomeItems)
+                {
+                    budget.IncomeItems.Add(new IncomeItem
+                    {
+                        Id = Guid.NewGuid(),
+                        BudgetId = budget.Id,
+                        Name = item.Name,
+                        Description = item.Description,
+                        AnnualValue = Math.Round(item.AnnualValue, 2)
+                    });
+                }
+            }
+
+            if (request.ExpenseItems != null)
+            {
+                foreach (var item in request.ExpenseItems)
+                {
+                    budget.ExpenseItems.Add(new ExpenseItem
+                    {
+                        Id = Guid.NewGuid(),
+                        BudgetId = budget.Id,
+                        Name = item.Name,
+                        Description = item.Description,
+                        Category = Enum.Parse<ExpenseCategory>(item.Category),
+                        AnnualValue = Math.Round(item.AnnualValue, 2),
+                        IsContingencyFund = item.IsContingencyFund,
+                        ContingencyPercentage = item.ContingencyPercentage,
+                        RequiresCouncilApproval = item.RequiresCouncilApproval,
+                        ApprovalThreshold = item.ApprovalThreshold
+                    });
+                }
             }
         }
 
         _context.Budgets.Add(budget);
         await _context.SaveChangesAsync();
 
-        return budget;
+        return await GetBudgetDetailAsync(tenantId, budget.Id)
+            ?? throw new InvalidOperationException("Error al crear el presupuesto.");
     }
 
-    /// <summary>
-    /// Modifica los rubros de un presupuesto que esté en estado Borrador (Draft).
-    /// Si el presupuesto ya está Activo o Cerrado, bloquea la edición directa.
-    /// </summary>
-    public async Task<Budget> UpdateDraftBudgetDetailsAsync(
+    public async Task<List<BudgetSummaryDto>> GetBudgetsAsync(string tenantId, int? year = null)
+    {
+        var query = _context.Budgets
+            .Include(b => b.IncomeItems)
+            .Include(b => b.ExpenseItems)
+            .Where(b => b.TenantId == tenantId);
+
+        if (year.HasValue)
+        {
+            query = query.Where(b => b.FiscalYear == year.Value);
+        }
+
+        return await query
+            .OrderByDescending(b => b.FiscalYear)
+            .Select(b => new BudgetSummaryDto
+            {
+                Id = b.Id,
+                FiscalYear = b.FiscalYear,
+                ApprovalDate = b.ApprovalDate,
+                MeetingActNumber = b.MeetingActNumber,
+                Status = b.Status.ToString(),
+                Observations = b.Observations,
+                IncomeItemsCount = b.IncomeItems.Count,
+                ExpenseItemsCount = b.ExpenseItems.Count,
+                TotalIncome = b.IncomeItems.Sum(i => i.AnnualValue),
+                TotalExpense = b.ExpenseItems.Sum(e => e.AnnualValue),
+                CreatedByUserId = b.CreatedByUserId
+            })
+            .ToListAsync();
+    }
+
+    public async Task<BudgetDetailDto?> GetBudgetDetailAsync(string tenantId, Guid budgetId)
+    {
+        return await _context.Budgets
+            .Include(b => b.IncomeItems)
+            .Include(b => b.ExpenseItems)
+            .Where(b => b.Id == budgetId && b.TenantId == tenantId)
+            .Select(b => new BudgetDetailDto
+            {
+                Id = b.Id,
+                FiscalYear = b.FiscalYear,
+                ApprovalDate = b.ApprovalDate,
+                MeetingActNumber = b.MeetingActNumber,
+                Status = b.Status.ToString(),
+                Observations = b.Observations,
+                IncomeItems = b.IncomeItems.Select(i => new IncomeItemDto
+                {
+                    Id = i.Id,
+                    Name = i.Name,
+                    Description = i.Description,
+                    AnnualValue = i.AnnualValue
+                }).ToList(),
+                ExpenseItems = b.ExpenseItems.Select(e => new ExpenseItemDto
+                {
+                    Id = e.Id,
+                    Name = e.Name,
+                    Description = e.Description,
+                    Category = e.Category.ToString(),
+                    AnnualValue = e.AnnualValue,
+                    IsContingencyFund = e.IsContingencyFund,
+                    ContingencyPercentage = e.ContingencyPercentage,
+                    RequiresCouncilApproval = e.RequiresCouncilApproval,
+                    ApprovalThreshold = e.ApprovalThreshold
+                }).ToList()
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<BudgetDetailDto> UpdateDraftBudgetAsync(
         string tenantId,
         Guid budgetId,
-        List<CreateBudgetDetailRequestDto> details)
+        List<CreateIncomeItemDto> incomeItems,
+        List<CreateExpenseItemDto> expenseItems)
     {
         var budget = await _context.Budgets
-            .Include(b => b.BudgetDetails)
+            .Include(b => b.IncomeItems)
+            .Include(b => b.ExpenseItems)
             .FirstOrDefaultAsync(b => b.Id == budgetId && b.TenantId == tenantId);
 
         if (budget == null)
         {
-            throw new KeyNotFoundException("No se encontró el presupuesto solicitado.");
+            throw new KeyNotFoundException("Presupuesto no encontrado.");
         }
 
         if (budget.Status != BudgetStatus.Draft)
         {
-            throw new InvalidOperationException("Un presupuesto aprobado/activo no puede editarse directamente. Los cambios deben realizarse mediante traslados o adiciones.");
+            throw new InvalidOperationException("Un presupuesto aprobado no puede editarse. Use modificaciones formales.");
         }
 
-        // Limpiar detalles anteriores
-        _context.BudgetDetails.RemoveRange(budget.BudgetDetails);
-        budget.BudgetDetails.Clear();
+        _context.RemoveRange(budget.IncomeItems);
+        _context.RemoveRange(budget.ExpenseItems);
+        budget.IncomeItems.Clear();
+        budget.ExpenseItems.Clear();
 
-        // Agregar nuevos detalles
-        foreach (var d in details)
+        foreach (var item in incomeItems)
         {
-            var account = await _context.AccountingAccounts
-                .FirstOrDefaultAsync(a => a.Id == d.AccountingAccountId && a.TenantId == tenantId);
-
-            if (account == null)
-            {
-                throw new KeyNotFoundException($"La cuenta con ID {d.AccountingAccountId} no existe.");
-            }
-
-            if (!account.IsActive)
-            {
-                throw new InvalidOperationException($"La cuenta contable {account.Code} está inactiva.");
-            }
-
-            if (account.IsGroup)
-            {
-                throw new InvalidOperationException($"La cuenta {account.Code} es de agrupación y no acepta movimientos directos.");
-            }
-
-            budget.BudgetDetails.Add(new BudgetDetail
+            budget.IncomeItems.Add(new IncomeItem
             {
                 Id = Guid.NewGuid(),
                 BudgetId = budget.Id,
-                AccountingAccountId = account.Id,
-                ApprovedValue = Math.Round(d.ApprovedValue, 2),
-                Observations = d.Observations
+                Name = item.Name,
+                Description = item.Description,
+                AnnualValue = Math.Round(item.AnnualValue, 2)
+            });
+        }
+
+        foreach (var item in expenseItems)
+        {
+            budget.ExpenseItems.Add(new ExpenseItem
+            {
+                Id = Guid.NewGuid(),
+                BudgetId = budget.Id,
+                Name = item.Name,
+                Description = item.Description,
+                Category = Enum.Parse<ExpenseCategory>(item.Category),
+                AnnualValue = Math.Round(item.AnnualValue, 2),
+                IsContingencyFund = item.IsContingencyFund,
+                ContingencyPercentage = item.ContingencyPercentage,
+                RequiresCouncilApproval = item.RequiresCouncilApproval,
+                ApprovalThreshold = item.ApprovalThreshold
             });
         }
 
         await _context.SaveChangesAsync();
-        return budget;
+
+        return (await GetBudgetDetailAsync(tenantId, budgetId))!;
     }
 
-    /// <summary>
-    /// Activa un presupuesto en borrador exigiendo acta de asamblea y fecha de aprobación.
-    /// </summary>
-    public async Task<Budget> ActivateBudgetAsync(
+    public async Task<BudgetDetailDto> ApproveBudgetAsync(
         string tenantId,
         Guid budgetId,
-        string meetingActNumber,
-        DateTime approvalDate)
+        ApproveBudgetRequestDto request)
     {
-        if (string.IsNullOrWhiteSpace(meetingActNumber))
+        if (string.IsNullOrWhiteSpace(request.MeetingActNumber))
         {
-            throw new ArgumentException("El número de acta de asamblea es obligatorio para activar el presupuesto.");
+            throw new ArgumentException("El numero de acta de asamblea es obligatorio para aprobar el presupuesto.");
         }
 
         var budget = await _context.Budgets
+            .Include(b => b.IncomeItems)
+            .Include(b => b.ExpenseItems)
             .FirstOrDefaultAsync(b => b.Id == budgetId && b.TenantId == tenantId);
 
         if (budget == null)
         {
-            throw new KeyNotFoundException("No se encontró el presupuesto a activar.");
+            throw new KeyNotFoundException("Presupuesto no encontrado.");
         }
 
-        if (budget.Status == BudgetStatus.Active)
+        if (budget.Status == BudgetStatus.Approved)
         {
-            return budget; // Ya está activo
+            return (await GetBudgetDetailAsync(tenantId, budgetId))!;
         }
 
-        if (budget.Status == BudgetStatus.Closed)
+        var conflict = await _context.Budgets
+            .AnyAsync(b => b.TenantId == tenantId && b.FiscalYear == budget.FiscalYear && b.Status == BudgetStatus.Approved);
+
+        if (conflict)
         {
-            throw new InvalidOperationException("No se puede activar un presupuesto que ya se encuentra cerrado.");
+            throw new InvalidOperationException($"Ya existe un presupuesto aprobado para el ano fiscal {budget.FiscalYear}.");
         }
 
-        // Validar que no exista otro presupuesto activo para el mismo período
-        var activeBudget = await _context.Budgets
-            .FirstOrDefaultAsync(b => b.TenantId == tenantId && b.FiscalPeriod == budget.FiscalPeriod && b.Status == BudgetStatus.Active);
-
-        if (activeBudget != null)
+        var contingencyFundItem = budget.ExpenseItems.FirstOrDefault(e => e.IsContingencyFund);
+        if (contingencyFundItem == null)
         {
-            throw new InvalidOperationException($"Operación bloqueada: Ya existe un presupuesto ACTIVO para el período fiscal {budget.FiscalPeriod} (Presupuesto ID: {activeBudget.Id}).");
+            throw new InvalidOperationException("El presupuesto debe incluir un rubro de fondo de imprevistos (Ley 675 de 2001).");
         }
 
-        // Validar que no existan periodos de facturación ya ejecutados para este año fiscal
-        var yearPrefix = budget.FiscalPeriod.ToString() + "-";
-        var hasBillingPeriods = await _context.BillingPeriods
-            .AnyAsync(bp => bp.TenantId == tenantId && bp.Period.StartsWith(yearPrefix));
-
-        if (hasBillingPeriods)
+        var totalIncome = budget.IncomeItems.Sum(i => i.AnnualValue);
+        if (totalIncome <= 0)
         {
-            throw new InvalidOperationException($"Operación bloqueada: Ya existen periodos de facturación generados para el año fiscal {budget.FiscalPeriod}. No se puede activar un presupuesto después de haber ejecutado liquidaciones mensuales.");
+            throw new InvalidOperationException("El presupuesto debe tener al menos un ingreso con valor positivo.");
         }
 
-        // Activar el presupuesto y registrar los datos de aprobación de la asamblea
-        budget.MeetingActNumber = meetingActNumber;
-        budget.ApprovalDate = approvalDate;
-        budget.Status = BudgetStatus.Active;
+        if (contingencyFundItem.ContingencyPercentage > 0)
+        {
+            var minContingency = totalIncome * (contingencyFundItem.ContingencyPercentage / 100m);
+            if (contingencyFundItem.AnnualValue < minContingency)
+            {
+                throw new InvalidOperationException(
+                    $"El valor del fondo de imprevistos ({contingencyFundItem.AnnualValue:C2}) es inferior al " +
+                    $"{contingencyFundItem.ContingencyPercentage}% del total de ingresos ({minContingency:C2}).");
+            }
+        }
+
+        budget.MeetingActNumber = request.MeetingActNumber;
+        budget.ApprovalDate = request.ApprovalDate;
+        budget.Status = BudgetStatus.Approved;
 
         await _context.SaveChangesAsync();
-        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
-        return budget;
+
+        return (await GetBudgetDetailAsync(tenantId, budgetId))!;
     }
 
-    /// <summary>
-    /// Cierra un presupuesto activo al final del período fiscal.
-    /// </summary>
-    public async Task<Budget> CloseBudgetAsync(string tenantId, Guid budgetId)
+    public async Task<BudgetDetailDto> GenerateNextPeriodBudgetAsync(string tenantId, Guid currentBudgetId)
     {
-        var budget = await _context.Budgets
-            .FirstOrDefaultAsync(b => b.Id == budgetId && b.TenantId == tenantId);
+        var current = await _context.Budgets
+            .Include(b => b.IncomeItems)
+            .Include(b => b.ExpenseItems)
+            .FirstOrDefaultAsync(b => b.Id == currentBudgetId && b.TenantId == tenantId);
 
-        if (budget == null)
+        if (current == null)
         {
-            throw new KeyNotFoundException("No se encontró el presupuesto.");
+            throw new KeyNotFoundException("Presupuesto actual no encontrado.");
         }
 
-        if (budget.Status != BudgetStatus.Active)
+        var nextYear = current.FiscalYear + 1;
+
+        var request = new CreateBudgetRequestDto
         {
-            throw new InvalidOperationException("Solo se puede cerrar un presupuesto que esté actualmente Activo.");
-        }
+            FiscalYear = nextYear,
+            CopyFromPrevious = true,
+            Observations = $"Generado a partir del presupuesto {current.FiscalYear}"
+        };
 
-        budget.Status = BudgetStatus.Closed;
-        await _context.SaveChangesAsync();
-
-        return budget;
+        return await CreateBudgetAsync(tenantId, request, "SYSTEM");
     }
 }

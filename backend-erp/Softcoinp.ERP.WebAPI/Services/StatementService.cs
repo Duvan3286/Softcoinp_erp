@@ -14,16 +14,13 @@ public class StatementService
 {
     private readonly ApplicationDbContext _context;
     private readonly LateInterestService _lateInterestService;
-    private readonly AccountingIntegrationService _accounting;
 
     public StatementService(
         ApplicationDbContext context,
-        LateInterestService lateInterestService,
-        AccountingIntegrationService accounting)
+        LateInterestService lateInterestService)
     {
         _context = context;
         _lateInterestService = lateInterestService;
-        _accounting = accounting;
     }
 
     public async Task<UnitStatementDto> GetUnitStatementAsync(
@@ -205,22 +202,6 @@ public class StatementService
 
         _context.ClearanceCertificates.Add(certificate);
         await _context.SaveChangesAsync();
-
-        try
-        {
-            await _accounting.RecordClearanceCertificateAsync(
-                tenantId,
-                certificate.Id,
-                certificate.CertificateNumber,
-                unit.Identifier,
-                statement.ClosingBalance,
-                $"Paz y salvo expedido para unidad {unit.Identifier} - Certificado {certificate.CertificateNumber}",
-                userId);
-        }
-        catch (Exception ex)
-        {
-            _ = ex;
-        }
 
         return certificate;
     }

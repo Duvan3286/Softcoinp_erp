@@ -8,12 +8,13 @@ namespace Softcoinp.ERP.Domain.Entities;
 public class Budget : BaseEntity
 {
     public string TenantId { get; set; } = string.Empty;
-    public int FiscalPeriod { get; set; }
+    public int FiscalYear { get; set; }
     public DateTime? ApprovalDate { get; set; }
     public string MeetingActNumber { get; set; } = string.Empty;
     public BudgetStatus Status { get; set; } = BudgetStatus.Draft;
+    public string Observations { get; set; } = string.Empty;
     public string CreatedByUserId { get; set; } = string.Empty;
 
-    // Navigation properties
-    public ICollection<BudgetDetail> BudgetDetails { get; set; } = new List<BudgetDetail>();
+    public ICollection<IncomeItem> IncomeItems { get; set; } = new List<IncomeItem>();
+    public ICollection<ExpenseItem> ExpenseItems { get; set; } = new List<ExpenseItem>();
 }

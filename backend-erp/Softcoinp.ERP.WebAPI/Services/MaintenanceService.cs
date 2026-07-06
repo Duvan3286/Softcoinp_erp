@@ -412,8 +412,6 @@ public class MaintenanceService
                 ExecutionEndDate = w.ExecutionEndDate,
                 EstimatedCost = w.EstimatedCost,
                 ActualCost = w.ActualCost,
-                BudgetAccountId = w.BudgetAccountId,
-                BudgetAccountName = w.BudgetAccount != null ? w.BudgetAccount.Name : string.Empty,
                 Status = w.Status.ToString(),
                 Outcome = w.Outcome != null ? w.Outcome.ToString() : null,
                 OutcomeNotes = w.OutcomeNotes,
@@ -472,7 +470,6 @@ public class MaintenanceService
             AssignedProviderId = request.AssignedProviderId,
             ScheduledDate = request.ScheduledDate,
             EstimatedCost = request.EstimatedCost ?? 0,
-            BudgetAccountId = request.BudgetAccountId,
             Status = request.AssignedProviderId.HasValue ? WorkOrderStatus.Assigned : WorkOrderStatus.PendingAssignment,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
@@ -505,7 +502,6 @@ public class MaintenanceService
         if (request.ExecutionStartDate != null) order.ExecutionStartDate = request.ExecutionStartDate;
         if (request.EstimatedCost != null) order.EstimatedCost = request.EstimatedCost.Value;
         if (request.ActualCost != null) order.ActualCost = request.ActualCost.Value;
-        if (request.BudgetAccountId != null) order.BudgetAccountId = request.BudgetAccountId;
         if (request.Outcome != null && Enum.TryParse<WorkOrderOutcome>(request.Outcome, true, out var outcome))
             order.Outcome = outcome;
         if (request.OutcomeNotes != null) order.OutcomeNotes = request.OutcomeNotes;
@@ -710,7 +706,7 @@ public class MaintenanceService
 
     // ── Reportes ───────────────────────────────────────────────────
 
-    public async Task<MaintenanceReportDto> GetScheduledMaintenanceReportAsync(string tenantId, int daysAhead, Guid? budgetAccountId = null)
+    public async Task<MaintenanceReportDto> GetScheduledMaintenanceReportAsync(string tenantId, int daysAhead)
     {
         var now = DateTime.UtcNow;
         var cutoff = now.AddDays(daysAhead);
@@ -737,12 +733,6 @@ public class MaintenanceService
         var totalEstimated = items.Sum(i => i.EstimatedCost);
 
         decimal budgetAvailable = 0;
-        if (budgetAccountId.HasValue)
-        {
-            var exists = await _context.AccountingAccounts
-                .AnyAsync(a => a.Id == budgetAccountId.Value);
-            if (exists) budgetAvailable = 0;
-        }
 
         return new MaintenanceReportDto
         {

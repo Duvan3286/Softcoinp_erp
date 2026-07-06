@@ -29,7 +29,6 @@ public class BankAccountsController : BaseController
     {
         var tenantId = GetTenantId();
         var query = _context.BankAccounts
-            .Include(b => b.AccountingAccount)
             .Where(b => b.TenantId == tenantId);
 
         if (!includeInactive)
@@ -41,9 +40,6 @@ public class BankAccountsController : BaseController
             .Select(b => new BankAccountDto
             {
                 Id = b.Id,
-                AccountingAccountId = b.AccountingAccountId,
-                AccountingAccountCode = b.AccountingAccount != null ? b.AccountingAccount.Code : string.Empty,
-                AccountingAccountName = b.AccountingAccount != null ? b.AccountingAccount.Name : string.Empty,
                 BankName = b.BankName,
                 AccountNumber = b.AccountNumber,
                 AccountType = b.AccountType.ToString(),
@@ -63,7 +59,6 @@ public class BankAccountsController : BaseController
     {
         var tenantId = GetTenantId();
         var account = await _context.BankAccounts
-            .Include(b => b.AccountingAccount)
             .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId);
 
         if (account == null)
@@ -72,9 +67,6 @@ public class BankAccountsController : BaseController
         return Ok(new BankAccountDto
         {
             Id = account.Id,
-            AccountingAccountId = account.AccountingAccountId,
-            AccountingAccountCode = account.AccountingAccount?.Code ?? string.Empty,
-            AccountingAccountName = account.AccountingAccount?.Name ?? string.Empty,
             BankName = account.BankName,
             AccountNumber = account.AccountNumber,
             AccountType = account.AccountType.ToString(),
@@ -100,12 +92,6 @@ public class BankAccountsController : BaseController
         if (!Enum.TryParse<BankAccountType>(dto.AccountType, true, out var accountType))
             return BadRequest("Tipo de cuenta inválido. Use: Checking o Savings.");
 
-        var accountingAccount = await _context.AccountingAccounts
-            .FirstOrDefaultAsync(a => a.Id == dto.AccountingAccountId && a.TenantId == tenantId);
-
-        if (accountingAccount == null)
-            return BadRequest("La cuenta contable seleccionada no existe.");
-
         var exists = await _context.BankAccounts
             .AnyAsync(b => b.TenantId == tenantId && b.AccountNumber == dto.AccountNumber);
 
@@ -116,7 +102,6 @@ public class BankAccountsController : BaseController
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            AccountingAccountId = dto.AccountingAccountId,
             BankName = dto.BankName,
             AccountNumber = dto.AccountNumber,
             AccountType = accountType,
@@ -132,9 +117,6 @@ public class BankAccountsController : BaseController
         return CreatedAtAction(nameof(GetAccount), new { id = account.Id }, new BankAccountDto
         {
             Id = account.Id,
-            AccountingAccountId = account.AccountingAccountId,
-            AccountingAccountCode = accountingAccount.Code,
-            AccountingAccountName = accountingAccount.Name,
             BankName = account.BankName,
             AccountNumber = account.AccountNumber,
             AccountType = account.AccountType.ToString(),

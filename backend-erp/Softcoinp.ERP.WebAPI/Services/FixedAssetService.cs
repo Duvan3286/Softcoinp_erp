@@ -13,13 +13,11 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class FixedAssetService
 {
     private readonly ApplicationDbContext _context;
-    private readonly AccountingIntegrationService _accounting;
     private readonly ILogger<FixedAssetService> _logger;
 
-    public FixedAssetService(ApplicationDbContext context, AccountingIntegrationService accounting, ILogger<FixedAssetService> logger)
+    public FixedAssetService(ApplicationDbContext context, ILogger<FixedAssetService> logger)
     {
         _context = context;
-        _accounting = accounting;
         _logger = logger;
     }
 
@@ -70,7 +68,6 @@ public class FixedAssetService
         existing.AcquisitionDate = asset.AcquisitionDate;
         existing.UsefulLifeMonths = asset.UsefulLifeMonths;
         existing.ResidualValue = asset.ResidualValue;
-        existing.AccountingAccountId = asset.AccountingAccountId;
         existing.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

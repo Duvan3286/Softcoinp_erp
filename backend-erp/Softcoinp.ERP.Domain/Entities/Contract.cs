@@ -36,9 +36,6 @@ public class Contract
 
     public string AssemblyMeetingActNumber { get; set; } = string.Empty;
 
-    public Guid? BudgetAccountId { get; set; }
-    public AccountingAccount? BudgetAccount { get; set; }
-
     public ContractStatus Status { get; set; } = ContractStatus.Draft;
 
     public string SignedContractFilePath { get; set; } = string.Empty;

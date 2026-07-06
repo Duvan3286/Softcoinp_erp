@@ -34,18 +34,13 @@ public class ApplicationDbContext : IdentityDbContext<User>
     // ── Módulo Financiero (existente) ────────────────────────────────
     public DbSet<FinancialRecord> FinancialRecords => Set<FinancialRecord>();
     public DbSet<Provider> Providers => Set<Provider>();
-    public DbSet<AccountingAccount> AccountingAccounts => Set<AccountingAccount>();
     public DbSet<FinancialTransaction> FinancialTransactions => Set<FinancialTransaction>();
     public DbSet<Budget> Budgets => Set<Budget>();
-    public DbSet<BudgetDetail> BudgetDetails => Set<BudgetDetail>();
-    public DbSet<BudgetMovement> BudgetMovements => Set<BudgetMovement>();
-    public DbSet<ContingencyFund> ContingencyFunds => Set<ContingencyFund>();
-    public DbSet<ContingencyFundContribution> ContingencyFundContributions => Set<ContingencyFundContribution>();
+    public DbSet<IncomeItem> IncomeItems => Set<IncomeItem>();
+    public DbSet<ExpenseItem> ExpenseItems => Set<ExpenseItem>();
+    public DbSet<ExecutedExpense> ExecutedExpenses => Set<ExecutedExpense>();
+    public DbSet<BudgetModification> BudgetModifications => Set<BudgetModification>();
     public DbSet<ContingencyFundUsage> ContingencyFundUsages => Set<ContingencyFundUsage>();
-    public DbSet<AccountingEntry> AccountingEntries => Set<AccountingEntry>();
-    public DbSet<AccountingPeriod> AccountingPeriods => Set<AccountingPeriod>();
-    public DbSet<EntryLine> EntryLines => Set<EntryLine>();
-    public DbSet<EntryReversal> EntryReversals => Set<EntryReversal>();
 
     // ── Módulo Auth & Roles (existente) ──────────────────────────────
     public DbSet<UserTenantRole> UserTenantRoles => Set<UserTenantRole>();
@@ -203,66 +198,90 @@ public class ApplicationDbContext : IdentityDbContext<User>
     {
         base.OnModelCreating(modelBuilder);
 
-        // ── Entidades financieras y Plan de Cuentas ───────────────────
-        modelBuilder.Entity<AccountingAccount>(entity =>
-        {
-            entity.ToTable("erp_accounting_accounts");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.Code).IsRequired().HasMaxLength(20);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.Property(e => e.Nature).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.HasIndex(e => e.Code).IsUnique();
-            entity.HasIndex(e => new { e.TenantId, e.Code, e.IsGroup })
-                  .HasDatabaseName("IX_accounts_tenant_code_group");
-        });
-
+        // ── Entidades de Presupuesto ──────────────────────────────────
         modelBuilder.Entity<Budget>(entity =>
         {
             entity.ToTable("erp_budgets");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.MeetingActNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.MeetingActNumber).HasMaxLength(100);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Observations).HasMaxLength(1000);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
-            entity.HasIndex(e => new { e.TenantId, e.FiscalPeriod });
+            entity.HasIndex(e => new { e.TenantId, e.FiscalYear }).IsUnique();
         });
 
-        modelBuilder.Entity<BudgetDetail>(entity =>
+        modelBuilder.Entity<IncomeItem>(entity =>
         {
-            entity.ToTable("erp_budget_details");
+            entity.ToTable("erp_income_items");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.ApprovedValue).HasPrecision(18, 2);
-            entity.Property(e => e.Observations).HasMaxLength(500);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.AnnualValue).HasPrecision(18, 2);
 
             entity.HasOne(e => e.Budget)
-                  .WithMany(b => b.BudgetDetails)
+                  .WithMany(b => b.IncomeItems)
                   .HasForeignKey(e => e.BudgetId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.AccountingAccount)
-                  .WithMany()
-                  .HasForeignKey(e => e.AccountingAccountId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(e => new { e.BudgetId, e.AccountingAccountId }).IsUnique();
-            entity.HasIndex(e => new { e.AccountingAccountId, e.BudgetId })
-                  .HasDatabaseName("IX_budget_details_account_lookup");
-            entity.HasIndex(e => new { e.BudgetId, e.AccountingAccountId, e.ApprovedValue })
-                  .HasDatabaseName("IX_budget_details_budget_account_value");
+            entity.HasIndex(e => new { e.BudgetId, e.Name }).IsUnique();
         });
 
-        modelBuilder.Entity<BudgetMovement>(entity =>
+        modelBuilder.Entity<ExpenseItem>(entity =>
         {
-            entity.ToTable("erp_budget_movements");
+            entity.ToTable("erp_expense_items");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.AnnualValue).HasPrecision(18, 2);
+            entity.Property(e => e.ContingencyPercentage).HasPrecision(5, 2);
+            entity.Property(e => e.ApprovalThreshold).HasPrecision(18, 2);
+
+            entity.HasOne(e => e.Budget)
+                  .WithMany(b => b.ExpenseItems)
+                  .HasForeignKey(e => e.BudgetId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.BudgetId, e.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<ExecutedExpense>(entity =>
+        {
+            entity.ToTable("erp_executed_expenses");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.InvoiceReference).HasMaxLength(100);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.ExpenseItem)
+                  .WithMany()
+                  .HasForeignKey(e => e.ExpenseItemId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Provider)
+                  .WithMany()
+                  .HasForeignKey(e => e.ProviderId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.ExpenseDate });
+            entity.HasIndex(e => new { e.ExpenseItemId, e.ExpenseDate });
+        });
+
+        modelBuilder.Entity<BudgetModification>(entity =>
+        {
+            entity.ToTable("erp_budget_modifications");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ModificationType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.PreviousValue).HasPrecision(18, 2);
+            entity.Property(e => e.NewValue).HasPrecision(18, 2);
             entity.Property(e => e.Justification).IsRequired().HasMaxLength(1000);
-            entity.Property(e => e.MeetingActNumber).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.MovementType).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.ApprovalType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.MeetingActNumber).IsRequired().HasMaxLength(100);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
 
             entity.HasOne(e => e.Budget)
@@ -270,36 +289,17 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.BudgetId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.SourceAccount)
+            entity.HasOne(e => e.ExpenseItem)
                   .WithMany()
-                  .HasForeignKey(e => e.SourceAccountId)
+                  .HasForeignKey(e => e.ExpenseItemId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(e => e.DestinationAccount)
+            entity.HasOne(e => e.IncomeItem)
                   .WithMany()
-                  .HasForeignKey(e => e.DestinationAccountId)
+                  .HasForeignKey(e => e.IncomeItemId)
                   .OnDelete(DeleteBehavior.Restrict);
-        });
 
-        modelBuilder.Entity<ContingencyFund>(entity =>
-        {
-            entity.ToTable("erp_contingency_funds");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.CurrentBalance).HasPrecision(18, 2);
-            entity.HasIndex(e => e.TenantId).IsUnique();
-        });
-
-        modelBuilder.Entity<ContingencyFundContribution>(entity =>
-        {
-            entity.ToTable("erp_contingency_fund_contributions");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.Period).IsRequired().HasMaxLength(7); // YYYY-MM
-            entity.Property(e => e.Amount).HasPrecision(18, 2);
-            entity.Property(e => e.IncomeBase).HasPrecision(18, 2);
-            entity.Property(e => e.Percentage).HasPrecision(5, 2);
-            entity.HasIndex(e => new { e.TenantId, e.Period }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.BudgetId, e.CreatedAt });
         });
 
         modelBuilder.Entity<ContingencyFundUsage>(entity =>
@@ -307,99 +307,20 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.ToTable("erp_contingency_fund_usages");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.Justification).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.CouncilApprovalActNumber).IsRequired().HasMaxLength(100);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
-        });
 
-        modelBuilder.Entity<AccountingPeriod>(entity =>
-        {
-            entity.ToTable("erp_accounting_periods");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.PeriodLabel).IsRequired().HasMaxLength(20);
-            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.Property(e => e.ClosedByUserId).HasMaxLength(450);
-            entity.HasIndex(e => new { e.TenantId, e.FiscalYear, e.Month }).IsUnique();
-            entity.HasIndex(e => new { e.TenantId, e.Status, e.FiscalYear, e.Month })
-                  .HasDatabaseName("IX_accounting_periods_status_year_month");
-        });
-
-        modelBuilder.Entity<AccountingEntry>(entity =>
-        {
-            entity.ToTable("erp_accounting_entries");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.EntryType).HasConversion<string>().HasMaxLength(30).IsRequired();
-            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.ExternalReference).HasMaxLength(100);
-            entity.Property(e => e.TotalDebit).HasPrecision(18, 2);
-            entity.Property(e => e.TotalCredit).HasPrecision(18, 2);
-            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
-            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
-
-            entity.HasOne(e => e.AccountingPeriod)
+            entity.HasOne(e => e.Budget)
                   .WithMany()
-                  .HasForeignKey(e => e.AccountingPeriodId)
-                  .OnDelete(DeleteBehavior.Restrict)
-                  .IsRequired(false);
-
-            entity.HasIndex(e => new { e.TenantId, e.EntryNumber }).IsUnique();
-            entity.HasIndex(e => new { e.TenantId, e.EntryDate });
-            entity.HasIndex(e => new { e.TenantId, e.Status });
-            entity.HasIndex(e => new { e.TenantId, e.EntryDate, e.EntryNumber })
-                  .HasDatabaseName("IX_entries_pagination");
-            entity.HasIndex(e => new { e.TenantId, e.Status, e.EntryType })
-                  .HasDatabaseName("IX_entries_status_type");
-        });
-
-        modelBuilder.Entity<EntryLine>(entity =>
-        {
-            entity.ToTable("erp_entry_lines");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.ThirdPartyId).HasMaxLength(255);
-            entity.Property(e => e.Debit).HasPrecision(18, 2);
-            entity.Property(e => e.Credit).HasPrecision(18, 2);
-
-            entity.HasOne(e => e.AccountingEntry)
-                  .WithMany(e => e.Lines)
-                  .HasForeignKey(e => e.AccountingEntryId)
+                  .HasForeignKey(e => e.BudgetId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.AccountingAccount)
+            entity.HasOne(e => e.ExecutedExpense)
                   .WithMany()
-                  .HasForeignKey(e => e.AccountingAccountId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(e => new { e.AccountingAccountId, e.AccountingEntryId })
-                  .HasDatabaseName("IX_entry_lines_account_entry");
-            entity.HasIndex(e => e.AccountingEntryId)
-                  .HasDatabaseName("IX_entry_lines_entry_id");
-            entity.HasIndex(e => new { e.AccountingAccountId, e.Debit, e.Credit })
-                  .HasDatabaseName("IX_entry_lines_account_debit_credit");
-        });
-
-        modelBuilder.Entity<EntryReversal>(entity =>
-        {
-            entity.ToTable("erp_entry_reversals");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.ReversedByUserId).IsRequired().HasMaxLength(450);
-
-            entity.HasOne(e => e.OriginalEntry)
-                  .WithMany()
-                  .HasForeignKey(e => e.OriginalEntryId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(e => e.ReversalEntry)
-                  .WithMany()
-                  .HasForeignKey(e => e.ReversalEntryId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(e => new { e.TenantId, e.OriginalEntryId }).IsUnique();
+                  .HasForeignKey(e => e.ExecutedExpenseId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<FinancialTransaction>(entity =>
@@ -1271,10 +1192,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.DisposalReason).HasMaxLength(500);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
             entity.Property(e => e.DepreciationMethod).HasConversion<string>().HasMaxLength(30).IsRequired();
-            entity.HasOne(e => e.AccountingAccount)
-                  .WithMany()
-                  .HasForeignKey(e => e.AccountingAccountId)
-                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.TenantId, e.SerialNumber }).IsUnique().HasFilter("[SerialNumber] IS NOT NULL AND [SerialNumber] <> ''");
         });
 
@@ -1291,10 +1208,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .WithMany(f => f.Depreciations)
                   .HasForeignKey(e => e.FixedAssetId)
                   .OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(e => e.AccountingEntry)
-                  .WithMany()
-                  .HasForeignKey(e => e.AccountingEntryId)
-                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.TenantId, e.FixedAssetId, e.FiscalYear, e.Month }).IsUnique();
         });
 
@@ -1541,11 +1454,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.ProviderId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(e => e.BudgetAccount)
-                  .WithMany()
-                  .HasForeignKey(e => e.BudgetAccountId)
-                  .OnDelete(DeleteBehavior.SetNull);
-
             entity.HasIndex(e => new { e.TenantId, e.ContractNumber }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.ProviderId });
@@ -1621,11 +1529,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.ContractId)
                   .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(e => e.AccountingEntry)
-                  .WithMany()
-                  .HasForeignKey(e => e.AccountingEntryId)
-                  .OnDelete(DeleteBehavior.SetNull);
-
             entity.HasIndex(e => new { e.TenantId, e.InvoiceNumber });
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.DueDate });
@@ -1651,11 +1554,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .WithMany(i => i.Payments)
                   .HasForeignKey(e => e.InvoiceId)
                   .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(e => e.AccountingEntry)
-                  .WithMany()
-                  .HasForeignKey(e => e.AccountingEntryId)
-                  .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => new { e.TenantId, e.InvoiceId });
             entity.HasIndex(e => new { e.TenantId, e.Status });
@@ -1824,16 +1722,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasOne(e => e.AssignedProvider)
                   .WithMany()
                   .HasForeignKey(e => e.AssignedProviderId)
-                  .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasOne(e => e.BudgetAccount)
-                  .WithMany()
-                  .HasForeignKey(e => e.BudgetAccountId)
-                  .OnDelete(DeleteBehavior.SetNull);
-
-            entity.HasOne(e => e.AccountingEntry)
-                  .WithMany()
-                  .HasForeignKey(e => e.AccountingEntryId)
                   .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => new { e.TenantId, e.Status });

@@ -255,11 +255,10 @@ public class MaintenanceController : BaseController
     [HttpGet("reports/scheduled")]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
     public async Task<ActionResult<MaintenanceReportDto>> GetScheduledReport(
-        [FromQuery] int daysAhead = 30,
-        [FromQuery] Guid? budgetAccountId = null)
+        [FromQuery] int daysAhead = 30)
     {
         var tenantId = GetTenantId();
-        var report = await _maintenanceService.GetScheduledMaintenanceReportAsync(tenantId, daysAhead, budgetAccountId);
+        var report = await _maintenanceService.GetScheduledMaintenanceReportAsync(tenantId, daysAhead);
         return Ok(report);
     }
 

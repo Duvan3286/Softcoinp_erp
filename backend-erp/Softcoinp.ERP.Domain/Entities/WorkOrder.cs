@@ -22,10 +22,6 @@ public class WorkOrder
     public DateTime? ExecutionEndDate { get; set; }
     public decimal EstimatedCost { get; set; }
     public decimal ActualCost { get; set; }
-    public Guid? BudgetAccountId { get; set; }
-    public AccountingAccount? BudgetAccount { get; set; }
-    public Guid? AccountingEntryId { get; set; }
-    public AccountingEntry? AccountingEntry { get; set; }
     public WorkOrderStatus Status { get; set; } = WorkOrderStatus.PendingAssignment;
     public WorkOrderOutcome? Outcome { get; set; }
     public string OutcomeNotes { get; set; } = string.Empty;

@@ -73,21 +73,10 @@ public class DashboardService
                 catch (Exception ex) { _ = ex; }
             }
 
-            if (isCouncil)
-            {
-                try { data.ContingencyFund = await GetContingencyFundInfoAsync(tenantId); }
-                catch (Exception ex) { _ = ex; }
-
-                try { data.PendingCouncilApprovals = await GetPendingCouncilApprovalsAsync(tenantId); }
-                catch (Exception ex) { _ = ex; }
-            }
         }
 
         if (isAccountant)
         {
-            try { data.AccountingStatus = await GetAccountingStatusAsync(tenantId); }
-            catch (Exception ex) { _ = ex; }
-
             try { data.Kpis = await GetKpisAsync(tenantId); }
             catch (Exception ex) { _ = ex; }
 
@@ -237,57 +226,12 @@ public class DashboardService
             .Where(ba => ba.TenantId == tenantId && ba.IsActive)
             .SumAsync(ba => ba.CurrentBalance);
 
-        var pendingPayables = await _context.AccountingEntries
-            .Where(ae => ae.TenantId == tenantId
-                && ae.Status == EntryStatus.Final
-                && ae.EntryType == EntryType.Manual)
-            .Join(_context.EntryLines,
-                ae => ae.Id,
-                el => el.AccountingEntryId,
-                (ae, el) => new { el.AccountingAccountId, el.Credit })
-            .Join(_context.AccountingAccounts,
-                el => el.AccountingAccountId,
-                acc => acc.Id,
-                (el, acc) => new { acc.Code, el.Credit })
-            .Where(x => x.Code.StartsWith("2335"))
-            .SumAsync(x => x.Credit);
-
-        kpis.AvailableCash = totalBankBalance - pendingPayables;
+        kpis.AvailableCash = totalBankBalance;
 
         var currentYear = now.Year;
         var yearStart = new DateTime(currentYear, 1, 1);
         var yearProgress = (now - yearStart).TotalDays / (DateTime.IsLeapYear(currentYear) ? 366 : 365);
         kpis.YearProgressPercentage = Math.Round((decimal)(yearProgress * 100), 1);
-
-        var totalBudgetApproved = await _context.BudgetDetails
-            .Where(bd => bd.Budget!.TenantId == tenantId
-                && bd.Budget.FiscalPeriod == currentYear
-                && bd.Budget.Status == BudgetStatus.Active)
-            .Join(_context.AccountingAccounts,
-                bd => bd.AccountingAccountId,
-                acc => acc.Id,
-                (bd, acc) => new { bd.ApprovedValue, acc.Category })
-            .Where(x => x.Category == AccountingAccountCategory.Expense)
-            .SumAsync(x => x.ApprovedValue);
-
-        if (totalBudgetApproved > 0)
-        {
-            var yearEnd = new DateTime(currentYear + 1, 1, 1);
-            var actualExpenses = await _context.EntryLines
-                .Where(el => el.AccountingEntry!.TenantId == tenantId
-                    && el.AccountingEntry.Status == EntryStatus.Final
-                    && el.AccountingEntry.EntryDate >= yearStart
-                    && el.AccountingEntry.EntryDate < yearEnd
-                    && el.Debit > 0)
-                .Join(_context.AccountingAccounts,
-                    el => el.AccountingAccountId,
-                    acc => acc.Id,
-                    (el, acc) => new { acc.Category, el.Debit })
-                .Where(x => x.Category == AccountingAccountCategory.Expense)
-                .SumAsync(x => x.Debit);
-
-            kpis.BudgetExecutionPercentage = Math.Round(actualExpenses / totalBudgetApproved * 100, 1);
-        }
 
         return kpis;
     }
@@ -568,89 +512,6 @@ ORDER BY u.Identifier";
             }
         }
 
-        var budgetConfig = defaultConfigs.GetValueOrDefault(AlertRuleType.BudgetAccountExceeded);
-        if (budgetConfig != null)
-        {
-            var currentYear = now.Year;
-            var budgetYearStart = new DateTime(currentYear, 1, 1);
-            var budgetYearEnd = new DateTime(currentYear + 1, 1, 1);
-            var budgetDetails = await _context.BudgetDetails
-                .Where(bd => bd.Budget!.TenantId == tenantId
-                    && bd.Budget.FiscalPeriod == currentYear
-                    && bd.Budget.Status == BudgetStatus.Active)
-                .ToListAsync();
-
-            var budgetAccountIds = budgetDetails.Select(bd => bd.AccountingAccountId).Distinct().ToList();
-
-            var actualExpensesByAccount = await _context.EntryLines
-                .Where(el => el.AccountingEntry!.TenantId == tenantId
-                    && el.AccountingEntry.Status == EntryStatus.Final
-                    && el.AccountingEntry.EntryDate >= budgetYearStart
-                    && el.AccountingEntry.EntryDate < budgetYearEnd
-                    && el.Debit > 0
-                    && budgetAccountIds.Contains(el.AccountingAccountId))
-                .GroupBy(el => el.AccountingAccountId)
-                .Select(g => new { AccountId = g.Key, TotalDebit = g.Sum(el => el.Debit) })
-                .ToDictionaryAsync(g => g.AccountId, g => g.TotalDebit);
-
-            foreach (var detail in budgetDetails)
-            {
-                actualExpensesByAccount.TryGetValue(detail.AccountingAccountId, out var actualExpense);
-
-                var executionPercentage = detail.ApprovedValue > 0
-                    ? Math.Round(actualExpense / detail.ApprovedValue * 100, 1)
-                    : 0;
-
-                if (executionPercentage >= budgetConfig.ThresholdPercentage)
-                {
-                    var account = await _context.AccountingAccounts
-                        .FirstOrDefaultAsync(a => a.Id == detail.AccountingAccountId);
-
-                    alerts.Add(new AlertDto
-                    {
-                        Id = $"budget_{detail.Id}",
-                        RuleType = AlertRuleType.BudgetAccountExceeded.ToString(),
-                        Urgency = AlertUrgency.High,
-                        Title = $"Presupuesto de cuenta excedido",
-                        Description = $"La cuenta {account?.Name ?? "N/A"} ha ejecutado el {executionPercentage}% de su presupuesto anual.",
-                        ModuleLink = "/budgets",
-                        CreatedAt = now
-                    });
-                }
-            }
-        }
-
-        var periodConfig = defaultConfigs.GetValueOrDefault(AlertRuleType.AccountingPeriodNotClosed);
-        if (periodConfig != null)
-        {
-            var previousMonthDate = now.AddMonths(-1);
-            var previousMonthPeriod = await _context.AccountingPeriods
-                .FirstOrDefaultAsync(ap =>
-                    ap.TenantId == tenantId
-                    && ap.FiscalYear == previousMonthDate.Year
-                    && ap.Month == previousMonthDate.Month
-                    && ap.Status == AccountingPeriodStatus.Open);
-
-            if (previousMonthPeriod != null)
-            {
-                var daysSinceMonthEnd = (int)(now - new DateTime(previousMonthDate.Year, previousMonthDate.Month, 1).AddMonths(1)).TotalDays;
-
-                if (daysSinceMonthEnd >= periodConfig.ThresholdDays)
-                {
-                    alerts.Add(new AlertDto
-                    {
-                        Id = $"period_{previousMonthPeriod.Id}",
-                        RuleType = AlertRuleType.AccountingPeriodNotClosed.ToString(),
-                        Urgency = AlertUrgency.Critical,
-                        Title = $"Período contable sin cerrar",
-                        Description = $"El período {previousMonthPeriod.PeriodLabel} lleva {daysSinceMonthEnd} días del mes siguiente sin cerrarse.",
-                        ModuleLink = "/accounting/periods",
-                        CreatedAt = now
-                    });
-                }
-            }
-        }
-
         return alerts.OrderByDescending(a => a.Urgency).ThenBy(a => a.CreatedAt).ToList();
     }
 
@@ -707,24 +568,6 @@ ORDER BY u.Identifier";
 
         activities.AddRange(recentPayments);
 
-        var recentEntries = await _context.AccountingEntries
-            .Where(ae => ae.TenantId == tenantId)
-            .OrderByDescending(ae => ae.CreatedAt)
-            .Take(5)
-            .Select(ae => new RecentActivityDto
-            {
-                Action = ae.EntryType == EntryType.Automatic
-                    ? "Asiento automático generado"
-                    : "Asiento contable creado",
-                Description = $"Asiento No. {ae.EntryNumber}: {ae.Description}",
-                UserName = ae.CreatedByUserId,
-                Timestamp = ae.CreatedAt,
-                ModuleLink = $"/accounting/journal-entries/{ae.Id}"
-            })
-            .ToListAsync();
-
-        activities.AddRange(recentEntries);
-
         var recentAgreements = await _context.PaymentAgreements
             .Where(pa => pa.TenantId == tenantId)
             .OrderByDescending(pa => pa.CreatedAt)
@@ -745,83 +588,6 @@ ORDER BY u.Identifier";
         activities.AddRange(recentAgreements);
 
         return activities.OrderByDescending(a => a.Timestamp).Take(20).ToList();
-    }
-
-    private async Task<ContingencyFundInfoDto?> GetContingencyFundInfoAsync(string tenantId)
-    {
-        var fund = await _context.ContingencyFunds
-            .FirstOrDefaultAsync(cf => cf.TenantId == tenantId);
-
-        if (fund == null)
-        {
-            return null;
-        }
-
-        var lastContribution = await _context.ContingencyFundContributions
-            .Where(cc => cc.TenantId == tenantId)
-            .OrderByDescending(cc => cc.ContributionDate)
-            .FirstOrDefaultAsync();
-
-        return new ContingencyFundInfoDto
-        {
-            CurrentBalance = fund.CurrentBalance,
-            LastContributionAmount = lastContribution?.Amount ?? 0,
-            LastContributionPeriod = lastContribution?.Period ?? string.Empty
-        };
-    }
-
-    private async Task<List<CouncilApprovalDto>> GetPendingCouncilApprovalsAsync(string tenantId)
-    {
-        var approvals = new List<CouncilApprovalDto>();
-
-        var pendingTransfers = await _context.BudgetMovements
-            .Where(bm => bm.TenantId == tenantId
-                && bm.Budget!.TenantId == tenantId
-                && bm.MovementType == BudgetMovementType.Transfer) // Using Transfer as a placeholder filter; adjust if enum differs
-            .OrderByDescending(bm => bm.CreatedAt)
-            .Take(5)
-            .Select(bm => new CouncilApprovalDto
-            {
-                Type = "Traslado presupuestal",
-                Description = bm.Justification,
-                Amount = bm.Amount,
-                RequestedAt = bm.CreatedAt,
-                ModuleLink = "/budgets"
-            })
-            .ToListAsync();
-
-        approvals.AddRange(pendingTransfers);
-
-        return approvals;
-    }
-
-    private async Task<AccountingStatusDto> GetAccountingStatusAsync(string tenantId)
-    {
-        var now = DateTime.UtcNow;
-        var currentPeriod = await _context.AccountingPeriods
-            .FirstOrDefaultAsync(ap =>
-                ap.TenantId == tenantId
-                && ap.FiscalYear == now.Year
-                && ap.Month == now.Month);
-
-        var daysSinceMonthEnd = (int)(now - new DateTime(now.Year, now.Month, 1).AddMonths(1)).TotalDays;
-
-        var unreconciledCount = await _context.BankReconciliations
-            .CountAsync(br => br.TenantId == tenantId
-                && br.Status == ReconciliationStatus.InProgress);
-
-        var draftCount = await _context.AccountingEntries
-            .CountAsync(ae => ae.TenantId == tenantId
-                && ae.Status == EntryStatus.Draft);
-
-        return new AccountingStatusDto
-        {
-            CurrentPeriodLabel = currentPeriod?.PeriodLabel ?? $"{now.Year}-{now.Month:D2}",
-            PeriodStatus = currentPeriod?.Status.ToString() ?? "Open",
-            UnreconciledBankAccounts = unreconciledCount,
-            DraftEntryCount = draftCount,
-            DaysSinceMonthEnd = Math.Max(0, daysSinceMonthEnd)
-        };
     }
 
     private async Task<ResidentDashboardDto> GetResidentDataAsync(string tenantId, string userId)

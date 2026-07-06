@@ -1,103 +1,155 @@
 import apiClient from './api-client';
 
-export interface BudgetDetail {
+export interface BudgetSummary {
   id: string;
-  accountingAccountId: string;
-  accountCode: string;
-  accountName: string;
-  approvedValue: number;
-  observations: string;
-}
-
-export interface Budget {
-  id: string;
-  fiscalPeriod: number;
+  fiscalYear: number;
   approvalDate?: string;
   meetingActNumber: string;
   status: string;
-  details: BudgetDetail[];
+  observations: string;
+  incomeItemsCount: number;
+  expenseItemsCount: number;
+  totalIncome: number;
+  totalExpense: number;
+  createdByUserId: string;
 }
 
-export interface CreateBudgetDetailRequest {
-  accountingAccountId: string;
-  approvedValue: number;
+export interface IncomeItem {
+  id: string;
+  name: string;
+  description: string;
+  annualValue: number;
+  monthlyValue: number;
+}
+
+export interface ExpenseItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  annualValue: number;
+  monthlyValue: number;
+  isContingencyFund: boolean;
+  contingencyPercentage: number;
+  requiresCouncilApproval: boolean;
+  approvalThreshold: number;
+}
+
+export interface BudgetDetail {
+  id: string;
+  fiscalYear: number;
+  approvalDate?: string;
+  meetingActNumber: string;
+  status: string;
   observations: string;
+  incomeItems: IncomeItem[];
+  expenseItems: ExpenseItem[];
+}
+
+export interface CreateIncomeItem {
+  name: string;
+  description: string;
+  annualValue: number;
+}
+
+export interface CreateExpenseItem {
+  name: string;
+  description: string;
+  category: string;
+  annualValue: number;
+  isContingencyFund: boolean;
+  contingencyPercentage: number;
+  requiresCouncilApproval: boolean;
+  approvalThreshold: number;
 }
 
 export interface CreateBudgetRequest {
-  fiscalPeriod: number;
+  fiscalYear: number;
   meetingActNumber: string;
   approvalDate?: string;
+  observations: string;
   copyFromPrevious: boolean;
   globalPercentageAdjustment?: number;
-  accountAdjustments?: Record<string, number>;
-  manualDetails?: CreateBudgetDetailRequest[];
+  incomeItems?: CreateIncomeItem[];
+  expenseItems?: CreateExpenseItem[];
 }
 
-export interface ActivateBudgetRequest {
+export interface UpdateDraftBudgetRequest {
+  incomeItems: CreateIncomeItem[];
+  expenseItems: CreateExpenseItem[];
+}
+
+export interface ApproveBudgetRequest {
   meetingActNumber: string;
   approvalDate: string;
 }
 
-export interface BudgetExecutionItem {
-  accountId: string;
-  accountCode: string;
-  accountName: string;
-  isGroup: boolean;
+export interface ExpenseExecutionItem {
+  id: string;
+  name: string;
   category: string;
-  nature: string;
-  approvedValue: number;
-  additions: number;
-  transfersIn: number;
-  transfersOut: number;
-  adjustedBudget: number;
+  annualValue: number;
+  monthlyValue: number;
+  proportionalToDate: number;
   executedValue: number;
   availableValue: number;
   executionPercentage: number;
-  closingProjection: number;
   trafficLight: string;
+  isContingencyFund: boolean;
+  contingencyPercentage: number;
+  requiresCouncilApproval: boolean;
+  approvalThreshold: number;
 }
 
 export interface BudgetAlert {
-  accountCode: string;
-  accountName: string;
-  adjustedBudget: number;
-  closingProjection: number;
+  itemName: string;
+  annualValue: number;
+  executedValue: number;
+  executionPercentage: number;
   message: string;
+  severity: string;
 }
 
-export interface BudgetExecutionReport {
+export interface BudgetExecutionDashboard {
   budgetId: string;
-  fiscalPeriod: number;
-  meetingActNumber: string;
-  approvalDate?: string;
+  fiscalYear: number;
   status: string;
-  items: BudgetExecutionItem[];
+  totalApprovedIncome: number;
+  totalApprovedExpense: number;
+  totalExecutedExpense: number;
+  totalAvailable: number;
+  overallExecutionPercentage: number;
+  expenseItems: ExpenseExecutionItem[];
   alerts: BudgetAlert[];
 }
 
-export interface CreateBudgetMovementRequest {
-  budgetId: string;
-  movementType: 'Addition' | 'Transfer';
-  sourceAccountId?: string;
-  destinationAccountId: string;
+export interface RecordExpenseRequest {
+  expenseItemId: string;
+  description: string;
   amount: number;
-  justification: string;
-  approvalType: 'Council' | 'Assembly';
-  meetingActNumber: string;
-  approvalDate: string;
+  expenseDate: string;
+  providerId?: string;
+  invoiceReference: string;
 }
 
-export interface BudgetMovement {
+export interface ExecutedExpense {
   id: string;
+  expenseItemId: string;
+  expenseItemName: string;
+  description: string;
+  amount: number;
+  expenseDate: string;
+  providerId?: string;
+  providerName: string;
+  invoiceReference: string;
+  councilApproved: boolean;
+}
+
+export interface CreateModificationRequest {
   budgetId: string;
-  movementType: string;
-  sourceAccountId?: string;
-  sourceAccountCode: string;
-  sourceAccountName: string;
-  destinationAccountId: string;
-  destinationAccountCode: string;
-  destinationAccountName: string;
+  expenseItemId?: string;
+  incomeItemId?: string;
+  modificationType: string;
   amount: number;
   justification: string;
   approvalType: string;
@@ -105,52 +157,46 @@ export interface BudgetMovement {
   approvalDate: string;
 }
 
-export interface ContingencyFundContribution {
+export interface BudgetModification {
   id: string;
-  period: string;
+  budgetId: string;
+  expenseItemId?: string;
+  expenseItemName: string;
+  incomeItemId?: string;
+  incomeItemName: string;
+  modificationType: string;
   amount: number;
-  incomeBase: number;
-  percentage: number;
-  contributionDate: string;
+  previousValue: number;
+  newValue: number;
+  justification: string;
+  approvalType: string;
+  meetingActNumber: string;
+  approvalDate: string;
 }
 
 export interface ContingencyFundUsage {
   id: string;
-  amount: number;
   justification: string;
+  amount: number;
   councilApprovalActNumber: string;
-  approvalDate: string;
-  createdByUserId: string;
+  createdAt: string;
 }
 
 export interface ContingencyFundStatus {
   tenantId: string;
-  currentBalance: number;
-  projectedClosingBalance: number;
-  contributions: ContingencyFundContribution[];
+  totalContributed: number;
+  totalUsed: number;
+  availableBalance: number;
+  contingencyPercentage: number;
   usages: ContingencyFundUsage[];
 }
 
-export interface LiquidateMonthlyContributionRequest {
-  year: number;
-  month: number;
-}
-
 export interface RecordContingencyFundUsageRequest {
-  amount: number;
+  budgetId: string;
   justification: string;
+  amount: number;
   councilApprovalActNumber: string;
-  approvalDate: string;
-}
-
-export interface BudgetSummary {
-  id: string;
-  fiscalPeriod: number;
-  approvalDate?: string;
-  meetingActNumber: string;
-  status: string;
-  detailsCount: number;
-  createdByUserId: string;
+  executedExpenseId?: string;
 }
 
 const budgetService = {
@@ -160,53 +206,68 @@ const budgetService = {
     return response.data;
   },
 
-  async createBudget(request: CreateBudgetRequest): Promise<{ id: string; fiscalPeriod: number; status: string }> {
-    const response = await apiClient.post<{ id: string; fiscalPeriod: number; status: string }>('/budgets', request);
+  async getBudget(id: string): Promise<BudgetDetail> {
+    const response = await apiClient.get<BudgetDetail>(`/budgets/${id}`);
     return response.data;
   },
 
-  async updateDraftDetails(id: string, details: CreateBudgetDetailRequest[]): Promise<{ id: string; status: string; detailsCount: number }> {
-    const response = await apiClient.put<{ id: string; status: string; detailsCount: number }>(`/budgets/${id}/details`, details);
+  async createBudget(request: CreateBudgetRequest): Promise<{ id: string; fiscalYear: number; status: string }> {
+    const response = await apiClient.post<{ id: string; fiscalYear: number; status: string }>('/budgets', request);
     return response.data;
   },
 
-  async activateBudget(id: string, request: ActivateBudgetRequest): Promise<{ id: string; status: string; meetingActNumber: string; approvalDate: string }> {
-    const response = await apiClient.post<{ id: string; status: string; meetingActNumber: string; approvalDate: string }>(`/budgets/${id}/activate`, request);
+  async updateDraftBudget(id: string, request: UpdateDraftBudgetRequest): Promise<{ id: string; status: string }> {
+    const response = await apiClient.put<{ id: string; status: string }>(`/budgets/${id}`, request);
     return response.data;
   },
 
-  async closeBudget(id: string): Promise<{ id: string; status: string }> {
-    const response = await apiClient.post<{ id: string; status: string }>(`/budgets/${id}/close`);
+  async approveBudget(id: string, request: ApproveBudgetRequest): Promise<{ id: string; status: string }> {
+    const response = await apiClient.post<{ id: string; status: string }>(`/budgets/${id}/approve`, request);
     return response.data;
   },
 
-  async getExecutionReport(year: number): Promise<BudgetExecutionReport> {
-    const response = await apiClient.get<BudgetExecutionReport>(`/budgets/execution/${year}`);
+  async generateNextBudget(id: string): Promise<{ id: string; fiscalYear: number; status: string }> {
+    const response = await apiClient.post<{ id: string; fiscalYear: number; status: string }>(`/budgets/${id}/generate-next`);
     return response.data;
   },
 
-  async createMovement(request: CreateBudgetMovementRequest): Promise<{ id: string; type: string; amount: number }> {
-    const response = await apiClient.post<{ id: string; type: string; amount: number }>('/budgets/movements', request);
+  async getBudgetExecution(year: number): Promise<BudgetExecutionDashboard> {
+    const response = await apiClient.get<BudgetExecutionDashboard>(`/budgets/execution/${year}`);
     return response.data;
   },
 
-  async getMovements(budgetId: string): Promise<BudgetMovement[]> {
-    const response = await apiClient.get<BudgetMovement[]>(`/budgets/${budgetId}/movements`);
+  async recordExpense(request: RecordExpenseRequest): Promise<{ id: string; amount: number; expenseItemName: string }> {
+    const response = await apiClient.post<{ id: string; amount: number; expenseItemName: string }>('/budgets/expenses', request);
     return response.data;
   },
 
-  async getContingencyFund(): Promise<ContingencyFundStatus> {
+  async getExpenses(expenseItemId?: string, fromDate?: string, toDate?: string): Promise<ExecutedExpense[]> {
+    const params = new URLSearchParams();
+    if (expenseItemId) params.append('expenseItemId', expenseItemId);
+    if (fromDate) params.append('fromDate', fromDate);
+    if (toDate) params.append('toDate', toDate);
+    const query = params.toString();
+    const response = await apiClient.get<ExecutedExpense[]>(`/budgets/expenses${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  async getModifications(budgetId: string): Promise<BudgetModification[]> {
+    const response = await apiClient.get<BudgetModification[]>(`/budgets/modifications/${budgetId}`);
+    return response.data;
+  },
+
+  async createModification(request: CreateModificationRequest): Promise<{ id: string; modificationType: string; amount: number }> {
+    const response = await apiClient.post<{ id: string; modificationType: string; amount: number }>('/budgets/modifications', request);
+    return response.data;
+  },
+
+  async getContingencyFundStatus(): Promise<ContingencyFundStatus> {
     const response = await apiClient.get<ContingencyFundStatus>('/budgets/contingency-fund');
     return response.data;
   },
 
-  async liquidateContingencyContribution(request: LiquidateMonthlyContributionRequest): Promise<{ id: string; period: string; amount: number; incomeBase: number }> {
-    const response = await apiClient.post<{ id: string; period: string; amount: number; incomeBase: number }>('/budgets/contingency-fund/liquidate', request);
-    return response.data;
-  },
-
-  async recordContingencyUsage(request: RecordContingencyFundUsageRequest): Promise<{ id: string; amount: number; act: string }> {
-    const response = await apiClient.post<{ id: string; amount: number; act: string }>('/budgets/contingency-fund/usage', request);
+  async recordContingencyFundUsage(request: RecordContingencyFundUsageRequest): Promise<{ id: string; amount: number; justification: string }> {
+    const response = await apiClient.post<{ id: string; amount: number; justification: string }>('/budgets/contingency-fund/usage', request);
     return response.data;
   }
 };

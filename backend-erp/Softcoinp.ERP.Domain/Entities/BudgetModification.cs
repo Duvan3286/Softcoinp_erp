@@ -4,25 +4,21 @@ using Softcoinp.ERP.Domain.Enums;
 
 namespace Softcoinp.ERP.Domain.Entities;
 
-public class BudgetMovement : BaseEntity
+public class BudgetModification : BaseEntity
 {
     public string TenantId { get; set; } = string.Empty;
     public Guid BudgetId { get; set; }
     public Budget? Budget { get; set; }
-
-    public BudgetMovementType MovementType { get; set; }
-
-    // Source account is null for Additions, and required for Transfers
-    public Guid? SourceAccountId { get; set; }
-    public AccountingAccount? SourceAccount { get; set; }
-
-    public Guid DestinationAccountId { get; set; }
-    public AccountingAccount? DestinationAccount { get; set; }
-
+    public Guid? ExpenseItemId { get; set; }
+    public ExpenseItem? ExpenseItem { get; set; }
+    public Guid? IncomeItemId { get; set; }
+    public IncomeItem? IncomeItem { get; set; }
+    public ModificationType ModificationType { get; set; }
     public decimal Amount { get; set; }
+    public decimal PreviousValue { get; set; }
+    public decimal NewValue { get; set; }
     public string Justification { get; set; } = string.Empty;
-
-    public BudgetApprovalType ApprovalType { get; set; }
+    public ApprovalType ApprovalType { get; set; }
     public string MeetingActNumber { get; set; } = string.Empty;
     public DateTime ApprovalDate { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;

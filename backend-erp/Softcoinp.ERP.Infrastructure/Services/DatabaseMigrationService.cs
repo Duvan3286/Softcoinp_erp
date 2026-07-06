@@ -124,9 +124,6 @@ public class DatabaseMigrationService
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
                 await DbInitializer.SeedUsersAsync(userManager, roleManager, _configuration);
                 
-                // Seed Resolution 029 standard chart of accounts
-                await DbInitializer.SeedChartOfAccountsAsync(tenantContext, tenant.Id.ToString());
-
                 // Seed 26 standard report types and default PDF templates
                 await DbInitializer.SeedReportTypesAsync(tenantContext, tenant.Id.ToString());
                 

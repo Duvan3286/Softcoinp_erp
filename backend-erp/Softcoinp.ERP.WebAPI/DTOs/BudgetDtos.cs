@@ -3,125 +3,165 @@ using System.Collections.Generic;
 
 namespace Softcoinp.ERP.WebAPI.DTOs;
 
-public class BudgetDto
-{
-    public Guid Id { get; set; }
-    public int FiscalPeriod { get; set; }
-    public DateTime? ApprovalDate { get; set; }
-    public string MeetingActNumber { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public List<BudgetDetailDto> Details { get; set; } = new();
-}
-
 public class BudgetSummaryDto
 {
     public Guid Id { get; set; }
-    public int FiscalPeriod { get; set; }
+    public int FiscalYear { get; set; }
     public DateTime? ApprovalDate { get; set; }
     public string MeetingActNumber { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
-    public int DetailsCount { get; set; }
+    public string Observations { get; set; } = string.Empty;
+    public int IncomeItemsCount { get; set; }
+    public int ExpenseItemsCount { get; set; }
+    public decimal TotalIncome { get; set; }
+    public decimal TotalExpense { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;
 }
 
 public class BudgetDetailDto
 {
     public Guid Id { get; set; }
-    public Guid AccountingAccountId { get; set; }
-    public string AccountCode { get; set; } = string.Empty;
-    public string AccountName { get; set; } = string.Empty;
-    public decimal ApprovedValue { get; set; }
+    public int FiscalYear { get; set; }
+    public DateTime? ApprovalDate { get; set; }
+    public string MeetingActNumber { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
     public string Observations { get; set; } = string.Empty;
+    public List<IncomeItemDto> IncomeItems { get; set; } = new();
+    public List<ExpenseItemDto> ExpenseItems { get; set; } = new();
+}
+
+public class IncomeItemDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal AnnualValue { get; set; }
+    public decimal MonthlyValue => Math.Round(AnnualValue / 12m, 2);
+}
+
+public class ExpenseItemDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public decimal AnnualValue { get; set; }
+    public decimal MonthlyValue => Math.Round(AnnualValue / 12m, 2);
+    public bool IsContingencyFund { get; set; }
+    public decimal ContingencyPercentage { get; set; }
+    public bool RequiresCouncilApproval { get; set; }
+    public decimal ApprovalThreshold { get; set; }
 }
 
 public class CreateBudgetRequestDto
 {
-    public int FiscalPeriod { get; set; }
+    public int FiscalYear { get; set; }
     public string MeetingActNumber { get; set; } = string.Empty;
     public DateTime? ApprovalDate { get; set; }
+    public string Observations { get; set; } = string.Empty;
     public bool CopyFromPrevious { get; set; }
     public decimal? GlobalPercentageAdjustment { get; set; }
-    public Dictionary<string, decimal>? AccountAdjustments { get; set; }
-    public List<CreateBudgetDetailRequestDto>? ManualDetails { get; set; }
+    public List<CreateIncomeItemDto>? IncomeItems { get; set; }
+    public List<CreateExpenseItemDto>? ExpenseItems { get; set; }
 }
 
-public class CreateBudgetDetailRequestDto
+public class CreateIncomeItemDto
 {
-    public Guid AccountingAccountId { get; set; }
-    public decimal ApprovedValue { get; set; }
-    public string Observations { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal AnnualValue { get; set; }
 }
 
-public class ActivateBudgetRequestDto
+public class CreateExpenseItemDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Category { get; set; } = "Variable";
+    public decimal AnnualValue { get; set; }
+    public bool IsContingencyFund { get; set; }
+    public decimal ContingencyPercentage { get; set; }
+    public bool RequiresCouncilApproval { get; set; }
+    public decimal ApprovalThreshold { get; set; }
+}
+
+public class ApproveBudgetRequestDto
 {
     public string MeetingActNumber { get; set; } = string.Empty;
     public DateTime ApprovalDate { get; set; }
 }
 
-public class BudgetExecutionReportDto
+public class BudgetExecutionDashboardDto
 {
     public Guid BudgetId { get; set; }
-    public int FiscalPeriod { get; set; }
-    public string MeetingActNumber { get; set; } = string.Empty;
-    public DateTime? ApprovalDate { get; set; }
+    public int FiscalYear { get; set; }
     public string Status { get; set; } = string.Empty;
-    public List<BudgetExecutionItemDto> Items { get; set; } = new();
+    public decimal TotalApprovedIncome { get; set; }
+    public decimal TotalApprovedExpense { get; set; }
+    public decimal TotalExecutedExpense { get; set; }
+    public decimal TotalAvailable { get; set; }
+    public decimal OverallExecutionPercentage { get; set; }
+    public List<ExpenseExecutionItemDto> ExpenseItems { get; set; } = new();
     public List<BudgetAlertDto> Alerts { get; set; } = new();
 }
 
-public class BudgetExecutionItemDto
+public class ExpenseExecutionItemDto
 {
-    public Guid AccountId { get; set; }
-    public string AccountCode { get; set; } = string.Empty;
-    public string AccountName { get; set; } = string.Empty;
-    public bool IsGroup { get; set; }
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
-    public string Nature { get; set; } = string.Empty;
-    public decimal ApprovedValue { get; set; }
-    public decimal Additions { get; set; }
-    public decimal TransfersIn { get; set; }
-    public decimal TransfersOut { get; set; }
-    public decimal AdjustedBudget { get; set; }
+    public decimal AnnualValue { get; set; }
+    public decimal MonthlyValue => Math.Round(AnnualValue / 12m, 2);
+    public decimal ProportionalToDate { get; set; }
     public decimal ExecutedValue { get; set; }
     public decimal AvailableValue { get; set; }
     public decimal ExecutionPercentage { get; set; }
-    public decimal ClosingProjection { get; set; }
-    public string TrafficLight { get; set; } = string.Empty;
+    public string TrafficLight { get; set; } = "Green";
+    public bool IsContingencyFund { get; set; }
+    public decimal ContingencyPercentage { get; set; }
+    public bool RequiresCouncilApproval { get; set; }
+    public decimal ApprovalThreshold { get; set; }
 }
 
 public class BudgetAlertDto
 {
-    public string AccountCode { get; set; } = string.Empty;
-    public string AccountName { get; set; } = string.Empty;
-    public decimal AdjustedBudget { get; set; }
-    public decimal ClosingProjection { get; set; }
+    public string ItemName { get; set; } = string.Empty;
+    public decimal AnnualValue { get; set; }
+    public decimal ExecutedValue { get; set; }
+    public decimal ExecutionPercentage { get; set; }
     public string Message { get; set; } = string.Empty;
+    public string Severity { get; set; } = "Warning";
 }
 
-public class CreateBudgetMovementRequestDto
+public class RecordExpenseRequestDto
 {
-    public Guid BudgetId { get; set; }
-    public string MovementType { get; set; } = string.Empty; // "Addition" or "Transfer"
-    public Guid? SourceAccountId { get; set; }
-    public Guid DestinationAccountId { get; set; }
+    public Guid ExpenseItemId { get; set; }
+    public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public string Justification { get; set; } = string.Empty;
-    public string ApprovalType { get; set; } = string.Empty; // "Council" or "Assembly"
-    public string MeetingActNumber { get; set; } = string.Empty;
-    public DateTime ApprovalDate { get; set; }
+    public DateTime ExpenseDate { get; set; }
+    public Guid? ProviderId { get; set; }
+    public string InvoiceReference { get; set; } = string.Empty;
 }
 
-public class BudgetMovementDto
+public class ExecutedExpenseDto
 {
     public Guid Id { get; set; }
+    public Guid ExpenseItemId { get; set; }
+    public string ExpenseItemName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public DateTime ExpenseDate { get; set; }
+    public Guid? ProviderId { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public string InvoiceReference { get; set; } = string.Empty;
+    public bool CouncilApproved { get; set; }
+}
+
+public class CreateModificationRequestDto
+{
     public Guid BudgetId { get; set; }
-    public string MovementType { get; set; } = string.Empty;
-    public Guid? SourceAccountId { get; set; }
-    public string SourceAccountCode { get; set; } = string.Empty;
-    public string SourceAccountName { get; set; } = string.Empty;
-    public Guid DestinationAccountId { get; set; }
-    public string DestinationAccountCode { get; set; } = string.Empty;
-    public string DestinationAccountName { get; set; } = string.Empty;
+    public Guid? ExpenseItemId { get; set; }
+    public Guid? IncomeItemId { get; set; }
+    public string ModificationType { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Justification { get; set; } = string.Empty;
     public string ApprovalType { get; set; } = string.Empty;
@@ -129,45 +169,48 @@ public class BudgetMovementDto
     public DateTime ApprovalDate { get; set; }
 }
 
-public class ContingencyFundDto
-{
-    public string TenantId { get; set; } = string.Empty;
-    public decimal CurrentBalance { get; set; }
-    public decimal ProjectedClosingBalance { get; set; }
-    public List<ContingencyFundContributionDto> Contributions { get; set; } = new();
-    public List<ContingencyFundUsageDto> Usages { get; set; } = new();
-}
-
-public class ContingencyFundContributionDto
+public class BudgetModificationDto
 {
     public Guid Id { get; set; }
-    public string Period { get; set; } = string.Empty;
+    public Guid BudgetId { get; set; }
+    public Guid? ExpenseItemId { get; set; }
+    public string ExpenseItemName { get; set; } = string.Empty;
+    public Guid? IncomeItemId { get; set; }
+    public string IncomeItemName { get; set; } = string.Empty;
+    public string ModificationType { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public decimal IncomeBase { get; set; }
-    public decimal Percentage { get; set; }
-    public DateTime ContributionDate { get; set; }
+    public decimal PreviousValue { get; set; }
+    public decimal NewValue { get; set; }
+    public string Justification { get; set; } = string.Empty;
+    public string ApprovalType { get; set; } = string.Empty;
+    public string MeetingActNumber { get; set; } = string.Empty;
+    public DateTime ApprovalDate { get; set; }
+}
+
+public class ContingencyFundStatusDto
+{
+    public string TenantId { get; set; } = string.Empty;
+    public decimal TotalContributed { get; set; }
+    public decimal TotalUsed { get; set; }
+    public decimal AvailableBalance { get; set; }
+    public decimal ContingencyPercentage { get; set; }
+    public List<ContingencyFundUsageDto> Usages { get; set; } = new();
 }
 
 public class ContingencyFundUsageDto
 {
     public Guid Id { get; set; }
-    public decimal Amount { get; set; }
     public string Justification { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
     public string CouncilApprovalActNumber { get; set; } = string.Empty;
-    public DateTime ApprovalDate { get; set; }
-    public string CreatedByUserId { get; set; } = string.Empty;
-}
-
-public class LiquidateMonthlyContributionRequestDto
-{
-    public int Year { get; set; }
-    public int Month { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class RecordContingencyFundUsageRequestDto
 {
-    public decimal Amount { get; set; }
+    public Guid BudgetId { get; set; }
     public string Justification { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
     public string CouncilApprovalActNumber { get; set; } = string.Empty;
-    public DateTime ApprovalDate { get; set; }
+    public Guid? ExecutedExpenseId { get; set; }
 }

@@ -15,15 +15,13 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class PaymentService
 {
     private readonly ApplicationDbContext _context;
-    private readonly AccountingIntegrationService _accounting;
     private readonly IMemoryCache _cache;
     private readonly ILogger<PaymentService> _logger;
     private readonly IndicatorCacheService _indicatorCache;
 
-    public PaymentService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache, ILogger<PaymentService> logger, IndicatorCacheService indicatorCache)
+    public PaymentService(ApplicationDbContext context, IMemoryCache cache, ILogger<PaymentService> logger, IndicatorCacheService indicatorCache)
     {
         _context = context;
-        _accounting = accounting;
         _cache = cache;
         _logger = logger;
         _indicatorCache = indicatorCache;
@@ -364,20 +362,6 @@ public class PaymentService
                     $"Saldo insuficiente en la cuenta bancaria '{bankAccount.BankName}' ({bankAccount.AccountNumber}). " +
                     $"Saldo anterior: {previousBalance:C2}, Pago: {payment.Amount:C2}, Saldo resultante: {bankAccount.CurrentBalance:C2}.");
             }
-        }
-
-        try
-        {
-            await _accounting.RecordPaymentAsync(
-                tenantId,
-                payment.Id,
-                payment.Amount,
-                $"Pago registrado {payment.PaymentDate:yyyy-MM-dd} - Unidad {request.UnitId:N}",
-                userId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al registrar asiento contable de pago {PaymentId} para tenant {TenantId}", payment.Id, tenantId);
         }
 
         _cache.Remove($"mora_map_{tenantId}");

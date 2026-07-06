@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Softcoinp.ERP.Domain.Entities;
-using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
 using Softcoinp.ERP.WebAPI.DTOs;
 
@@ -15,14 +14,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class LateInterestService
 {
     private readonly ApplicationDbContext _context;
-    private readonly AccountingIntegrationService _accounting;
     private readonly IMemoryCache _cache;
     private readonly ILogger<LateInterestService> _logger;
 
-    public LateInterestService(ApplicationDbContext context, AccountingIntegrationService accounting, IMemoryCache cache, ILogger<LateInterestService> logger)
+    public LateInterestService(ApplicationDbContext context, IMemoryCache cache, ILogger<LateInterestService> logger)
     {
         _context = context;
-        _accounting = accounting;
         _cache = cache;
         _logger = logger;
     }
@@ -219,17 +216,6 @@ public class LateInterestService
         _context.LateInterests.Add(lateInterest);
         await _context.SaveChangesAsync();
 
-        try
-        {
-            await _accounting.RecordLateInterestAsync(
-                tenantId, lateInterest.Id, lateInterest.CalculatedAmount,
-                $"Capitalización de intereses mora {sourceType} período {period}", userId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al registrar asiento contable de interés mora {InterestId} para tenant {TenantId}", lateInterest.Id, tenantId);
-        }
-
         _cache.Remove($"mora_map_{tenantId}");
         result.Add(lateInterest);
         return result;
@@ -328,20 +314,6 @@ public class LateInterestService
         {
             _context.LateInterests.AddRange(result);
             await _context.SaveChangesAsync();
-
-            foreach (var li in result)
-            {
-                try
-                {
-                    await _accounting.RecordLateInterestAsync(
-                        tenantId, li.Id, li.CalculatedAmount,
-                        $"Capitalización de intereses mora período {period}", userId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error al registrar asiento contable de interés mora masivo {InterestId} para tenant {TenantId}", li.Id, tenantId);
-                }
-            }
         }
 
         _cache.Remove($"mora_map_{tenantId}");

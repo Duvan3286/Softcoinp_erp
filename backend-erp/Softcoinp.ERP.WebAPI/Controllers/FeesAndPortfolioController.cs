@@ -24,7 +24,6 @@ public class FeesAndPortfolioController : BaseController
     private readonly PaymentService _paymentService;
     private readonly PaymentAgreementService _agreementService;
     private readonly StatementService _statementService;
-    private readonly AccountingIntegrationService _accountingIntegration;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<FeesAndPortfolioController> _logger;
 
@@ -34,7 +33,6 @@ public class FeesAndPortfolioController : BaseController
         PaymentService paymentService,
         PaymentAgreementService agreementService,
         StatementService statementService,
-        AccountingIntegrationService accountingIntegration,
         ApplicationDbContext context,
         ILogger<FeesAndPortfolioController> logger)
     {
@@ -43,7 +41,6 @@ public class FeesAndPortfolioController : BaseController
         _paymentService = paymentService;
         _agreementService = agreementService;
         _statementService = statementService;
-        _accountingIntegration = accountingIntegration;
         _context = context;
         _logger = logger;
     }
@@ -644,17 +641,6 @@ public class FeesAndPortfolioController : BaseController
             await _context.SaveChangesAsync();
             await tx.CommitAsync();
 
-            try
-            {
-                await _accountingIntegration.RecordExtraordinaryFeeAsync(
-                    tenantId, fee.Id, fee.TotalAmount,
-                    $"Cuota extraordinaria: {fee.Name} ({fee.StartPeriod})", GetUserId());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al registrar asiento contable de cuota extraordinaria {FeeId} para tenant {TenantId}", fee.Id, tenantId);
-            }
-
             var firstUnitAmount = distributions.Count > 0 ? distributions[0].Amount : 0m;
             return Ok(new { id = fee.Id, name = fee.Name, amountPerUnit = firstUnitAmount, distributionsCount = distributions.Count });
         }
@@ -801,17 +787,6 @@ public class FeesAndPortfolioController : BaseController
 
         _context.IndividualCharges.Add(charge);
         await _context.SaveChangesAsync();
-
-        try
-        {
-            await _accountingIntegration.RecordIndividualChargeAsync(
-                tenantId, charge.Id, charge.Amount,
-                $"Cargo individual: {charge.Concept} - Unidad {unit.Identifier}", GetUserId());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al registrar asiento contable de cargo individual {ChargeId} para tenant {TenantId}", charge.Id, tenantId);
-        }
 
         return Ok(new
         {

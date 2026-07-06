@@ -15,23 +15,17 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class BillingEngineService
 {
     private readonly ApplicationDbContext _context;
-    private readonly AccountingIntegrationService _accounting;
-    private readonly ContingencyFundService _contingencyFund;
     private readonly IMemoryCache _cache;
     private readonly ILogger<BillingEngineService> _logger;
     private readonly IndicatorCacheService _indicatorCache;
 
     public BillingEngineService(
         ApplicationDbContext context,
-        AccountingIntegrationService accounting,
-        ContingencyFundService contingencyFund,
         IMemoryCache cache,
         ILogger<BillingEngineService> logger,
         IndicatorCacheService indicatorCache)
     {
         _context = context;
-        _accounting = accounting;
-        _contingencyFund = contingencyFund;
         _cache = cache;
         _logger = logger;
         _indicatorCache = indicatorCache;
@@ -46,12 +40,12 @@ public class BillingEngineService
 
         var activeBudget = await _context.Budgets
             .FirstOrDefaultAsync(b => b.TenantId == tenantId
-                                   && b.FiscalPeriod == fiscalYear
-                                   && b.Status == BudgetStatus.Active);
+                                   && b.FiscalYear == fiscalYear
+                                   && b.Status == BudgetStatus.Approved);
 
         result.HasActiveBudget = activeBudget != null;
         result.MonthlyBudgetTotal = activeBudget != null
-            ? Math.Round(activeBudget.BudgetDetails.Sum(d => d.ApprovedValue) / 12m, 2)
+            ? Math.Round((activeBudget.IncomeItems.Sum(i => i.AnnualValue) + activeBudget.ExpenseItems.Sum(e => e.AnnualValue)) / 12m, 2)
             : 0m;
 
         var activeUnits = await _context.Units
@@ -243,24 +237,6 @@ public class BillingEngineService
             }
 
             await _context.SaveChangesAsync();
-
-            await _accounting.RecordBillingAsync(
-                tenantId,
-                billingPeriod.Id,
-                billingPeriod.TotalBilled,
-                $"Liquidación mensual {period}",
-                userId);
-
-            try
-            {
-                var year = int.Parse(period.Substring(0, 4));
-                var month = int.Parse(period.Substring(5, 2));
-                await _contingencyFund.LiquidateMonthlyContributionAsync(tenantId, year, month);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error al liquidar fondo de imprevistos para período {Period} tenant {TenantId}", period, tenantId);
-            }
 
             await tx.CommitAsync();
         }

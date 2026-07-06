@@ -11,12 +11,10 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class ClaimResolutionService
 {
     private readonly ApplicationDbContext _context;
-    private readonly AccountingIntegrationService _accounting;
 
-    public ClaimResolutionService(ApplicationDbContext context, AccountingIntegrationService accounting)
+    public ClaimResolutionService(ApplicationDbContext context)
     {
         _context = context;
-        _accounting = accounting;
     }
 
     public async Task ResolveClaimAsync(string tenantId, Guid pqrId, bool resolved, string resolutionNote, string userId)
@@ -169,8 +167,6 @@ public class ClaimResolutionService
                 }
                 break;
         }
-
-        await _accounting.RecordCreditNoteAsync(tenantId, chargeId, chargeAmount, chargeType, description, userId);
 
         pqr.CreditNoteGenerated = true;
     }

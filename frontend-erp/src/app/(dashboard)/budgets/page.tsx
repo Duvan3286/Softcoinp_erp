@@ -2,1500 +2,1008 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import budgetService, { 
-  BudgetExecutionReport, 
-  BudgetExecutionItem, 
-  BudgetAlert, 
-  BudgetMovement, 
-  CreateBudgetRequest, 
-  CreateBudgetDetailRequest 
+import budgetService, {
+  BudgetSummary, BudgetDetail, IncomeItem, ExpenseItem,
+  ExpenseExecutionItem, BudgetAlert,
+  ContingencyFundStatus, ContingencyFundUsage,
+  BudgetExecutionDashboard, ExecutedExpense, BudgetModification
 } from '@/lib/budget-service';
-import accountingService, { AccountingAccount } from '@/lib/accounting-service';
-import { 
-  BadgeDollarSign, 
-  Plus, 
-  TrendingUp, 
-  TrendingDown, 
-  AlertTriangle, 
-  Check, 
-  FileText, 
-  ArrowLeftRight, 
-  Play, 
-  Lock, 
-  Calendar,
-  X,
-  Activity,
-  DollarSign
+import {
+  Plus, TrendingUp, TrendingDown, AlertTriangle, Check, FileText,
+  ArrowLeftRight, Play, Lock, Calendar, X, DollarSign, BadgeDollarSign,
+  ClipboardList, BarChart3, RefreshCw, Eye, Pencil, Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Card, CardHeader, CardContent } from '@/components/ui/Card';
+
+type TabKey = 'list' | 'execution' | 'expenses' | 'modifications' | 'contingency';
 
 export default function BudgetsPage() {
   const { user } = useAuth();
+  const canEdit = user?.role === 'SuperAdmin' || user?.role === 'Admin' || user?.role === 'Accountant';
+
   const [year, setYear] = useState<number>(new Date().getFullYear());
-  const [report, setReport] = useState<BudgetExecutionReport | null>(null);
-  const [accounts, setAccounts] = useState<AccountingAccount[]>([]);
-  const [movements, setMovements] = useState<BudgetMovement[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tab, setTab] = useState<TabKey>('list');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Active sub-views: 'execution' | 'movements' | 'create' | 'edit-draft'
-  const [activeView, setActiveView] = useState<'execution' | 'movements' | 'create' | 'edit-draft'>('execution');
+  const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
+  const [selectedBudget, setSelectedBudget] = useState<BudgetDetail | null>(null);
+  const [dashboard, setDashboard] = useState<BudgetExecutionDashboard | null>(null);
+  const [expenses, setExpenses] = useState<ExecutedExpense[]>([]);
+  const [modifications, setModifications] = useState<BudgetModification[]>([]);
+  const [contingency, setContingency] = useState<ContingencyFundStatus | null>(null);
 
-  // Create Budget Form State
-  const [newFiscalPeriod, setNewFiscalPeriod] = useState<number>(new Date().getFullYear() + 1);
-  const [newMeetingAct, setNewMeetingAct] = useState('');
-  const [newApprovalDate, setNewApprovalDate] = useState('');
-  const [copyFromPrevious, setCopyFromPrevious] = useState(false);
-  const [globalAdjustment, setGlobalAdjustment] = useState<number>(0);
-  const [draftDetails, setDraftDetails] = useState<Record<string, { val: number; obs: string }>>({});
+  const [showCreate, setShowCreate] = useState(false);
+  const [showApprove, setShowApprove] = useState(false);
+  const [showExpense, setShowExpense] = useState(false);
+  const [expenseItemOptions, setExpenseItemOptions] = useState<{ id: string; name: string; budgetLabel: string }[]>([]);
+  const [showModification, setShowModification] = useState(false);
+  const [showContingencyUsage, setShowContingencyUsage] = useState(false);
 
-  // Activate Budget Modal
-  const [isActivateOpen, setIsActivateOpen] = useState(false);
-  const [actNumber, setActNumber] = useState('');
-  const [approvalDate, setApprovalDate] = useState('');
-
-  // Create Budget Movement Form State
-  const [isMovementOpen, setIsMovementOpen] = useState(false);
-  const [movementType, setMovementType] = useState<'Addition' | 'Transfer'>('Transfer');
-  const [sourceAccountId, setSourceAccountId] = useState('');
-  const [destinationAccountId, setDestinationAccountId] = useState('');
-  const [movementAmount, setMovementAmount] = useState<number>(0);
-  const [justification, setJustification] = useState('');
-  const [approvalType, setApprovalType] = useState<'Council' | 'Assembly'>('Council');
-  const [movementActNumber, setMovementActNumber] = useState('');
-  const [movementApprovalDate, setMovementApprovalDate] = useState('');
-
-  const canEdit = user?.role === 'SuperAdmin' || user?.role === 'Admin' || user?.role === 'Accountant';
-
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  useEffect(() => {
-    fetchReport();
-  }, [year]);
-
-  const fetchAccounts = async () => {
+  const fetchBudgets = async () => {
+    setLoading(true);
     try {
-      const data = await accountingService.getAccounts();
-      setAccounts(data);
-    } catch (err) {
-      console.error(err);
-    }
+      const data = await budgetService.getBudgets(year);
+      setBudgets(data);
+    } catch { setError('Error al cargar presupuestos'); }
+    finally { setLoading(false); }
   };
 
-  const fetchReport = async () => {
+  const fetchDashboard = async () => {
+    setLoading(true);
     try {
-      setIsLoading(true);
-      setError('');
-      const rep = await budgetService.getExecutionReport(year);
-      setReport(rep);
-      
-      if (rep && rep.budgetId) {
-        const moves = await budgetService.getMovements(rep.budgetId);
-        setMovements(moves);
-      } else {
-        setMovements([]);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setReport(null);
-      setMovements([]);
-      if (err.response && err.response.status !== 404) {
-        setError('Ocurrió un error al cargar el informe de ejecución presupuestal.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+      const data = await budgetService.getBudgetExecution(year);
+      setDashboard(data);
+    } catch { setDashboard(null); }
+    finally { setLoading(false); }
   };
 
-  // Pre-fill draft form with leaf accounts and 0 values
-  const initDraftDetails = () => {
-    const details: Record<string, { val: number; obs: string }> = {};
-    accounts.forEach((acc) => {
-      if (!acc.isGroup && (acc.code.startsWith('4') || acc.code.startsWith('5'))) {
-        details[acc.id] = { val: 0, obs: '' };
-      }
-    });
-    setDraftDetails(details);
+  const fetchExpenses = async () => {
+    try {
+      const data = await budgetService.getExpenses();
+      setExpenses(data);
+    } catch { setExpenses([]); }
   };
 
-  const handleOpenCreateView = () => {
-    if (!canEdit) return;
-    initDraftDetails();
-    setNewFiscalPeriod(year);
-    setNewMeetingAct('');
-    setNewApprovalDate('');
-    setCopyFromPrevious(false);
-    setGlobalAdjustment(0);
-    setActiveView('create');
-    setError('');
+  const fetchModifications = async (budgetId: string) => {
+    try {
+      const data = await budgetService.getModifications(budgetId);
+      setModifications(data);
+    } catch { setModifications([]); }
   };
 
-  const handleOpenEditDraftView = () => {
-    if (!report) return;
-    const details: Record<string, { val: number; obs: string }> = {};
-    
-    accounts.forEach((acc) => {
-      if (!acc.isGroup && (acc.code.startsWith('4') || acc.code.startsWith('5'))) {
-        const currentDetail = report.items.find((item) => item.accountId === acc.id);
-        let currentVal = 0;
-        if (currentDetail) {
-          currentVal = currentDetail.approvedValue;
-        }
-        details[acc.id] = {
-          val: currentVal,
-          obs: ''
-        };
-      }
-    });
-    
-    setDraftDetails(details);
-    setActiveView('edit-draft');
-    setError('');
+  const fetchContingency = async () => {
+    try {
+      const data = await budgetService.getContingencyFundStatus();
+      setContingency(data);
+    } catch { setContingency(null); }
   };
 
-  const handleCreateBudget = async (e: React.FormEvent) => {
+  useEffect(() => { fetchBudgets(); }, [year]);
+  useEffect(() => { if (tab === 'execution') fetchDashboard(); }, [tab, year]);
+  useEffect(() => { if (tab === 'expenses') fetchExpenses(); }, [tab]);
+  useEffect(() => { if (tab === 'contingency') fetchContingency(); }, [tab]);
+
+  const handleSelectBudget = async (id: string) => {
+    try {
+      const data = await budgetService.getBudget(id);
+      setSelectedBudget(data);
+      fetchModifications(id);
+    } catch { setError('Error al cargar detalle del presupuesto'); }
+  };
+
+  const handleCreateBudget = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!canEdit) return;
+    const form = new FormData(e.currentTarget);
+    try {
+      await budgetService.createBudget({
+        fiscalYear: Number(form.get('fiscalYear')),
+        meetingActNumber: form.get('meetingActNumber') as string,
+        approvalDate: (form.get('approvalDate') as string) || undefined,
+        observations: form.get('observations') as string,
+        copyFromPrevious: form.get('copyFromPrevious') === 'true',
+        globalPercentageAdjustment: form.get('globalAdjustment') ? Number(form.get('globalAdjustment')) : undefined,
+      });
+      setSuccess('Presupuesto creado exitosamente');
+      setShowCreate(false);
+      fetchBudgets();
+    } catch { setError('Error al crear presupuesto'); }
+  };
 
-    setError('');
-    setSuccess('');
+  const handleApproveBudget = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    if (!selectedBudget) return;
+    try {
+      await budgetService.approveBudget(selectedBudget.id, {
+        meetingActNumber: form.get('meetingActNumber') as string,
+        approvalDate: form.get('approvalDate') as string,
+      });
+      setSuccess('Presupuesto aprobado exitosamente');
+      setShowApprove(false);
+      setSelectedBudget(null);
+      fetchBudgets();
+    } catch { setError('Error al aprobar presupuesto'); }
+  };
 
-    const manualDetails: CreateBudgetDetailRequest[] = Object.entries(draftDetails)
-      .map(([accId, data]) => ({
-        accountingAccountId: accId,
-        approvedValue: Number(data.val),
-        observations: data.obs
-      }))
-      .filter((d) => d.approvedValue > 0);
-
-    let finalApprovalDate = undefined;
-    if (newApprovalDate) {
-      finalApprovalDate = newApprovalDate;
-    }
-
-    let finalGlobalPercentageAdjustment = undefined;
-    if (copyFromPrevious) {
-      finalGlobalPercentageAdjustment = globalAdjustment;
-    }
-
-    let finalManualDetails = undefined;
-    if (!copyFromPrevious) {
-      finalManualDetails = manualDetails;
-    }
-
-    const request: CreateBudgetRequest = {
-      fiscalPeriod: newFiscalPeriod,
-      meetingActNumber: newMeetingAct,
-      approvalDate: finalApprovalDate,
-      copyFromPrevious,
-      globalPercentageAdjustment: finalGlobalPercentageAdjustment,
-      manualDetails: finalManualDetails
+  useEffect(() => {
+    if (!showExpense) return;
+    const loadItems = async () => {
+      const approved = budgets.filter(b => b.status === 'Approved');
+      const items: { id: string; name: string; budgetLabel: string }[] = [];
+      for (const b of approved) {
+        try {
+          const detail = await budgetService.getBudget(b.id);
+          detail.expenseItems.forEach(ei => items.push({ id: ei.id, name: ei.name, budgetLabel: `Ppto ${detail.fiscalYear}` }));
+        } catch { }
+      }
+      setExpenseItemOptions(items);
     };
+    loadItems();
+  }, [showExpense]);
 
-    try {
-      await budgetService.createBudget(request);
-      setSuccess(`Presupuesto borrador para el año ${newFiscalPeriod} creado.`);
-      setYear(newFiscalPeriod);
-      setActiveView('execution');
-      fetchReport();
-    } catch (err: any) {
-      console.error(err);
-      let errMsg = 'Error al crear el presupuesto.';
-      if (err.response && err.response.data) {
-        errMsg = err.response.data;
-      }
-      setError(errMsg);
-    }
-  };
-
-  const handleSaveDraftDetails = async () => {
-    if (!canEdit || !report) return;
-    setError('');
-    setSuccess('');
-
-    const details: CreateBudgetDetailRequest[] = Object.entries(draftDetails)
-      .map(([accId, data]) => ({
-        accountingAccountId: accId,
-        approvedValue: Number(data.val),
-        observations: data.obs
-      }));
-
-    try {
-      await budgetService.updateDraftDetails(report.budgetId, details);
-      setSuccess('Cambios en el borrador guardados correctamente.');
-      setActiveView('execution');
-      fetchReport();
-    } catch (err: any) {
-      console.error(err);
-      let errMsg = 'Error al guardar los detalles del borrador.';
-      if (err.response && err.response.data) {
-        errMsg = err.response.data;
-      }
-      setError(errMsg);
-    }
-  };
-
-  const handleOpenActivateModal = () => {
-    setActNumber(report?.meetingActNumber || '');
-    let dateStr = '';
-    if (report && report.approvalDate) {
-      dateStr = report.approvalDate.split('T')[0];
-    }
-    setApprovalDate(dateStr);
-    setIsActivateOpen(true);
-    setError('');
-  };
-
-  const handleActivateBudget = async (e: React.FormEvent) => {
+  const handleRecordExpense = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!canEdit || !report) return;
-
-    setError('');
-    setSuccess('');
-
-    if (!actNumber.trim()) {
-      setError('El número de acta de aprobación de la asamblea es requerido.');
-      return;
-    }
-
-    if (!approvalDate) {
-      setError('La fecha de aprobación de la asamblea es requerida.');
-      return;
-    }
-
+    const form = new FormData(e.currentTarget);
     try {
-      await budgetService.activateBudget(report.budgetId, {
-        meetingActNumber: actNumber,
-        approvalDate
+      await budgetService.recordExpense({
+        expenseItemId: form.get('expenseItemId') as string,
+        description: form.get('description') as string,
+        amount: Number(form.get('amount')),
+        expenseDate: form.get('expenseDate') as string,
+        invoiceReference: form.get('invoiceReference') as string,
       });
-      setSuccess(`¡Presupuesto del año fiscal ${report.fiscalPeriod} activado con éxito!`);
-      setIsActivateOpen(false);
-      fetchReport();
-    } catch (err: any) {
-      console.error(err);
-      let errMsg = 'Ocurrió un error al activar el presupuesto.';
-      if (err.response && err.response.data) {
-        errMsg = err.response.data;
-      }
-      setError(errMsg);
-    }
+      setSuccess('Gasto registrado exitosamente');
+      setShowExpense(false);
+      fetchExpenses();
+      if (dashboard) fetchDashboard();
+    } catch { setError('Error al registrar gasto'); }
   };
 
-  const handleCloseBudget = async () => {
-    if (!canEdit || !report) return;
-    if (!confirm(`¿Está seguro de CERRAR definitivamente el presupuesto de ${report.fiscalPeriod}? Esta acción bloqueará cualquier adición o traslado posterior.`)) {
-      return;
-    }
-
-    setError('');
-    setSuccess('');
-
-    try {
-      await budgetService.closeBudget(report.budgetId);
-      setSuccess('El presupuesto ha sido cerrado con éxito.');
-      fetchReport();
-    } catch (err: any) {
-      console.error(err);
-      let errMsg = 'Ocurrió un error al cerrar el presupuesto.';
-      if (err.response && err.response.data) {
-        errMsg = err.response.data;
-      }
-      setError(errMsg);
-    }
-  };
-
-  const handleOpenMovementModal = () => {
-    setMovementType('Transfer');
-    setSourceAccountId('');
-    setDestinationAccountId('');
-    setMovementAmount(0);
-    setJustification('');
-    setApprovalType('Council');
-    setMovementActNumber('');
-    setMovementApprovalDate('');
-    setIsMovementOpen(true);
-    setError('');
-  };
-
-  const handleCreateMovement = async (e: React.FormEvent) => {
+  const handleCreateModification = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!canEdit || !report) return;
-
-    setError('');
-    setSuccess('');
-
-    if (movementAmount <= 0) {
-      setError('El monto del movimiento debe ser superior a cero.');
-      return;
-    }
-
-    if (movementType === 'Transfer' && !sourceAccountId) {
-      setError('Debes especificar la cuenta de origen para un traslado presupuestal.');
-      return;
-    }
-
-    if (!destinationAccountId) {
-      setError('Debes especificar la cuenta de destino.');
-      return;
-    }
-
-    if (!justification.trim()) {
-      setError('Se requiere una justificación detallada del movimiento.');
-      return;
-    }
-
-    if (!movementActNumber.trim()) {
-      setError('El número de acta de aprobación es requerido.');
-      return;
-    }
-
-    if (!movementApprovalDate) {
-      setError('La fecha de aprobación es requerida.');
-      return;
-    }
-
-    let finalSourceId = undefined;
-    if (movementType === 'Transfer') {
-      finalSourceId = sourceAccountId;
-    }
-
+    const form = new FormData(e.currentTarget);
+    if (!selectedBudget) return;
     try {
-      await budgetService.createMovement({
-        budgetId: report.budgetId,
-        movementType,
-        sourceAccountId: finalSourceId,
-        destinationAccountId,
-        amount: movementAmount,
-        justification,
-        approvalType,
-        meetingActNumber: movementActNumber,
-        approvalDate: movementApprovalDate
+      await budgetService.createModification({
+        budgetId: selectedBudget.id,
+        expenseItemId: form.get('expenseItemId') ? form.get('expenseItemId') as string : undefined,
+        incomeItemId: form.get('incomeItemId') ? form.get('incomeItemId') as string : undefined,
+        modificationType: form.get('modificationType') as string,
+        amount: Number(form.get('amount')),
+        justification: form.get('justification') as string,
+        approvalType: form.get('approvalType') as string,
+        meetingActNumber: form.get('meetingActNumber') as string,
+        approvalDate: form.get('approvalDate') as string,
       });
-
-      setSuccess(`Movimiento presupuestal (${movementType}) registrado con éxito.`);
-      setIsMovementOpen(false);
-      fetchReport();
-    } catch (err: any) {
-      console.error(err);
-      let errMsg = 'Error al procesar el traslado o adición.';
-      if (err.response && err.response.data) {
-        errMsg = err.response.data;
-      }
-      setError(errMsg);
-    }
+      setSuccess('Modificación creada exitosamente');
+      setShowModification(false);
+      fetchModifications(selectedBudget.id);
+    } catch { setError('Error al crear modificación'); }
   };
 
-  // Helper for metrics summary card
-  const getSum = (category: string, field: keyof BudgetExecutionItem) => {
-    if (!report) return 0;
-    return report.items
-      .filter((item) => item.category.toLowerCase() === category.toLowerCase() && !item.isGroup)
-      .reduce((sum, item) => sum + Number(item[field]), 0);
+  const handleContingencyUsage = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    try {
+      const budgetId = form.get('budgetId') as string;
+      await budgetService.recordContingencyFundUsage({
+        budgetId,
+        justification: form.get('justification') as string,
+        amount: Number(form.get('amount')),
+        councilApprovalActNumber: form.get('councilApprovalActNumber') as string,
+      });
+      setSuccess('Uso de fondo registrado exitosamente');
+      setShowContingencyUsage(false);
+      fetchContingency();
+    } catch { setError('Error al registrar uso de fondo'); }
   };
 
-  // Totals calculations
-  const totalApprovedIncome = getSum('income', 'approvedValue');
-  const totalAdjustedIncome = getSum('income', 'adjustedBudget');
-  const totalExecutedIncome = getSum('income', 'executedValue');
-
-  const totalApprovedExpense = getSum('expense', 'approvedValue');
-  const totalAdjustedExpense = getSum('expense', 'adjustedBudget');
-  const totalExecutedExpense = getSum('expense', 'executedValue');
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(val);
+  const handleGenerateNext = async (id: string) => {
+    try {
+      await budgetService.generateNextBudget(id);
+      setSuccess('Presupuesto del siguiente período generado');
+      fetchBudgets();
+    } catch { setError('Error al generar siguiente período'); }
   };
 
-  const getTrafficLightColor = (percentage: number) => {
-    if (percentage > 100) {
-      return 'text-rose-600 dark:text-rose-400 font-extrabold';
-    }
-    if (percentage >= 90) {
-      return 'text-amber-600 dark:text-amber-400 font-semibold';
-    }
-    return 'text-emerald-600 dark:text-emerald-400 font-medium';
+  const trafficColor = (t: string) => {
+    if (t === 'Green') return 'text-green-600 bg-green-100 dark:bg-green-900/30';
+    if (t === 'Yellow') return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30';
+    return 'text-red-600 bg-red-100 dark:bg-red-900/30';
   };
 
-  // Helper functions for class toggle and UI mappings (avoiding ternary)
-  function getTabButtonClass(isActive: boolean): string {
-    if (isActive) {
-      return 'px-3 py-1 text-xs font-semibold rounded-md transition-all bg-card text-foreground shadow-sm';
-    }
-    return 'px-3 py-1 text-xs font-semibold rounded-md transition-all text-slate-500 dark:text-zinc-400 hover:text-foreground';
-  }
+  const statusBadge = (s: string) => {
+    const colors: Record<string, string> = {
+      Draft: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+      Submitted: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      Approved: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+      Rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+      Closed: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    };
+    return colors[s] || colors.Draft;
+  };
 
-  function getMovementTypeBadgeClass(type: string): string {
-    if (type === 'Addition') {
-      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400';
-    }
-    return 'bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400';
-  }
+  const renderTabs = () => (
+    <div className="flex gap-2 mb-6 flex-wrap">
+      {[
+        { key: 'list' as TabKey, label: 'Presupuestos', icon: ClipboardList },
+        { key: 'execution' as TabKey, label: 'Ejecución', icon: BarChart3 },
+        { key: 'expenses' as TabKey, label: 'Gastos', icon: DollarSign },
+        { key: 'modifications' as TabKey, label: 'Modificaciones', icon: ArrowLeftRight },
+        { key: 'contingency' as TabKey, label: 'Fondo Imprevistos', icon: BadgeDollarSign },
+      ].map(t => (
+        <button
+          key={t.key}
+          onClick={() => { setTab(t.key); setSelectedBudget(null); }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            tab === t.key
+              ? 'bg-primary text-primary-foreground shadow'
+              : 'bg-card hover:bg-accent text-muted-foreground border border-border'
+          }`}
+        >
+          <t.icon className="w-4 h-4" />
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
 
-  function translateMovementType(type: string): string {
-    if (type === 'Addition') {
-      return 'Adición';
-    }
-    return 'Traslado';
-  }
-
-  function translateApprovalType(type: string): string {
-    if (type === 'Council') {
-      return 'Consejo';
-    }
-    return 'Asamblea';
-  }
-
-  function renderSourceAccountCell(move: BudgetMovement) {
-    if (move.movementType === 'Transfer') {
-      return (
-        <div>
-          <span className="font-mono font-bold mr-1">{move.sourceAccountCode}</span>
-          <span className="text-gray-500 dark:text-zinc-400">{move.sourceAccountName}</span>
-        </div>
-      );
-    }
-    return <span className="text-slate-400 italic">— N/A</span>;
-  }
-
-  function getBudgetStatusIndicatorClass(status: string): string {
-    if (status === 'Active') {
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400';
-    }
-    if (status === 'Draft') {
-      return 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400';
-    }
-    return 'bg-slate-100 text-slate-800 dark:bg-slate-950/30 dark:text-slate-400';
-  }
-
-  function getBudgetStatusTextClass(status: string): string {
-    if (status === 'Active') {
-      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400';
-    }
-    if (status === 'Draft') {
-      return 'bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400';
-    }
-    return 'bg-slate-50 text-slate-700 dark:bg-slate-950/20 dark:text-slate-400';
-  }
-
-  function translateBudgetStatus(status: string): string {
-    if (status === 'Active') {
-      return 'Activo / Aprobado';
-    }
-    if (status === 'Draft') {
-      return 'Borrador';
-    }
-    return 'Cerrado';
-  }
-
-  function getIncomeExecutionPercentage(): number {
-    if (totalAdjustedIncome > 0) {
-      return (totalExecutedIncome / totalAdjustedIncome) * 100;
-    }
-    return 0;
-  }
-
-  function getExpenseExecutionPercentage(): number {
-    if (totalAdjustedExpense > 0) {
-      return (totalExecutedExpense / totalAdjustedExpense) * 100;
-    }
-    return 0;
-  }
-
-  function getExpenseProgressBarColor(): string {
-    if (totalExecutedExpense > totalAdjustedExpense) {
-      return 'bg-rose-500';
-    }
-    return 'bg-blue-500';
-  }
-
-  function renderExpenseBalanceLabel() {
-    const diff = totalAdjustedExpense - totalExecutedExpense;
-    if (diff < 0) {
-      return (
-        <span className="text-rose-600 font-bold">
-          Sobregirado: {formatCurrency(Math.abs(diff))}
-        </span>
-      );
-    }
-    return (
-      <span>
-        Disponible: {formatCurrency(diff)}
-      </span>
-    );
-  }
-
-  function getSurplusTextColor(): string {
-    const diff = totalExecutedIncome - totalExecutedExpense;
-    if (diff >= 0) {
-      return 'text-emerald-700 dark:text-emerald-400';
-    }
-    return 'text-rose-700 dark:text-rose-400';
-  }
-
-  function renderCopyAdjustmentForm() {
-    return (
-      <div className="mt-4 max-w-xs space-y-2 animate-in slide-in-from-top-1 duration-200">
-        <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-          Incremento global porcentual (%)
-        </label>
-        <div className="relative">
-          <input
-            type="number"
-            step={0.01}
-            placeholder="Ej. 6.5"
-            value={globalAdjustment}
-            onChange={(e) => setGlobalAdjustment(Number(e.target.value))}
-            className="input-standard"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">%</span>
-        </div>
-        <p className="text-[10px] text-slate-400 dark:text-zinc-500">
-          El sistema tomará el presupuesto activo más reciente y aplicará este incremento a todos los rubros.
-        </p>
-      </div>
-    );
-  }
-
-  function renderManualRubricsForm() {
-    return (
-      <div className="mt-4 space-y-4">
-        <p className="text-xs text-slate-500 dark:text-zinc-400">
-          Ingresa los valores proyectados anuales para cada cuenta de Ingresos (4) y Gastos (5):
-        </p>
-        
-        <div className="max-h-96 overflow-y-auto border border-border rounded-lg divide-y divide-border">
-          {accounts
-            .filter((acc) => !acc.isGroup && (acc.code.startsWith('4') || acc.code.startsWith('5')))
-            .map((acc) => {
-              const currentVal = draftDetails[acc.id]?.val;
-              const inputVal = currentVal === undefined ? '' : currentVal;
-              return (
-                <div key={acc.id} className="p-3 grid grid-cols-1 md:grid-cols-3 gap-4 items-center bg-card hover:bg-slate-50/55 dark:hover:bg-zinc-800/10">
-                  <div className="font-semibold text-sm">
-                    <span className="font-mono text-emerald-600 mr-2">{acc.code}</span>
-                    <span className="text-gray-700 dark:text-zinc-300">{acc.name}</span>
-                  </div>
-                  <div>
-                    <input
-                      type="number"
-                      placeholder="Valor anual"
-                      value={inputVal}
-                      onChange={(e) => setDraftDetails({
-                        ...draftDetails,
-                        [acc.id]: { val: Number(e.target.value), obs: draftDetails[acc.id]?.obs || '' }
-                      })}
-                      className="input-standard font-mono"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Observación"
-                      value={draftDetails[acc.id]?.obs || ''}
-                      onChange={(e) => setDraftDetails({
-                        ...draftDetails,
-                        [acc.id]: { val: draftDetails[acc.id]?.val || 0, obs: e.target.value }
-                      })}
-                      className="input-standard"
-                    />
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-      </div>
-    );
-  }
-
-  function renderCreateFormDetails() {
-    if (copyFromPrevious) {
-      return renderCopyAdjustmentForm();
-    }
-    return renderManualRubricsForm();
-  }
-
-  function renderCreateView() {
-    return (
-      <div className="card-standard bg-card text-card-foreground p-6 space-y-6">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-            Nuevo Presupuesto para el Año Fiscal {newFiscalPeriod}
-          </h3>
-          <Button variant="ghost" onClick={() => setActiveView('execution')}>
-            Volver
-          </Button>
-        </div>
-
-        <form onSubmit={handleCreateBudget} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Año Fiscal
-              </label>
-              <input
-                type="number"
-                value={newFiscalPeriod}
-                onChange={(e) => setNewFiscalPeriod(Number(e.target.value))}
-                className="input-standard"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Número de Acta Provisoria / Acta Asamblea
-              </label>
-              <input
-                type="text"
-                placeholder="Ej. Borrador Inicial / Acta 038"
-                value={newMeetingAct}
-                onChange={(e) => setNewMeetingAct(e.target.value)}
-                className="input-standard"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Fecha de Reunión / Asamblea
-              </label>
-              <input
-                type="date"
-                value={newApprovalDate}
-                onChange={(e) => setNewApprovalDate(e.target.value)}
-                className="input-standard"
-              />
-            </div>
-          </div>
-
-          <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-border">
-            <label className="flex items-center gap-2 cursor-pointer font-bold text-gray-800 dark:text-white">
-              <input
-                type="checkbox"
-                checked={copyFromPrevious}
-                onChange={(e) => setCopyFromPrevious(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-              />
-              <span>Copiar valores del presupuesto del año anterior</span>
-            </label>
-
-            {renderCreateFormDetails()}
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={() => setActiveView('execution')}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary">
-              Crear Presupuesto Borrador
-            </Button>
-          </div>
-        </form>
-      </div>
-    );
-  }
-
-  function renderEditDraftView() {
-    if (!report) return null;
-
-    return (
-      <div className="card-standard bg-card text-card-foreground p-6 space-y-6">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-            Editar Rubros del Presupuesto Borrador ({report.fiscalPeriod})
-          </h3>
-          <Button variant="ghost" onClick={() => setActiveView('execution')}>
-            Volver
-          </Button>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-xs text-slate-500 dark:text-zinc-400">
-            Modifica los valores presupuestados para las cuentas contables operativas:
-          </p>
-          
-          <div className="max-h-[500px] overflow-y-auto border border-border rounded-lg divide-y divide-border">
-            {accounts
-              .filter((acc) => !acc.isGroup && (acc.code.startsWith('4') || acc.code.startsWith('5')))
-              .map((acc) => {
-                const currentVal = draftDetails[acc.id]?.val;
-                const inputVal = currentVal === undefined ? '' : currentVal;
-                return (
-                  <div key={acc.id} className="p-3 grid grid-cols-1 md:grid-cols-3 gap-4 items-center bg-card hover:bg-slate-50/50 dark:hover:bg-zinc-800/10">
-                    <div className="font-semibold text-sm">
-                      <span className="font-mono text-emerald-600 mr-2">{acc.code}</span>
-                      <span className="text-gray-700 dark:text-zinc-300">{acc.name}</span>
-                    </div>
-                    <div>
-                      <input
-                        type="number"
-                        placeholder="Valor aprobado anual"
-                        value={inputVal}
-                        onChange={(e) => setDraftDetails({
-                          ...draftDetails,
-                          [acc.id]: { val: Number(e.target.value), obs: draftDetails[acc.id]?.obs || '' }
-                        })}
-                        className="input-standard font-mono"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Observación"
-                        value={draftDetails[acc.id]?.obs || ''}
-                        onChange={(e) => setDraftDetails({
-                          ...draftDetails,
-                          [acc.id]: { val: draftDetails[acc.id]?.val || 0, obs: e.target.value }
-                        })}
-                        className="input-standard"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-          
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={() => setActiveView('execution')}>
-              Cancelar
-            </Button>
-            <Button type="button" variant="success" onClick={handleSaveDraftDetails}>
-              Guardar Cambios en Borrador
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function renderMovementsView() {
-    if (!report) return null;
-
-    return (
-      <div className="space-y-6">
-        <div className="card-standard p-6 bg-card text-card-foreground flex flex-col md:flex-row items-center justify-between gap-4">
-          <div>
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white">Traslados y Adiciones Presupuestales</h3>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-              Historial completo de modificaciones del presupuesto para el período {report.fiscalPeriod}.
-            </p>
-          </div>
-          {canEdit && report.status === 'Active' && (
-            <Button onClick={handleOpenMovementModal} className="flex items-center gap-2">
-              <ArrowLeftRight className="w-4 h-4" />
-              Registrar Modificación
-            </Button>
-          )}
-        </div>
-
-        <div className="card-standard bg-card text-card-foreground overflow-hidden">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-border bg-slate-50 dark:bg-zinc-900/50 text-left text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-                <th className="py-4 px-6">Tipo</th>
-                <th className="py-4 px-6">Cuenta Origen (Traslado)</th>
-                <th className="py-4 px-6">Cuenta Destino</th>
-                <th className="py-4 px-6 text-right">Monto</th>
-                <th className="py-4 px-6">Aprobación / Acta</th>
-                <th className="py-4 px-6">Fecha Aprobación</th>
-                <th className="py-4 px-6">Justificación</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {movements.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-zinc-500">
-                    No se han registrado adiciones ni traslados presupuestales en este período fiscal.
-                  </td>
-                </tr>
-              ) : (
-                movements.map((move) => (
-                  <tr key={move.id} className="hover:bg-slate-50/50 dark:hover:bg-zinc-900/30">
-                    <td className="py-4 px-6 font-bold">
-                      <span className={`px-2 py-0.5 rounded text-xs ${getMovementTypeBadgeClass(move.movementType)}`}>
-                        {translateMovementType(move.movementType)}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      {renderSourceAccountCell(move)}
-                    </td>
-                    <td className="py-4 px-6 font-semibold">
-                      <span className="font-mono font-bold mr-1">{move.destinationAccountCode}</span>
-                      <span className="text-gray-700 dark:text-zinc-300">{move.destinationAccountName}</span>
-                    </td>
-                    <td className="py-4 px-6 text-right font-mono font-bold text-gray-900 dark:text-white">
-                      {formatCurrency(move.amount)}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-gray-700 dark:text-zinc-300">
-                        {translateApprovalType(move.approvalType)}
-                      </div>
-                      <div className="text-xs text-slate-400">{move.meetingActNumber}</div>
-                    </td>
-                    <td className="py-4 px-6 text-slate-500">
-                      {new Date(move.approvalDate).toLocaleDateString('es-CO')}
-                    </td>
-                    <td className="py-4 px-6 text-xs text-slate-500 max-w-xs truncate" title={move.justification}>
-                      {move.justification}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
-
-  function renderNoBudgetView() {
-    return (
-      <div className="card-standard p-12 text-center bg-card text-card-foreground space-y-6">
-        <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto text-slate-400">
-          <BadgeDollarSign className="w-8 h-8" />
-        </div>
-        <div>
-          <h3 className="font-bold text-lg text-gray-900 dark:text-white">No existe presupuesto registrado para el año {year}</h3>
-          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
-            Debes registrar la estructura presupuestal aprobada por la asamblea para poder realizar el control de ejecución financiera.
-          </p>
+  const renderBudgetList = () => (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">Presupuestos</h2>
+          <select
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+            className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card"
+          >
+            {[2024, 2025, 2026, 2027, 2028].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
         </div>
         {canEdit && (
-          <Button onClick={handleOpenCreateView} className="flex items-center gap-2 mx-auto">
-            <Plus className="w-4 h-4" />
-            Configurar Presupuesto {year}
+          <Button variant="primary" onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Nuevo Presupuesto
           </Button>
         )}
       </div>
-    );
-  }
 
-  function renderMovementDetailCell(value: number, prefix: string, colorClass: string) {
-    if (value > 0) {
-      return (
-        <td className={`py-4 px-6 text-right font-mono text-xs ${colorClass}`}>
-          {prefix}{formatCurrency(value)}
-        </td>
-      );
-    }
-    return (
-      <td className="py-4 px-6 text-right font-mono text-xs">
-        —
-      </td>
-    );
-  }
-
-  function renderMainExecutionView() {
-    if (!report) return null;
-
-    const incomePercent = getIncomeExecutionPercentage();
-    const incomeWidth = Math.min(incomePercent, 100);
-
-    const expensePercent = getExpenseExecutionPercentage();
-    const expenseWidth = Math.min(expensePercent, 100);
-
-    let approvalDateString = '';
-    if (report.approvalDate) {
-      approvalDateString = ` el ${new Date(report.approvalDate).toLocaleDateString('es-CO')}`;
-    }
-
-    const reportHeaderButtons = [];
-
-    if (canEdit && report.status === 'Draft') {
-      reportHeaderButtons.push(
-        <Button key="edit" variant="secondary" onClick={handleOpenEditDraftView} className="flex items-center gap-2">
-          <FileText className="w-4 h-4" />
-          Editar Rubros
-        </Button>
-      );
-      reportHeaderButtons.push(
-        <Button key="activate" variant="primary" onClick={handleOpenActivateModal} className="flex items-center gap-2">
-          <Play className="w-4 h-4" />
-          Activar Presupuesto
-        </Button>
-      );
-    }
-
-    if (canEdit && report.status === 'Active') {
-      reportHeaderButtons.push(
-        <Button key="close" variant="secondary" onClick={handleCloseBudget} className="flex items-center gap-2 text-rose-600 dark:text-rose-400 border-rose-100 hover:bg-rose-50 dark:border-rose-900/50 dark:hover:bg-rose-950/20">
-          <Lock className="w-4 h-4" />
-          Cerrar Año Fiscal
-        </Button>
-      );
-    }
-
-    return (
-      <div className="space-y-6">
-        {/* HEADER STATUS INFOBAR */}
-        <div className="card-standard p-6 bg-card text-card-foreground flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getBudgetStatusIndicatorClass(report.status)}`}>
-              <Activity className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-900 dark:text-white">Estado del Presupuesto:</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold ${getBudgetStatusTextClass(report.status)}`}>
-                  {translateBudgetStatus(report.status)}
-                </span>
-              </div>
-              <div className="text-xs text-slate-400 mt-0.5">
-                Aprobado mediante <strong>{report.meetingActNumber}</strong>
-                {approvalDateString}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {reportHeaderButtons}
-          </div>
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground">Cargando...</div>
+      ) : budgets.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12 text-muted-foreground">
+            No hay presupuestos para el año {year}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {budgets.map(b => (
+            <Card key={b.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-lg font-semibold">Presupuesto {b.fiscalYear}</span>
+                      <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadge(b.status)}`}>
+                        {b.status === 'Draft' ? 'Borrador' : b.status === 'Submitted' ? 'En Revisión' : b.status === 'Approved' ? 'Aprobado' : b.status === 'Rejected' ? 'Rechazado' : b.status === 'Closed' ? 'Cerrado' : b.status}
+                      </span>
+                    </div>
+                    {b.meetingActNumber && (
+                      <p className="text-sm text-muted-foreground">Acta: {b.meetingActNumber}</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Ingresos: </span>
+                        <span className="font-medium">${b.totalIncome.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Gastos: </span>
+                        <span className="font-medium">${b.totalExpense.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Partidas: </span>
+                        <span className="font-medium">{b.incomeItemsCount + b.expenseItemsCount}</span>
+                      </div>
+                    </div>
+                    {b.observations && (
+                      <p className="text-xs text-muted-foreground mt-2 italic">{b.observations}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => handleSelectBudget(b.id)}
+                      className="p-2 hover:bg-accent rounded-lg transition-colors"
+                      title="Ver detalle"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    {canEdit && b.status === 'Draft' && (
+                      <button
+                        onClick={() => { handleSelectBudget(b.id); setShowApprove(true); }}
+                        className="p-2 hover:bg-accent rounded-lg transition-colors text-green-600"
+                        title="Aprobar"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                    )}
+                    {canEdit && b.status === 'Approved' && (
+                      <>
+                        <button
+                          onClick={() => handleGenerateNext(b.id)}
+                          className="p-2 hover:bg-accent rounded-lg transition-colors"
+                          title="Generar siguiente período"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      )}
 
-        {/* OVER-BUDGET ALERTS SECTION */}
-        {report.alerts.length > 0 && (
-          <div className="card-standard border-rose-200 dark:border-rose-950/50 bg-rose-50/30 dark:bg-rose-950/5 p-6 space-y-3">
-            <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-              <h4 className="font-bold text-sm">Alertas de Desviación Presupuestal Importante</h4>
+      {selectedBudget && (
+        <Card className="mt-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Detalle del Presupuesto {selectedBudget.fiscalYear}</h3>
+              <button onClick={() => setSelectedBudget(null)} className="p-1 hover:bg-accent rounded">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <ul className="space-y-1.5 list-disc pl-5 text-xs text-rose-600 dark:text-rose-400">
-              {report.alerts.map((alert, i) => (
-                <li key={i}>
-                  Cuenta <strong className="font-mono">{alert.accountCode} ({alert.accountName})</strong>: {alert.message} — Presupuesto Ajustado: {formatCurrency(alert.adjustedBudget)} / Proyección Cierre: {formatCurrency(alert.closingProjection)}.
-                </li>
-              ))}
-            </ul>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-green-600" /> Ingresos
+                </h4>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2">Nombre</th>
+                      <th className="text-right py-2">Valor Anual</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedBudget.incomeItems.map(i => (
+                      <tr key={i.id} className="border-b border-border/50">
+                        <td className="py-2">{i.name}</td>
+                        <td className="text-right py-2">${i.annualValue.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-semibold">
+                      <td className="py-2">Total Ingresos</td>
+                      <td className="text-right py-2">${selectedBudget.incomeItems.reduce((s, i) => s + i.annualValue, 0).toLocaleString()}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div>
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <TrendingDown className="w-4 h-4 text-red-600" /> Gastos
+                </h4>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2">Nombre</th>
+                      <th className="text-center py-2">Categoría</th>
+                      <th className="text-right py-2">Valor Anual</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedBudget.expenseItems.map(e => (
+                      <tr key={e.id} className="border-b border-border/50">
+                        <td className="py-2">{e.name} {e.isContingencyFund ? '(Fondo Imprevistos)' : ''}</td>
+                        <td className="text-center py-2 text-xs">{e.category}</td>
+                        <td className="text-right py-2">${e.annualValue.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-semibold">
+                      <td className="py-2">Total Gastos</td>
+                      <td></td>
+                      <td className="text-right py-2">${selectedBudget.expenseItems.reduce((s, e) => s + e.annualValue, 0).toLocaleString()}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showApprove && selectedBudget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <h3 className="font-semibold">Aprobar Presupuesto {selectedBudget.fiscalYear}</h3>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleApproveBudget} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">N° Acta</label>
+                  <input name="meetingActNumber" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Fecha Aprobación</label>
+                  <input name="approvalDate" type="date" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="flex gap-3 justify-end pt-2">
+                  <Button variant="ghost" type="button" onClick={() => setShowApprove(false)}>Cancelar</Button>
+                  <Button variant="success" type="submit">Aprobar</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderExecution = () => (
+    <div>
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-lg font-semibold">Ejecución Presupuestal</h2>
+        <select
+          value={year}
+          onChange={e => setYear(Number(e.target.value))}
+          className="text-sm border border-border rounded-lg px-3 py-1.5 bg-card"
+        >
+          {[2024, 2025, 2026, 2027, 2028].map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground">Cargando...</div>
+      ) : !dashboard ? (
+        <Card>
+          <CardContent className="text-center py-12 text-muted-foreground">
+            No hay presupuesto aprobado para el año {year}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Presupuesto Total (Gastos)</p>
+                <p className="text-2xl font-bold">${dashboard.totalApprovedExpense.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Ejecutado</p>
+                <p className="text-2xl font-bold text-blue-600">${dashboard.totalExecutedExpense.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Disponible</p>
+                <p className="text-2xl font-bold text-green-600">${dashboard.totalAvailable.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">% Ejecución</p>
+                <p className={`text-2xl font-bold ${dashboard.overallExecutionPercentage > 80 ? 'text-red-600' : dashboard.overallExecutionPercentage > 50 ? 'text-yellow-600' : 'text-green-600'}`}>
+                  {dashboard.overallExecutionPercentage.toFixed(1)}%
+                </p>
+              </CardContent>
+            </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <h3 className="font-semibold">Detalle por Partida</h3>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="text-left px-4 py-3">Partida</th>
+                      <th className="text-center px-4 py-3">Categoría</th>
+                      <th className="text-right px-4 py-3">Anual</th>
+                      <th className="text-right px-4 py-3">Proporcional</th>
+                      <th className="text-right px-4 py-3">Ejecutado</th>
+                      <th className="text-right px-4 py-3">Disponible</th>
+                      <th className="text-center px-4 py-3">% Ejec.</th>
+                      <th className="text-center px-4 py-3">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboard.expenseItems.map(item => (
+                      <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="px-4 py-3 font-medium">{item.name}</td>
+                        <td className="px-4 py-3 text-center text-xs">{item.category}</td>
+                        <td className="px-4 py-3 text-right">${item.annualValue.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right">${item.proportionalToDate.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right">${item.executedValue.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right">${item.availableValue.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right">{item.executionPercentage.toFixed(1)}%</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${trafficColor(item.trafficLight)}`}>
+                            {item.trafficLight === 'Green' && <TrendingDown className="w-3 h-3" />}
+                            {item.trafficLight === 'Yellow' && <AlertTriangle className="w-3 h-3" />}
+                            {item.trafficLight === 'Red' && <AlertTriangle className="w-3 h-3" />}
+                            {item.trafficLight === 'Green' ? 'Normal' : item.trafficLight === 'Yellow' ? 'Alerta' : 'Crítico'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {dashboard.alerts.length > 0 && (
+            <Card className="mt-4 border-yellow-300 dark:border-yellow-700">
+              <CardHeader>
+                <h3 className="font-semibold flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+                  <AlertTriangle className="w-5 h-5" /> Alertas
+                </h3>
+              </CardHeader>
+              <CardContent>
+                {dashboard.alerts.map((a, i) => (
+                  <div key={i} className="flex items-start gap-3 py-2 border-b border-border/50 last:border-0">
+                    <AlertTriangle className={`w-4 h-4 mt-0.5 ${a.severity === 'Critical' ? 'text-red-500' : 'text-yellow-500'}`} />
+                    <div>
+                      <p className="text-sm font-medium">{a.itemName}</p>
+                      <p className="text-xs text-muted-foreground">{a.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const renderExpenses = () => (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Gastos Ejecutados</h2>
+        {canEdit && (
+          <Button variant="primary" onClick={() => setShowExpense(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Registrar Gasto
+          </Button>
         )}
+      </div>
 
-        {/* METRIC SUMMARY CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* INCOME SUMMARY CARD */}
-          <div className="card-standard p-6 bg-card text-card-foreground space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Ejecución de Ingresos</span>
-              <span className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black text-gray-900 dark:text-white">{formatCurrency(totalExecutedIncome)}</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Recaudado de {formatCurrency(totalAdjustedIncome)} proyectados
-              </p>
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-              <div 
-                className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${incomeWidth}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-semibold">
-              <span>Avance: {incomePercent.toFixed(1)}%</span>
-              <span>Faltante: {formatCurrency(Math.max(totalAdjustedIncome - totalExecutedIncome, 0))}</span>
-            </div>
-          </div>
-
-          {/* EXPENSE SUMMARY CARD */}
-          <div className="card-standard p-6 bg-card text-card-foreground space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Ejecución de Gastos</span>
-              <span className="w-8 h-8 rounded-full bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                <TrendingDown className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black text-gray-900 dark:text-white">{formatCurrency(totalExecutedExpense)}</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Gastado de {formatCurrency(totalAdjustedExpense)} autorizados
-              </p>
-            </div>
-            <div className="w-full bg-slate-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-300 ${getExpenseProgressBarColor()}`}
-                style={{ width: `${expenseWidth}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-semibold">
-              <span>Consumido: {expensePercent.toFixed(1)}%</span>
-              {renderExpenseBalanceLabel()}
-            </div>
-          </div>
-
-          {/* BALANCE CARD */}
-          <div className="card-standard p-6 bg-card text-card-foreground space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Resultado de Caja Ejecutado</span>
-              <span className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <DollarSign className="w-4 h-4" />
-              </span>
-            </div>
-            <div className="space-y-1">
-              <h3 className={`text-2xl font-black ${getSurplusTextColor()}`}>
-                {formatCurrency(totalExecutedIncome - totalExecutedExpense)}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Diferencia real entre ingresos y gastos del período
-              </p>
-            </div>
-            <div className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-border text-[11px] font-semibold text-slate-500 dark:text-zinc-400 flex items-center justify-between">
-              <span>Resultado Presupuestado:</span>
-              <span className="font-mono text-gray-700 dark:text-zinc-300">
-                {formatCurrency(totalAdjustedIncome - totalAdjustedExpense)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* DETAILED BUDGET ITEMS TABLE */}
-        <div className="card-standard bg-card text-card-foreground">
-          <div className="p-6 border-b border-border">
-            <h3 className="font-bold text-gray-900 dark:text-white">Detalle de Ejecución de Rubros</h3>
-          </div>
-          
+      <Card>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-slate-50 dark:bg-zinc-900/50 text-left text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-                  <th className="py-4 px-6">Código / Rubro</th>
-                  <th className="py-4 px-6 text-right">Inicial</th>
-                  <th className="py-4 px-6 text-right">Adiciones</th>
-                  <th className="py-4 px-6 text-right">Traslados (+)</th>
-                  <th className="py-4 px-6 text-right">Traslados (-)</th>
-                  <th className="py-4 px-6 text-right">Ajustado</th>
-                  <th className="py-4 px-6 text-right">Ejecutado</th>
-                  <th className="py-4 px-6 text-right">Disponible</th>
-                  <th className="py-4 px-6 text-center">% Ejec.</th>
-                  <th className="py-4 px-6 text-center">Proyección</th>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="text-left px-4 py-3">Fecha</th>
+                  <th className="text-left px-4 py-3">Partida</th>
+                  <th className="text-left px-4 py-3">Descripción</th>
+                  <th className="text-right px-4 py-3">Monto</th>
+                  <th className="text-left px-4 py-3">Factura</th>
+                  <th className="text-left px-4 py-3">Proveedor</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border text-sm">
-                {report.items.map((item) => {
-                  const isGroup = item.isGroup;
-                  let rowClass = 'hover:bg-slate-50/50 dark:hover:bg-zinc-900/30';
-                  if (isGroup) {
-                    rowClass = 'font-bold bg-slate-50/30 dark:bg-zinc-900/10';
-                  }
-
-                  let indentClass = 'pl-14';
-                  if (item.accountCode.length === 1) {
-                    indentClass = 'pl-6 font-black';
-                  } else if (item.accountCode.length === 2) {
-                    indentClass = 'pl-10 font-bold';
-                  }
-
-                  let availableValueCellClass = '';
-                  if (item.availableValue < 0 && !isGroup) {
-                    availableValueCellClass = 'text-rose-600 font-bold';
-                  }
-
-                  return (
-                    <tr key={item.accountId} className={`${rowClass} transition-colors`}>
-                      {/* Account Code & Name */}
-                      <td className={`py-4 px-6 ${indentClass} max-w-xs truncate`}>
-                        <span className="font-mono text-emerald-600 mr-2">{item.accountCode}</span>
-                        <span className="text-gray-700 dark:text-zinc-300">{item.accountName}</span>
-                      </td>
-
-                      {/* Approved Value */}
-                      <td className="py-4 px-6 text-right font-mono text-xs">
-                        {formatCurrency(item.approvedValue)}
-                      </td>
-
-                      {/* Additions */}
-                      {renderMovementDetailCell(item.additions, '+', 'text-emerald-600')}
-
-                      {/* Transfers In */}
-                      {renderMovementDetailCell(item.transfersIn, '+', 'text-blue-600')}
-
-                      {/* Transfers Out */}
-                      {renderMovementDetailCell(item.transfersOut, '-', 'text-rose-600')}
-
-                      {/* Adjusted Budget */}
-                      <td className="py-4 px-6 text-right font-mono text-xs font-bold text-gray-900 dark:text-white">
-                        {formatCurrency(item.adjustedBudget)}
-                      </td>
-
-                      {/* Executed Value */}
-                      <td className="py-4 px-6 text-right font-mono text-xs font-bold">
-                        {formatCurrency(item.executedValue)}
-                      </td>
-
-                      {/* Available Value */}
-                      <td className={`py-4 px-6 text-right font-mono text-xs ${availableValueCellClass}`}>
-                        {formatCurrency(item.availableValue)}
-                      </td>
-
-                      {/* Execution % */}
-                      <td className={`py-4 px-6 text-center font-mono text-xs ${getTrafficLightColor(item.executionPercentage)}`}>
-                        {item.executionPercentage.toFixed(1)}%
-                      </td>
-
-                      {/* Closing Projection */}
-                      <td className="py-4 px-6 text-center font-mono text-xs text-slate-500">
-                        {formatCurrency(item.closingProjection)}
-                      </td>
-                    </tr>
-                  );
-                })}
+              <tbody>
+                {expenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-muted-foreground">No hay gastos registrados</td>
+                  </tr>
+                ) : expenses.map(e => (
+                  <tr key={e.id} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="px-4 py-3">{new Date(e.expenseDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 font-medium">{e.expenseItemName}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{e.description}</td>
+                    <td className="px-4 py-3 text-right font-medium">${e.amount.toLocaleString()}</td>
+                    <td className="px-4 py-3">{e.invoiceReference || '-'}</td>
+                    <td className="px-4 py-3">{e.providerName || '-'}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      {showExpense && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <h3 className="font-semibold">Registrar Gasto</h3>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleRecordExpense} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Partida Presupuestal</label>
+                  <select name="expenseItemId" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
+                    <option value="">Seleccione una partida...</option>
+                    {expenseItemOptions.map(opt => (
+                      <option key={opt.id} value={opt.id}>{opt.budgetLabel} - {opt.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Descripción</label>
+                  <input name="description" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Monto</label>
+                    <input name="amount" type="number" step="0.01" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Fecha</label>
+                    <input name="expenseDate" type="date" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Referencia Factura</label>
+                  <input name="invoiceReference" className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="flex gap-3 justify-end pt-2">
+                  <Button variant="ghost" type="button" onClick={() => setShowExpense(false)}>Cancelar</Button>
+                  <Button variant="primary" type="submit">Registrar</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
+      )}
+    </div>
+  );
+
+  const renderModifications = () => (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Modificaciones Presupuestales</h2>
+        {canEdit && selectedBudget && (
+          <Button variant="primary" onClick={() => setShowModification(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Nueva Modificación
+          </Button>
+        )}
       </div>
-    );
-  }
 
-  function renderActivateBudgetModal() {
-    if (!isActivateOpen || !report) return null;
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">Seleccionar Presupuesto</label>
+        <select
+          onChange={e => { if (e.target.value) handleSelectBudget(e.target.value); }}
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card max-w-sm"
+        >
+          <option value="">Seleccione...</option>
+          {budgets.map(b => (
+            <option key={b.id} value={b.id}>Presupuesto {b.fiscalYear} - {b.status}</option>
+          ))}
+        </select>
+      </div>
 
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-        <div className="bg-card text-card-foreground w-full max-w-md rounded-xl border border-border shadow-lg overflow-hidden animate-in zoom-in-95 duration-200">
-          <div className="p-6 border-b border-border flex items-center justify-between">
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white">Activar Presupuesto Anual</h3>
-            <button onClick={() => setIsActivateOpen(false)} className="text-slate-400 hover:text-slate-600">
-              <X className="w-5 h-5" />
-            </button>
+      {selectedBudget && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-4 py-3">Tipo</th>
+                    <th className="text-left px-4 py-3">Partida</th>
+                    <th className="text-right px-4 py-3">Monto</th>
+                    <th className="text-right px-4 py-3">Valor Anterior</th>
+                    <th className="text-right px-4 py-3">Nuevo Valor</th>
+                    <th className="text-left px-4 py-3">Justificación</th>
+                    <th className="text-left px-4 py-3">Aprobación</th>
+                    <th className="text-left px-4 py-3">Acta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modifications.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-muted-foreground">Sin modificaciones</td>
+                    </tr>
+                  ) : modifications.map(m => (
+                    <tr key={m.id} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                          m.modificationType === 'Addition' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                          m.modificationType === 'Reduction' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                          'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        }`}>
+                          {m.modificationType === 'Addition' ? 'Adición' : m.modificationType === 'Reduction' ? 'Reducción' : 'Traslado'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">{m.expenseItemName || m.incomeItemName}</td>
+                      <td className="px-4 py-3 text-right">${m.amount.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">${m.previousValue.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">${m.newValue.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{m.justification}</td>
+                      <td className="px-4 py-3 text-xs">{m.approvalType}</td>
+                      <td className="px-4 py-3 text-xs">{m.meetingActNumber}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showModification && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <h3 className="font-semibold">Nueva Modificación</h3>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateModification} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tipo</label>
+                    <select name="modificationType" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
+                      <option value="Addition">Adición</option>
+                      <option value="Reduction">Reducción</option>
+                      <option value="Transfer">Traslado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Monto</label>
+                    <input name="amount" type="number" step="0.01" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Partida de Gasto (opcional)</label>
+                  <select name="expenseItemId" className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
+                    <option value="">Ninguna</option>
+                    {selectedBudget?.expenseItems.map(ei => (
+                      <option key={ei.id} value={ei.id}>{ei.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Partida de Ingreso (opcional)</label>
+                  <select name="incomeItemId" className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
+                    <option value="">Ninguna</option>
+                    {selectedBudget?.incomeItems.map(ii => (
+                      <option key={ii.id} value={ii.id}>{ii.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Justificación</label>
+                  <textarea name="justification" required rows={3} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tipo Aprobación</label>
+                    <select name="approvalType" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
+                      <option value="Council">Consejo</option>
+                      <option value="Assembly">Asamblea</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">N° Acta</label>
+                    <input name="meetingActNumber" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Fecha Aprobación</label>
+                  <input name="approvalDate" type="date" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="flex gap-3 justify-end pt-2">
+                  <Button variant="ghost" type="button" onClick={() => setShowModification(false)}>Cancelar</Button>
+                  <Button variant="primary" type="submit">Crear</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderContingency = () => (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Fondo de Imprevistos</h2>
+        {canEdit && (
+          <Button variant="primary" onClick={() => setShowContingencyUsage(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Registrar Uso
+          </Button>
+        )}
+      </div>
+
+      {contingency && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Total Aportado</p>
+                <p className="text-2xl font-bold text-green-600">${contingency.totalContributed.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Total Usado</p>
+                <p className="text-2xl font-bold text-red-600">${contingency.totalUsed.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Saldo Disponible</p>
+                <p className="text-2xl font-bold text-blue-600">${contingency.availableBalance.toLocaleString()}</p>
+              </CardContent>
+            </Card>
           </div>
 
-          <form onSubmit={handleActivateBudget} className="p-6 space-y-4">
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs space-y-1.5 border border-blue-100 dark:border-blue-900/50">
-              <p className="font-bold">Información Importante:</p>
-              <p>Al activar el presupuesto, los rubros se consideran oficialmente aprobados. Esto bloqueará la edición directa de rubros y habilitará el motor de control presupuestario.</p>
-            </div>
+          <Card>
+            <CardHeader>
+              <h3 className="font-semibold">Historial de Usos</h3>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="text-left px-4 py-3">Fecha</th>
+                      <th className="text-left px-4 py-3">Justificación</th>
+                      <th className="text-right px-4 py-3">Monto</th>
+                      <th className="text-left px-4 py-3">Acta Aprobación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contingency.usages.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-8 text-muted-foreground">Sin usos registrados</td>
+                      </tr>
+                    ) : contingency.usages.map(u => (
+                      <tr key={u.id} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="px-4 py-3">{new Date(u.createdAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-3">{u.justification}</td>
+                        <td className="px-4 py-3 text-right font-medium">${u.amount.toLocaleString()}</td>
+                        <td className="px-4 py-3">{u.councilApprovalActNumber || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Número de Acta de Aprobación de la Asamblea
-              </label>
-              <input
-                type="text"
-                placeholder="Ej. Acta 042 Ordinaria"
-                value={actNumber}
-                onChange={(e) => setActNumber(e.target.value)}
-                className="input-standard"
-                required
-              />
-            </div>
+      {!contingency && (
+        <Card>
+          <CardContent className="text-center py-12 text-muted-foreground">
+            No hay información del fondo de imprevistos
+          </CardContent>
+        </Card>
+      )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Fecha de Aprobación de la Asamblea
-              </label>
-              <input
-                type="date"
-                value={approvalDate}
-                onChange={(e) => setApprovalDate(e.target.value)}
-                className="input-standard"
-                required
-              />
-            </div>
-
-            <div className="pt-4 flex justify-end gap-3 border-t border-border">
-              <Button type="button" variant="ghost" onClick={() => setIsActivateOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" variant="primary" className="flex items-center gap-2">
-                <Play className="w-4 h-4" />
-                Activar Ahora
-              </Button>
-            </div>
-          </form>
+      {showContingencyUsage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <h3 className="font-semibold">Registrar Uso de Fondo de Imprevistos</h3>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleContingencyUsage} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Presupuesto</label>
+                  <select name="budgetId" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
+                    <option value="">Seleccione...</option>
+                    {budgets.filter(b => b.status === 'Approved').map(b => (
+                      <option key={b.id} value={b.id}>Presupuesto {b.fiscalYear}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Justificación</label>
+                  <textarea name="justification" required rows={3} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Monto</label>
+                  <input name="amount" type="number" step="0.01" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">N° Acta Aprobación Consejo</label>
+                  <input name="councilApprovalActNumber" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="flex gap-3 justify-end pt-2">
+                  <Button variant="ghost" type="button" onClick={() => setShowContingencyUsage(false)}>Cancelar</Button>
+                  <Button variant="primary" type="submit">Registrar</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-    );
-  }
-
-  function renderCreateMovementModal() {
-    if (!isMovementOpen || !report) return null;
-
-    const sourceAccountOptions = report.items
-      .filter((item) => !item.isGroup && item.accountCode.startsWith('5')) // Exp.
-      .map((item) => (
-        <option key={item.accountId} value={item.accountId}>
-          {item.accountCode} - {item.accountName} (Disponible: {formatCurrency(item.availableValue)})
-        </option>
-      ));
-
-    const destAccountOptions = report.items
-      .filter((item) => !item.isGroup && (item.accountCode.startsWith('4') || item.accountCode.startsWith('5')))
-      .map((item) => (
-        <option key={item.accountId} value={item.accountId}>
-          {item.accountCode} - {item.accountName}
-        </option>
-      ));
-
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-        <div className="bg-card text-card-foreground w-full max-w-lg rounded-xl border border-border shadow-lg overflow-hidden animate-in zoom-in-95 duration-200">
-          <div className="p-6 border-b border-border flex items-center justify-between">
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white">Registrar Modificación Presupuestal</h3>
-            <button onClick={() => setIsMovementOpen(false)} className="text-slate-400 hover:text-slate-600">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <form onSubmit={handleCreateMovement} className="p-6 space-y-4">
-            {/* MOVEMENT TYPE */}
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Tipo de Operación
-              </label>
-              <div className="grid grid-cols-2 gap-2 bg-slate-100 dark:bg-zinc-950 p-1 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setMovementType('Transfer')}
-                  className={`py-2 text-xs font-bold rounded-md transition-all ${
-                    movementType === 'Transfer'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-slate-500 dark:text-zinc-400'
-                  }`}
-                >
-                  Traslado (Entre Rubros)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMovementType('Addition')}
-                  className={`py-2 text-xs font-bold rounded-md transition-all ${
-                    movementType === 'Addition'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-slate-500 dark:text-zinc-400'
-                  }`}
-                >
-                  Adición (Aumento Global)
-                </button>
-              </div>
-            </div>
-
-            {/* SOURCE ACCOUNT (ONLY FOR TRANSFERS) */}
-            {movementType === 'Transfer' && (
-              <div>
-                <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                  Cuenta Origen (Se reduce saldo)
-                </label>
-                <select
-                  value={sourceAccountId}
-                  onChange={(e) => setSourceAccountId(e.target.value)}
-                  className="input-standard"
-                  required
-                >
-                  <option value="">Seleccione cuenta origen...</option>
-                  {sourceAccountOptions}
-                </select>
-              </div>
-            )}
-
-            {/* DESTINATION ACCOUNT */}
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Cuenta Destino (Se incrementa saldo)
-              </label>
-              <select
-                value={destinationAccountId}
-                onChange={(e) => setDestinationAccountId(e.target.value)}
-                className="input-standard"
-                required
-              >
-                <option value="">Seleccione cuenta destino...</option>
-                {destAccountOptions}
-              </select>
-            </div>
-
-            {/* AMOUNT */}
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Monto del Ajuste (COP)
-              </label>
-              <input
-                type="number"
-                placeholder="0"
-                value={movementAmount || ''}
-                onChange={(e) => setMovementAmount(Number(e.target.value))}
-                className="input-standard font-mono font-bold"
-                required
-              />
-            </div>
-
-            {/* JUSTIFICATION */}
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Justificación Técnica / Financiera
-              </label>
-              <textarea
-                placeholder="Ej. Reubicación de fondos para cubrir mantenimiento de ascensores..."
-                value={justification}
-                onChange={(e) => setJustification(e.target.value)}
-                className="input-standard min-h-[60px]"
-                required
-              />
-            </div>
-
-            {/* APPROVAL DETAILS */}
-            <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                  Tipo de Aprobación
-                </label>
-                <select
-                  value={approvalType}
-                  onChange={(e) => setApprovalType(e.target.value as any)}
-                  className="input-standard"
-                >
-                  <option value="Council">Consejo de Administración</option>
-                  <option value="Assembly">Asamblea de Copropietarios</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                  Acta de Aprobación
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej. Acta Consejo 12"
-                  value={movementActNumber}
-                  onChange={(e) => setMovementActNumber(e.target.value)}
-                  className="input-standard"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">
-                Fecha de Aprobación
-              </label>
-              <input
-                type="date"
-                value={movementApprovalDate}
-                onChange={(e) => setMovementApprovalDate(e.target.value)}
-                className="input-standard"
-                required
-              />
-            </div>
-
-            <div className="pt-4 flex justify-end gap-3 border-t border-border">
-              <Button type="button" variant="ghost" onClick={() => setIsMovementOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" variant="primary">
-                Registrar Operación
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  function renderDashboardBody() {
-    if (isLoading) {
-      return (
-        <div className="card-standard p-12 text-center text-slate-400 dark:text-zinc-500 bg-card">
-          <p className="text-base font-semibold">Procesando información del presupuesto fiscal...</p>
-        </div>
-      );
-    }
-    
-    if (activeView === 'create') {
-      return renderCreateView();
-    }
-    
-    if (activeView === 'edit-draft') {
-      return renderEditDraftView();
-    }
-    
-    if (activeView === 'movements') {
-      return renderMovementsView();
-    }
-    
-    if (!report) {
-      return renderNoBudgetView();
-    }
-    
-    return renderMainExecutionView();
-  }
+      )}
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight dark:text-white">Presupuesto y Ejecución</h1>
-          <p className="text-sm text-gray-500 mt-1 dark:text-zinc-400">
-            Aprobación del presupuesto anual de copropietarios, ejecución en tiempo real y flujo de adiciones o traslados.
-          </p>
-        </div>
-
-        {/* YEAR PICKER & TABS */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-3 py-1.5">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <select
-              value={year}
-              onChange={(e) => {
-                setYear(Number(e.target.value));
-                setActiveView('execution');
-              }}
-              className="bg-transparent border-0 font-bold focus:ring-0 text-sm focus:outline-none dark:text-white"
-            >
-              {[year - 3, year - 2, year - 1, year, year + 1, year + 2].map((y) => (
-                <option key={y} value={y} className="dark:bg-zinc-900">{y}</option>
-              ))}
-            </select>
-          </div>
-
-          {report && (
-            <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg border border-border">
-              <button
-                onClick={() => setActiveView('execution')}
-                className={getTabButtonClass(activeView === 'execution')}
-              >
-                Ejecución
-              </button>
-              <button
-                onClick={() => setActiveView('movements')}
-                className={getTabButtonClass(activeView === 'movements')}
-              >
-                Modificaciones ({movements.length})
-              </button>
-            </div>
-          )}
-        </div>
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <BadgeDollarSign className="w-6 h-6 text-primary" />
+        <h1 className="text-2xl font-bold">Presupuesto y Ejecución</h1>
       </div>
 
-      {/* ERROR & SUCCESS */}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 rounded-xl border border-rose-100 dark:border-rose-900/50 animate-in fade-in duration-300">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          <p className="text-sm font-semibold">{error}</p>
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" /> {error}
+          <button onClick={() => setError('')} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
-
       {success && (
-        <div className="flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-xl border border-emerald-100 dark:border-emerald-900/50 animate-in fade-in duration-300">
-          <Check className="w-5 h-5 flex-shrink-0" />
-          <p className="text-sm font-semibold">{success}</p>
+        <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm flex items-center gap-2">
+          <Check className="w-4 h-4" /> {success}
+          <button onClick={() => setSuccess('')} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
 
-      {/* RENDER DYNAMIC VIEW */}
-      {renderDashboardBody()}
+      {renderTabs()}
 
-      {/* ACTIVATE BUDGET MODAL */}
-      {renderActivateBudgetModal()}
+      {tab === 'list' && renderBudgetList()}
+      {tab === 'execution' && renderExecution()}
+      {tab === 'expenses' && renderExpenses()}
+      {tab === 'modifications' && renderModifications()}
+      {tab === 'contingency' && renderContingency()}
 
-      {/* CREATE BUDGET MOVEMENT MODAL */}
-      {renderCreateMovementModal()}
+      {showCreate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <h3 className="font-semibold">Nuevo Presupuesto</h3>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateBudget} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Año Fiscal</label>
+                  <input name="fiscalYear" type="number" defaultValue={year + 1} required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">N° Acta</label>
+                  <input name="meetingActNumber" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Fecha Aprobación</label>
+                  <input name="approvalDate" type="date" className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Observaciones</label>
+                  <textarea name="observations" rows={3} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input name="copyFromPrevious" id="copyFromPrevious" type="checkbox" className="rounded border-border" />
+                  <label htmlFor="copyFromPrevious" className="text-sm">Copiar partidas del presupuesto anterior</label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Ajuste Global (%)</label>
+                  <input name="globalAdjustment" type="number" step="0.01" className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                </div>
+                <div className="flex gap-3 justify-end pt-2">
+                  <Button variant="ghost" type="button" onClick={() => setShowCreate(false)}>Cancelar</Button>
+                  <Button variant="primary" type="submit">Crear</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

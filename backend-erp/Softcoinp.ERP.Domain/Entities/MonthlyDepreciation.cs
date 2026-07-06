@@ -10,9 +10,6 @@ public class MonthlyDepreciation
     public Guid FixedAssetId { get; set; }
     public FixedAsset? FixedAsset { get; set; }
 
-    public Guid? AccountingEntryId { get; set; }
-    public AccountingEntry? AccountingEntry { get; set; }
-
     public int FiscalYear { get; set; }
     public int Month { get; set; }
     public string PeriodLabel { get; set; } = string.Empty;
