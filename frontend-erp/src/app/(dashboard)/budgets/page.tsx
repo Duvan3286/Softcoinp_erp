@@ -106,7 +106,7 @@ export default function BudgetsPage() {
         meetingActNumber: form.get('meetingActNumber') as string,
         approvalDate: (form.get('approvalDate') as string) || undefined,
         observations: form.get('observations') as string,
-        copyFromPrevious: form.get('copyFromPrevious') === 'true',
+        copyFromPrevious: form.get('copyFromPrevious') === 'on',
         globalPercentageAdjustment: form.get('globalAdjustment') ? Number(form.get('globalAdjustment')) : undefined,
       });
       setSuccess('Presupuesto creado exitosamente');
@@ -1004,7 +1004,7 @@ export default function BudgetsPage() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
                     <label className="block text-xs font-medium mb-0.5">Año Fiscal</label>
-                    <input name="fiscalYear" type="number" defaultValue={year + 1} required className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
+                    <input name="fiscalYear" type="number" defaultValue={year} required className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium mb-0.5">N° Acta</label>
