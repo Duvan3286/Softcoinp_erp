@@ -994,40 +994,42 @@ export default function BudgetsPage() {
       {tab === 'contingency' && renderContingency()}
 
       {showCreate && (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
-          <Card className="w-full max-w-lg">
-            <CardHeader>
-              <h3 className="font-semibold">Nuevo Presupuesto</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-sm mx-4">
+            <CardHeader className="!p-4">
+              <h3 className="font-semibold text-sm">Nuevo Presupuesto</h3>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateBudget} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Año Fiscal</label>
-                  <input name="fiscalYear" type="number" defaultValue={year + 1} required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+            <CardContent className="!p-4 pt-0">
+              <form onSubmit={handleCreateBudget} className="space-y-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-medium mb-0.5">Año Fiscal</label>
+                    <input name="fiscalYear" type="number" defaultValue={year + 1} required className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-0.5">N° Acta</label>
+                    <input name="meetingActNumber" required className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">N° Acta</label>
-                  <input name="meetingActNumber" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                  <label className="block text-xs font-medium mb-0.5">Fecha Aprobación</label>
+                  <input name="approvalDate" type="date" className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Fecha Aprobación</label>
-                  <input name="approvalDate" type="date" className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Observaciones</label>
-                  <textarea name="observations" rows={3} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                  <label className="block text-xs font-medium mb-0.5">Observaciones</label>
+                  <textarea name="observations" rows={2} className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
                 </div>
                 <div className="flex items-center gap-2">
-                  <input name="copyFromPrevious" id="copyFromPrevious" type="checkbox" className="rounded border-border" />
-                  <label htmlFor="copyFromPrevious" className="text-sm">Copiar partidas del presupuesto anterior</label>
+                  <input name="copyFromPrevious" id="copyFromPrevious" type="checkbox" className="rounded border-border w-3.5 h-3.5" />
+                  <label htmlFor="copyFromPrevious" className="text-xs">Copiar partidas del presupuesto anterior</label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Ajuste Global (%)</label>
-                  <input name="globalAdjustment" type="number" step="0.01" className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+                  <label className="block text-xs font-medium mb-0.5">Ajuste Global (%)</label>
+                  <input name="globalAdjustment" type="number" step="0.01" className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
                 </div>
-                <div className="flex gap-3 justify-end pt-2">
-                  <Button variant="ghost" type="button" onClick={() => setShowCreate(false)}>Cancelar</Button>
-                  <Button variant="primary" type="submit">Crear</Button>
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button variant="ghost" type="button" onClick={() => setShowCreate(false)} className="text-xs !px-3 !py-1.5">Cancelar</Button>
+                  <Button variant="primary" type="submit" className="text-xs !px-3 !py-1.5">Crear</Button>
                 </div>
               </form>
             </CardContent>
