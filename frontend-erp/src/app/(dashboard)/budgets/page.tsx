@@ -115,9 +115,9 @@ export default function BudgetsPage() {
       fetchBudgets();
     } catch (err) {
       const anyErr = err as { response?: { data?: unknown }; message?: string };
-      const msg = anyErr?.response?.data || anyErr?.message || 'Error desconocido';
-      console.error('Error al crear presupuesto:', msg);
-      setError(typeof msg === 'string' ? msg : 'Error al crear presupuesto');
+      const data = anyErr?.response?.data;
+      console.error('Error al crear presupuesto:', data);
+      setError(typeof data === 'string' ? data : JSON.stringify(data) || anyErr?.message || 'Error al crear presupuesto');
     }
   };
 
