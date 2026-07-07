@@ -41,6 +41,9 @@ export default function BudgetsPage() {
   const [expenseItemOptions, setExpenseItemOptions] = useState<{ id: string; name: string; budgetLabel: string }[]>([]);
   const [showModification, setShowModification] = useState(false);
   const [showContingencyUsage, setShowContingencyUsage] = useState(false);
+  const [showEditItems, setShowEditItems] = useState(false);
+  const [editIncomeItems, setEditIncomeItems] = useState<{ name: string; description: string; annualValue: number }[]>([]);
+  const [editExpenseItems, setEditExpenseItems] = useState<{ name: string; description: string; category: string; annualValue: number; isContingencyFund: boolean; requiresCouncilApproval: boolean }[]>([]);
 
   const fetchBudgets = async () => {
     setLoading(true);
@@ -110,6 +113,26 @@ export default function BudgetsPage() {
       setShowCreate(false);
       fetchBudgets();
     } catch { setError('Error al crear presupuesto'); }
+  };
+
+  const openEditItems = async () => {
+    if (!selectedBudget) return;
+    setEditIncomeItems(selectedBudget.incomeItems.map(i => ({ name: i.name, description: i.description, annualValue: i.annualValue })));
+    setEditExpenseItems(selectedBudget.expenseItems.map(e => ({ name: e.name, description: e.description, category: e.category, annualValue: e.annualValue, isContingencyFund: e.isContingencyFund, requiresCouncilApproval: e.requiresCouncilApproval })));
+    setShowEditItems(true);
+  };
+
+  const handleSaveItems = async () => {
+    if (!selectedBudget) return;
+    try {
+      await budgetService.updateDraftBudget(selectedBudget.id, {
+        incomeItems: editIncomeItems.map(i => ({ name: i.name, description: i.description, annualValue: i.annualValue })),
+        expenseItems: editExpenseItems.map(e => ({ name: e.name, description: e.description, category: e.category, annualValue: e.annualValue, isContingencyFund: e.isContingencyFund, contingencyPercentage: e.isContingencyFund ? 5 : 0, requiresCouncilApproval: e.requiresCouncilApproval, approvalThreshold: 0 })),
+      });
+      setSuccess('Partidas guardadas exitosamente');
+      setShowEditItems(false);
+      handleSelectBudget(selectedBudget.id);
+    } catch { setError('Error al guardar partidas'); }
   };
 
   const handleApproveBudget = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -356,9 +379,16 @@ export default function BudgetsPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Detalle del Presupuesto {selectedBudget.fiscalYear}</h3>
-              <button onClick={() => setSelectedBudget(null)} className="p-1 hover:bg-accent rounded">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {canEdit && selectedBudget.status === 'Draft' && (
+                  <Button variant="secondary" onClick={openEditItems}>
+                    <Pencil className="w-4 h-4 mr-1" /> Editar Partidas
+                  </Button>
+                )}
+                <button onClick={() => setSelectedBudget(null)} className="p-1 hover:bg-accent rounded">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -1000,6 +1030,117 @@ export default function BudgetsPage() {
                   <Button variant="primary" type="submit">Crear</Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showEditItems && selectedBudget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Editar Partidas - Presupuesto {selectedBudget.fiscalYear}</h3>
+                <button onClick={() => setShowEditItems(false)} className="p-1 hover:bg-accent rounded">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-green-600" /> Ingresos
+                    </h4>
+                    <Button variant="ghost" onClick={() => setEditIncomeItems([...editIncomeItems, { name: '', description: '', annualValue: 0 }])}>
+                      <Plus className="w-4 h-4 mr-1" /> Agregar Ingreso
+                    </Button>
+                  </div>
+                  {editIncomeItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2 mb-2 p-2 border border-border rounded-lg">
+                      <input
+                        value={item.name} onChange={e => { const items = [...editIncomeItems]; items[idx].name = e.target.value; setEditIncomeItems(items); }}
+                        placeholder="Nombre" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-card"
+                      />
+                      <input
+                        value={item.description} onChange={e => { const items = [...editIncomeItems]; items[idx].description = e.target.value; setEditIncomeItems(items); }}
+                        placeholder="Descripción" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-card"
+                      />
+                      <input
+                        value={item.annualValue || ''} type="number" step="0.01"
+                        onChange={e => { const items = [...editIncomeItems]; items[idx].annualValue = Number(e.target.value); setEditIncomeItems(items); }}
+                        placeholder="Valor Anual" className="w-32 border border-border rounded px-2 py-1 text-sm bg-card"
+                      />
+                      <button onClick={() => setEditIncomeItems(editIncomeItems.filter((_, i) => i !== idx))} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {editIncomeItems.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-2">No hay ingresos. Presione "Agregar Ingreso" para añadir uno.</p>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <TrendingDown className="w-4 h-4 text-red-600" /> Gastos
+                    </h4>
+                    <Button variant="ghost" onClick={() => setEditExpenseItems([...editExpenseItems, { name: '', description: '', category: 'Variable', annualValue: 0, isContingencyFund: false, requiresCouncilApproval: false }])}>
+                      <Plus className="w-4 h-4 mr-1" /> Agregar Gasto
+                    </Button>
+                  </div>
+                  {editExpenseItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2 mb-2 p-2 border border-border rounded-lg">
+                      <input
+                        value={item.name} onChange={e => { const items = [...editExpenseItems]; items[idx].name = e.target.value; setEditExpenseItems(items); }}
+                        placeholder="Nombre" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-card"
+                      />
+                      <select
+                        value={item.category} onChange={e => { const items = [...editExpenseItems]; items[idx].category = e.target.value; setEditExpenseItems(items); }}
+                        className="w-28 border border-border rounded px-2 py-1 text-sm bg-card"
+                      >
+                        <option value="Fijo">Fijo</option>
+                        <option value="Variable">Variable</option>
+                      </select>
+                      <input
+                        value={item.annualValue || ''} type="number" step="0.01"
+                        onChange={e => { const items = [...editExpenseItems]; items[idx].annualValue = Number(e.target.value); setEditExpenseItems(items); }}
+                        placeholder="Valor Anual" className="w-32 border border-border rounded px-2 py-1 text-sm bg-card"
+                      />
+                      <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+                        <input
+                          type="checkbox" checked={item.isContingencyFund}
+                          onChange={e => { const items = [...editExpenseItems]; items[idx].isContingencyFund = e.target.checked; setEditExpenseItems(items); }}
+                          className="rounded border-border"
+                        />
+                        Fondo
+                      </label>
+                      <button onClick={() => setEditExpenseItems(editExpenseItems.filter((_, i) => i !== idx))} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {editExpenseItems.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-2">No hay gastos. Presione "Agregar Gasto" para añadir uno.</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-border">
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Total Ingresos: </span>
+                    <span className="font-medium text-green-600">${editIncomeItems.reduce((s, i) => s + (i.annualValue || 0), 0).toLocaleString()}</span>
+                    <span className="mx-2">|</span>
+                    <span className="text-muted-foreground">Total Gastos: </span>
+                    <span className="font-medium text-red-600">${editExpenseItems.reduce((s, e) => s + (e.annualValue || 0), 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="ghost" onClick={() => setShowEditItems(false)}>Cancelar</Button>
+                    <Button variant="primary" onClick={handleSaveItems}>Guardar Partidas</Button>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
