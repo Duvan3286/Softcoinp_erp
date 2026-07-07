@@ -14,13 +14,13 @@ namespace Softcoinp.ERP.WebAPI.Services;
 
 public class PreventiveMaintenanceEngineService : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PreventiveMaintenanceEngineService> _logger;
     private const int DefaultAdvanceDays = 7;
 
-    public PreventiveMaintenanceEngineService(IServiceProvider serviceProvider, ILogger<PreventiveMaintenanceEngineService> logger)
+    public PreventiveMaintenanceEngineService(IServiceScopeFactory scopeFactory, ILogger<PreventiveMaintenanceEngineService> logger)
     {
-        _serviceProvider = serviceProvider;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -30,13 +30,13 @@ public class PreventiveMaintenanceEngineService : BackgroundService
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-                await GeneratePreventiveWorkOrdersAsync(context);
-                await DetectUnassignedOrdersAsync(context);
-                await DetectOutOfServiceEssentialAssetsAsync(context);
-                await CleanupOldHistoryAsync(context);
+                await TenantBackgroundRunner.ForEachTenantAsync(_scopeFactory, async (context, sp) =>
+                {
+                    await GeneratePreventiveWorkOrdersAsync(context);
+                    await DetectUnassignedOrdersAsync(context);
+                    await DetectOutOfServiceEssentialAssetsAsync(context);
+                    await CleanupOldHistoryAsync(context);
+                });
 
                 await Task.Delay(TimeSpan.FromHours(6), stoppingToken);
             }

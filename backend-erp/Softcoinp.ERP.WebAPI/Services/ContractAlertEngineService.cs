@@ -14,12 +14,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 
 public class ContractAlertEngineService : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ContractAlertEngineService> _logger;
 
-    public ContractAlertEngineService(IServiceProvider serviceProvider, ILogger<ContractAlertEngineService> logger)
+    public ContractAlertEngineService(IServiceScopeFactory scopeFactory, ILogger<ContractAlertEngineService> logger)
     {
-        _serviceProvider = serviceProvider;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -29,13 +29,13 @@ public class ContractAlertEngineService : BackgroundService
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-                await GenerateContractExpirationAlertsAsync(context);
-                await GeneratePolicyExpirationAlertsAsync(context);
-                await GenerateAutoRenewalAlertsAsync(context);
-                await CleanupResolvedAlertsAsync(context);
+                await TenantBackgroundRunner.ForEachTenantAsync(_scopeFactory, async (context, sp) =>
+                {
+                    await GenerateContractExpirationAlertsAsync(context);
+                    await GeneratePolicyExpirationAlertsAsync(context);
+                    await GenerateAutoRenewalAlertsAsync(context);
+                    await CleanupResolvedAlertsAsync(context);
+                });
 
                 await Task.Delay(TimeSpan.FromHours(6), stoppingToken);
             }

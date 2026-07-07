@@ -43,59 +43,60 @@ public class RecurringReportEngine : BackgroundService
 
     private async Task ProcessDueRecurringReportsAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var pdfEngine = scope.ServiceProvider.GetRequiredService<PDFGenerationEngine>();
-        var excelEngine = scope.ServiceProvider.GetRequiredService<ExcelGenerationEngine>();
-
         var now = DateTime.UtcNow;
 
-        var dueConfigs = await context.RecurringReportConfigs
-            .Where(c => c.Status == ReportRecurrentStatus.Active
-                     && c.NextExecutionAt.HasValue
-                     && c.NextExecutionAt.Value <= now)
-            .Include(c => c.ReportType)
-            .ToListAsync(ct);
-
-        foreach (var config in dueConfigs)
+        await TenantBackgroundRunner.ForEachTenantAsync(_scopeFactory, async (context, sp) =>
         {
-            try
+            var pdfEngine = sp.GetRequiredService<PDFGenerationEngine>();
+            var excelEngine = sp.GetRequiredService<ExcelGenerationEngine>();
+
+            var dueConfigs = await context.RecurringReportConfigs
+                .Where(c => c.Status == ReportRecurrentStatus.Active
+                         && c.NextExecutionAt.HasValue
+                         && c.NextExecutionAt.Value <= now)
+                .Include(c => c.ReportType)
+                .ToListAsync(ct);
+
+            foreach (var config in dueConfigs)
             {
-                var tenantId = config.TenantId;
-                var reportTypeCode = config.ReportType!.ReportTypeCode.ToString();
-                var format = config.Format.ToString();
-                var periodFrom = GetPeriodFrom(config.Frequency);
-                var periodTo = now;
-
-                if (format == "Excel")
+                try
                 {
-                    await excelEngine.GenerateExcelReportAsync(
-                        tenantId, reportTypeCode, config.CreatedByUserId,
-                        periodFrom, periodTo, null, null, config.Id);
+                    var tenantId = config.TenantId;
+                    var reportTypeCode = config.ReportType!.ReportTypeCode.ToString();
+                    var format = config.Format.ToString();
+                    var periodFrom = GetPeriodFrom(config.Frequency);
+                    var periodTo = now;
+
+                    if (format == "Excel")
+                    {
+                        await excelEngine.GenerateExcelReportAsync(
+                            tenantId, reportTypeCode, config.CreatedByUserId,
+                            periodFrom, periodTo, null, null, config.Id);
+                    }
+                    else
+                    {
+                        await pdfEngine.GenerateReportAsync(
+                            tenantId, reportTypeCode, format, config.CreatedByUserId,
+                            periodFrom, periodTo, null, null, config.Id);
+                    }
+
+                    config.LastExecutionAt = now;
+                    config.NextExecutionAt = CalculateNextExecution(config.Frequency, now);
+                    config.UpdatedAt = now;
+
+                    _logger.LogInformation("Recurring report executed: {Name} ({Type})", config.Name, reportTypeCode);
                 }
-                else
+                catch (Exception ex)
                 {
-                    await pdfEngine.GenerateReportAsync(
-                        tenantId, reportTypeCode, format, config.CreatedByUserId,
-                        periodFrom, periodTo, null, null, config.Id);
+                    _logger.LogError(ex, "Failed to execute recurring report: {Name}", config.Name);
+                    config.Status = ReportRecurrentStatus.Paused;
+                    config.UpdatedAt = now;
                 }
-
-                config.LastExecutionAt = now;
-                config.NextExecutionAt = CalculateNextExecution(config.Frequency, now);
-                config.UpdatedAt = now;
-
-                _logger.LogInformation("Recurring report executed: {Name} ({Type})", config.Name, reportTypeCode);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to execute recurring report: {Name}", config.Name);
-                config.Status = ReportRecurrentStatus.Paused;
-                config.UpdatedAt = now;
-            }
-        }
 
-        if (dueConfigs.Count > 0)
-            await context.SaveChangesAsync(ct);
+            if (dueConfigs.Count > 0)
+                await context.SaveChangesAsync(ct);
+        });
     }
 
     private static DateTime? GetPeriodFrom(ReportFrequency frequency)

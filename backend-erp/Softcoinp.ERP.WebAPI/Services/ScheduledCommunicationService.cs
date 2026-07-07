@@ -31,16 +31,21 @@ public class ScheduledCommunicationService : BackgroundService
         {
             try
             {
-                using var scope = _scopeFactory.CreateScope();
-                var communicationService = scope.ServiceProvider
-                    .GetRequiredService<CommunicationService>();
+                var totalProcessed = 0;
 
-                var processed = await communicationService.GetPendingScheduledAsync();
+                await TenantBackgroundRunner.ForEachTenantScopedAsync(_scopeFactory, async (sp) =>
+                {
+                    var communicationService = sp
+                        .GetRequiredService<CommunicationService>();
 
-                if (processed.Count > 0)
+                    var processed = await communicationService.GetPendingScheduledAsync();
+                    totalProcessed += processed.Count;
+                });
+
+                if (totalProcessed > 0)
                 {
                     _logger.LogInformation(
-                        "Comunicados programados enviados: {Count}", processed.Count);
+                        "Comunicados programados enviados: {Count}", totalProcessed);
                 }
             }
             catch (Exception ex)
