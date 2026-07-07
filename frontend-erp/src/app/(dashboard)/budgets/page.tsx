@@ -456,7 +456,7 @@ export default function BudgetsPage() {
       )}
 
       {showApprove && selectedBudget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <Card className="w-full max-w-md">
             <CardHeader>
               <h3 className="font-semibold">Aprobar Presupuesto {selectedBudget.fiscalYear}</h3>
@@ -654,7 +654,7 @@ export default function BudgetsPage() {
       </Card>
 
       {showExpense && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <Card className="w-full max-w-lg">
             <CardHeader>
               <h3 className="font-semibold">Registrar Gasto</h3>
@@ -774,7 +774,7 @@ export default function BudgetsPage() {
       )}
 
       {showModification && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <Card className="w-full max-w-lg">
             <CardHeader>
               <h3 className="font-semibold">Nueva Modificación</h3>
@@ -925,7 +925,7 @@ export default function BudgetsPage() {
       )}
 
       {showContingencyUsage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <Card className="w-full max-w-md">
             <CardHeader>
               <h3 className="font-semibold">Registrar Uso de Fondo de Imprevistos</h3>
@@ -994,7 +994,7 @@ export default function BudgetsPage() {
       {tab === 'contingency' && renderContingency()}
 
       {showCreate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <Card className="w-full max-w-lg">
             <CardHeader>
               <h3 className="font-semibold">Nuevo Presupuesto</h3>
@@ -1036,7 +1036,7 @@ export default function BudgetsPage() {
       )}
 
       {showEditItems && selectedBudget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <div className="flex items-center justify-between">
