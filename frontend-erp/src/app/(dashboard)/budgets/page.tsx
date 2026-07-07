@@ -109,10 +109,16 @@ export default function BudgetsPage() {
         copyFromPrevious: form.get('copyFromPrevious') === 'on',
         globalPercentageAdjustment: form.get('globalAdjustment') ? Number(form.get('globalAdjustment')) : undefined,
       });
+      console.log('Presupuesto creado exitosamente');
       setSuccess('Presupuesto creado exitosamente');
       setShowCreate(false);
       fetchBudgets();
-    } catch { setError('Error al crear presupuesto'); }
+    } catch (err) {
+      const anyErr = err as { response?: { data?: unknown }; message?: string };
+      const msg = anyErr?.response?.data || anyErr?.message || 'Error desconocido';
+      console.error('Error al crear presupuesto:', msg);
+      setError(typeof msg === 'string' ? msg : 'Error al crear presupuesto');
+    }
   };
 
   const openEditItems = async () => {
