@@ -171,10 +171,7 @@ export default function DashboardPage() {
       {isAccountant && (
         <>
           <KpiCards kpis={data.kpis} />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CollectionChart data={data.monthlyCollection} />
-            <AccountingStatusCard status={data.accountingStatus} />
-          </div>
+          <CollectionChart data={data.monthlyCollection} />
         </>
       )}
     </div>
@@ -647,59 +644,6 @@ function PendingApprovalsCard({ approvals }: { approvals: DashboardData['pending
                 </div>
               </a>
             ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function AccountingStatusCard({ status }: { status: DashboardData['accountingStatus'] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Estado Contable</h3>
-          <FileText className="w-5 h-5 text-violet-600" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        {status ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Período Actual</p>
-                <p className="text-xl font-bold text-foreground">{status.currentPeriodLabel}</p>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                status.periodStatus === 'Open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
-              }`}>
-                {status.periodStatus === 'Open' ? 'Abierto' : 'Cerrado'}
-              </span>
-            </div>
-            <div className="grid grid-cols-3 gap-4 pt-2 border-t border-border">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Por Conciliar</p>
-                <p className={`text-lg font-bold ${status.unreconciledBankAccounts > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  {status.unreconciledBankAccounts}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Borradores</p>
-                <p className={`text-lg font-bold ${status.draftEntryCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  {status.draftEntryCount}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Días fin mes</p>
-                <p className="text-lg font-bold text-foreground">{status.daysSinceMonthEnd}</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center text-muted-foreground py-6">
-            <FileText className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm">No hay datos contables</p>
           </div>
         )}
       </CardContent>

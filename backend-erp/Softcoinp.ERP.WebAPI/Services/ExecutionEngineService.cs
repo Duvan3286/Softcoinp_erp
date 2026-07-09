@@ -54,7 +54,6 @@ public class ExecutionEngineService
         var monthsElapsed = fiscalYear < DateTime.Today.Year ? 12
             : fiscalYear > DateTime.Today.Year ? 0
             : currentMonth;
-        var monthsTotal = 12;
 
         var items = new List<ExpenseExecutionItemDto>();
         var alerts = new List<BudgetAlertDto>();
@@ -68,7 +67,7 @@ public class ExecutionEngineService
             var available = approved - executed;
             var percentage = approved > 0 ? Math.Round(executed / approved * 100m, 2) : 0m;
 
-            var trafficLight = CalculateTrafficLight(percentage, approved, executed, monthsElapsed, expenseItem.RequiresCouncilApproval);
+            var trafficLight = CalculateTrafficLight(percentage, approved, executed, monthsElapsed);
 
             items.Add(new ExpenseExecutionItemDto
             {
@@ -191,7 +190,7 @@ public class ExecutionEngineService
         };
     }
 
-    private static string CalculateTrafficLight(decimal percentage, decimal approved, decimal executed, int monthsElapsed, bool requiresCouncil)
+    private static string CalculateTrafficLight(decimal percentage, decimal approved, decimal executed, int monthsElapsed)
     {
         if (percentage >= 100m)
         {

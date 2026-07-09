@@ -17,12 +17,18 @@ public class DashboardService
     private readonly ApplicationDbContext _context;
     private readonly IMemoryCache _memoryCache;
     private readonly IndicatorCacheService _indicatorCache;
+    private readonly ExecutionEngineService _executionEngineService;
 
-    public DashboardService(ApplicationDbContext context, IMemoryCache memoryCache, IndicatorCacheService indicatorCache)
+    public DashboardService(
+        ApplicationDbContext context,
+        IMemoryCache memoryCache,
+        IndicatorCacheService indicatorCache,
+        ExecutionEngineService executionEngineService)
     {
         _context = context;
         _memoryCache = memoryCache;
         _indicatorCache = indicatorCache;
+        _executionEngineService = executionEngineService;
     }
 
     public async Task<DashboardDataDto> GetDashboardAsync(
@@ -233,7 +239,22 @@ public class DashboardService
         var yearProgress = (now - yearStart).TotalDays / (DateTime.IsLeapYear(currentYear) ? 366 : 365);
         kpis.YearProgressPercentage = Math.Round((decimal)(yearProgress * 100), 1);
 
+        kpis.BudgetExecutionPercentage = await GetBudgetExecutionPercentageAsync(tenantId, currentYear);
+
         return kpis;
+    }
+
+    private async Task<decimal> GetBudgetExecutionPercentageAsync(string tenantId, int fiscalYear)
+    {
+        try
+        {
+            var executionDashboard = await _executionEngineService.GetExecutionDashboardAsync(tenantId, fiscalYear);
+            return executionDashboard.OverallExecutionPercentage;
+        }
+        catch (KeyNotFoundException)
+        {
+            return 0m;
+        }
     }
 
     private async Task<List<MonthlyCollectionDto>> GetMonthlyCollectionAsync(string tenantId)
@@ -462,17 +483,6 @@ ORDER BY u.Identifier";
                 RuleType = AlertRuleType.BudgetAccountExceeded,
                 ThresholdPercentage = 90,
                 DefaultUrgency = AlertUrgency.High,
-                UseDefaultThreshold = true
-            };
-        }
-
-        if (!defaultConfigs.ContainsKey(AlertRuleType.AccountingPeriodNotClosed))
-        {
-            defaultConfigs[AlertRuleType.AccountingPeriodNotClosed] = new AlertConfiguration
-            {
-                RuleType = AlertRuleType.AccountingPeriodNotClosed,
-                ThresholdDays = 5,
-                DefaultUrgency = AlertUrgency.Critical,
                 UseDefaultThreshold = true
             };
         }
@@ -709,16 +719,6 @@ ORDER BY u.Identifier";
                 IsEnabled = true,
                 ThresholdPercentage = 90,
                 DefaultUrgency = AlertUrgency.High,
-                UseDefaultThreshold = true
-            },
-            new AlertConfiguration
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                RuleType = AlertRuleType.AccountingPeriodNotClosed,
-                IsEnabled = true,
-                ThresholdDays = 5,
-                DefaultUrgency = AlertUrgency.Critical,
                 UseDefaultThreshold = true
             }
         };

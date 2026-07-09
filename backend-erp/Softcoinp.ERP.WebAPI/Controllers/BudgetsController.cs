@@ -57,7 +57,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateBudget([FromBody] CreateBudgetRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -75,7 +75,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateDraftBudget(Guid id, [FromBody] UpdateDraftBudgetRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -96,7 +96,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpPost("{id}/approve")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> ApproveBudget(Guid id, [FromBody] ApproveBudgetRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -121,7 +121,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpPost("{id}/generate-next")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GenerateNextPeriodBudget(Guid id)
     {
         var tenantId = GetTenantId();
@@ -159,7 +159,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpPost("expenses")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> RecordExpense([FromBody] RecordExpenseRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -179,6 +179,27 @@ public class BudgetsController : BaseController
             return BadRequest(ex.Message);
         }
         catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("expenses/{id}/approve-council")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council")]
+    public async Task<IActionResult> ApproveCouncilExpense(Guid id)
+    {
+        var tenantId = GetTenantId();
+
+        try
+        {
+            var expense = await _expenseService.ApproveCouncilExpenseAsync(tenantId, id);
+            return Ok(expense);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);
         }
@@ -206,7 +227,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpPost("modifications")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateModification([FromBody] CreateModificationRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -241,7 +262,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpPost("contingency-fund/usage")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> RecordContingencyFundUsage([FromBody] RecordContingencyFundUsageRequestDto request)
     {
         var tenantId = GetTenantId();

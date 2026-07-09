@@ -89,7 +89,7 @@ public class DbInitializer
             {
                 TenantId = tenantId, ReportTypeCode = ReportTypeEnum.BudgetExecution,
                 Name = "Ejecución Presupuestal", Description = "Comparación entre el presupuesto aprobado y los gastos/ingresos reales ejecutados en el período.",
-                Category = ReportCategory.Financial, SourceModules = "Budgets,Accounting", AllowedRoles = "SuperAdmin,Admin,Council,Accountant,Auditor",
+                Category = ReportCategory.Financial, SourceModules = "Budgets", AllowedRoles = "SuperAdmin,Admin,Council,Accountant,Auditor",
                 ContainsPersonalData = false, IsActive = true
             },
             new()

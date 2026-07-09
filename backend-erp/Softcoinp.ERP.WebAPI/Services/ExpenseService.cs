@@ -23,19 +23,16 @@ public class ExpenseService
     {
         var expenseItem = await _context.ExpenseItems
             .Include(e => e.Budget)
-            .FirstOrDefaultAsync(e => e.Id == request.ExpenseItemId);
+            .FirstOrDefaultAsync(e => e.Id == request.ExpenseItemId && e.Budget != null && e.Budget.TenantId == tenantId);
 
         if (expenseItem == null)
         {
             throw new KeyNotFoundException("El rubro de gasto especificado no existe.");
         }
 
-        if (expenseItem.Budget == null || expenseItem.Budget.TenantId != tenantId)
-        {
-            throw new InvalidOperationException("El rubro de gasto no pertenece al conjunto actual.");
-        }
+        var expenseItemBudget = expenseItem.Budget!;
 
-        if (expenseItem.Budget.Status != BudgetStatus.Approved)
+        if (expenseItemBudget.Status != BudgetStatus.Approved)
         {
             throw new InvalidOperationException("Solo se pueden registrar gastos contra un presupuesto aprobado.");
         }
@@ -45,8 +42,8 @@ public class ExpenseService
             throw new ArgumentException("El valor del gasto debe ser mayor a cero.");
         }
 
-        var startDate = new DateTime(expenseItem.Budget.FiscalYear, 1, 1);
-        var endDate = new DateTime(expenseItem.Budget.FiscalYear, 12, 31, 23, 59, 59);
+        var startDate = new DateTime(expenseItemBudget.FiscalYear, 1, 1);
+        var endDate = new DateTime(expenseItemBudget.FiscalYear, 12, 31, 23, 59, 59);
 
         var executedTotal = await _context.ExecutedExpenses
             .Where(e => e.ExpenseItemId == expenseItem.Id && e.ExpenseDate >= startDate && e.ExpenseDate <= endDate)
@@ -59,12 +56,6 @@ public class ExpenseService
                 $"El gasto supera el presupuesto disponible para '{expenseItem.Name}'. " +
                 $"Presupuesto: {expenseItem.AnnualValue:C2}, Ejecutado: {executedTotal:C2}, " +
                 $"Nuevo gasto: {request.Amount:C2}. Debe aprobarse una modificacion presupuestal.");
-        }
-
-        var needsCouncil = false;
-        if (expenseItem.RequiresCouncilApproval && expenseItem.ApprovalThreshold > 0 && request.Amount > expenseItem.ApprovalThreshold)
-        {
-            needsCouncil = true;
         }
 
         if (expenseItem.IsContingencyFund && string.IsNullOrWhiteSpace(request.InvoiceReference))
@@ -82,20 +73,56 @@ public class ExpenseService
             ExpenseDate = request.ExpenseDate,
             ProviderId = request.ProviderId,
             InvoiceReference = request.InvoiceReference,
-            CouncilApproved = needsCouncil,
+            CouncilApproved = false,
             CreatedByUserId = userId
         };
-
-        if (needsCouncil)
-        {
-            expense.CouncilApproved = false;
-        }
 
         _context.ExecutedExpenses.Add(expense);
         await _context.SaveChangesAsync();
 
         return await GetExpenseAsync(tenantId, expense.Id)
             ?? throw new InvalidOperationException("Error al registrar el gasto.");
+    }
+
+    public async Task<ExecutedExpenseDto> ApproveCouncilExpenseAsync(string tenantId, Guid executedExpenseId)
+    {
+        var expense = await _context.ExecutedExpenses
+            .Include(e => e.ExpenseItem)
+            .Include(e => e.Provider)
+            .FirstOrDefaultAsync(e => e.Id == executedExpenseId && e.TenantId == tenantId);
+
+        if (expense == null)
+        {
+            throw new KeyNotFoundException("Gasto ejecutado no encontrado.");
+        }
+
+        if (expense.ExpenseItem == null || !expense.ExpenseItem.RequiresCouncilApproval)
+        {
+            throw new InvalidOperationException("Este gasto no requiere aprobacion del consejo.");
+        }
+
+        if (expense.CouncilApproved)
+        {
+            throw new InvalidOperationException("Este gasto ya fue aprobado por el consejo.");
+        }
+
+        expense.CouncilApproved = true;
+        await _context.SaveChangesAsync();
+
+        return new ExecutedExpenseDto
+        {
+            Id = expense.Id,
+            ExpenseItemId = expense.ExpenseItemId,
+            ExpenseItemName = expense.ExpenseItem.Name,
+            Description = expense.Description,
+            Amount = expense.Amount,
+            ExpenseDate = expense.ExpenseDate,
+            ProviderId = expense.ProviderId,
+            ProviderName = expense.Provider != null ? expense.Provider.BusinessName : string.Empty,
+            InvoiceReference = expense.InvoiceReference,
+            CouncilApproved = expense.CouncilApproved,
+            RequiresCouncilApproval = expense.ExpenseItem.RequiresCouncilApproval
+        };
     }
 
     public async Task<ExecutedExpenseDto?> GetExpenseAsync(string tenantId, Guid expenseId)
@@ -115,7 +142,8 @@ public class ExpenseService
                 ProviderId = e.ProviderId,
                 ProviderName = e.Provider != null ? e.Provider.BusinessName : string.Empty,
                 InvoiceReference = e.InvoiceReference,
-                CouncilApproved = e.CouncilApproved
+                CouncilApproved = e.CouncilApproved,
+                RequiresCouncilApproval = e.ExpenseItem != null && e.ExpenseItem.RequiresCouncilApproval
             })
             .FirstOrDefaultAsync();
     }
@@ -156,7 +184,8 @@ public class ExpenseService
                 ProviderId = e.ProviderId,
                 ProviderName = e.Provider != null ? e.Provider.BusinessName : string.Empty,
                 InvoiceReference = e.InvoiceReference,
-                CouncilApproved = e.CouncilApproved
+                CouncilApproved = e.CouncilApproved,
+                RequiresCouncilApproval = e.ExpenseItem != null && e.ExpenseItem.RequiresCouncilApproval
             })
             .ToListAsync();
     }

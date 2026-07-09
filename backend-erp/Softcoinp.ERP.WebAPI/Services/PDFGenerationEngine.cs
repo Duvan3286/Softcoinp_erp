@@ -128,6 +128,9 @@ public class PDFGenerationEngine
                 case "ContingencyFund":
                     RenderContingencyFund(col, tenantId);
                     break;
+                case "BudgetExecution":
+                    RenderBudgetExecution(col, tenantId);
+                    break;
                 case "PortfolioAging":
                     RenderPortfolioAging(col, tenantId);
                     break;
@@ -293,6 +296,80 @@ public class PDFGenerationEngine
         {
             col.Item().Text("No hay usos registrados.").FontSize(8).FontColor(Colors.Grey.Darken2);
         }
+    }
+
+    private void RenderBudgetExecution(ColumnDescriptor col, string tenantId)
+    {
+        col.Item().Text("Ejecucion Presupuestal").FontSize(14).Bold();
+        col.Item().PaddingBottom(8);
+        var fiscalYear = DateTime.Today.Year;
+        var budget = _context.Budgets
+            .Include(b => b.ExpenseItems)
+            .Include(b => b.IncomeItems)
+            .FirstOrDefault(b => b.TenantId == tenantId && b.FiscalYear == fiscalYear && b.Status == BudgetStatus.Approved);
+        if (budget == null)
+        {
+            col.Item().Padding(10).Text($"No hay presupuesto aprobado para el ano fiscal {fiscalYear}.").FontColor(Colors.Grey.Darken2);
+            return;
+        }
+        var startDate = new DateTime(fiscalYear, 1, 1);
+        var endDate = new DateTime(fiscalYear, 12, 31, 23, 59, 59);
+        var executedByItem = _context.ExecutedExpenses
+            .Where(e => e.TenantId == tenantId && e.ExpenseDate >= startDate && e.ExpenseDate <= endDate)
+            .GroupBy(e => e.ExpenseItemId)
+            .Select(g => new { ExpenseItemId = g.Key, Total = g.Sum(e => e.Amount) })
+            .ToList()
+            .ToDictionary(x => x.ExpenseItemId, x => x.Total);
+        var totalApprovedIncome = budget.IncomeItems.Sum(i => i.AnnualValue);
+        var totalApprovedExpense = budget.ExpenseItems.Sum(e => e.AnnualValue);
+        var totalExecuted = executedByItem.Values.Sum();
+        var overallPercentage = totalApprovedExpense > 0
+            ? Math.Round(totalExecuted / totalApprovedExpense * 100m, 2)
+            : 0m;
+        col.Item().Text("Ingreso Presupuestado Total: " + totalApprovedIncome.ToString("N2")).FontSize(9).FontColor(Colors.Grey.Darken2);
+        col.Item().Text("Gasto Presupuestado Total: " + totalApprovedExpense.ToString("N2")).FontSize(9).FontColor(Colors.Grey.Darken2);
+        col.Item().Text("Ejecutado Total: " + totalExecuted.ToString("N2")).FontSize(9).FontColor(Colors.Grey.Darken2);
+        col.Item().Text("Porcentaje de Ejecucion: " + overallPercentage.ToString("N2") + "%").FontSize(11).Bold();
+        col.Item().PaddingBottom(8);
+        col.Item().Table(table =>
+        {
+            table.ColumnsDefinition(cd =>
+            {
+                cd.RelativeColumn();
+                cd.ConstantColumn(80);
+                cd.ConstantColumn(80);
+                cd.ConstantColumn(80);
+                cd.ConstantColumn(60);
+            });
+            var headerStyle = TextStyle.Default.FontSize(9).Bold().FontColor(Colors.White);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Rubro").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("Presupuestado").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("Ejecutado").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("Disponible").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("% Ejec.").Style(headerStyle);
+            var rowStyle = TextStyle.Default.FontSize(8);
+            var altColor = Colors.Grey.Lighten4;
+            var index = 0;
+            foreach (var item in budget.ExpenseItems)
+            {
+                var executed = executedByItem.TryGetValue(item.Id, out var val) ? val : 0m;
+                var available = item.AnnualValue - executed;
+                var percentage = item.AnnualValue > 0 ? Math.Round(executed / item.AnnualValue * 100m, 2) : 0m;
+                var bg = index % 2 == 0 ? Colors.White : altColor;
+                table.Cell().Background(bg).Padding(3).Text(item.Name).Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).AlignRight().Text(item.AnnualValue.ToString("N2")).Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).AlignRight().Text(executed.ToString("N2")).Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).AlignRight().Text(available.ToString("N2")).Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).AlignRight().Text(percentage.ToString("N2") + "%").Style(rowStyle);
+                index++;
+            }
+            var totalStyle = TextStyle.Default.FontSize(8).Bold();
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text("TOTALES").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).AlignRight().Text(totalApprovedExpense.ToString("N2")).Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).AlignRight().Text(totalExecuted.ToString("N2")).Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).AlignRight().Text((totalApprovedExpense - totalExecuted).ToString("N2")).Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).AlignRight().Text(overallPercentage.ToString("N2") + "%").Style(totalStyle);
+        });
     }
 
     private void RenderPortfolioAging(ColumnDescriptor col, string tenantId)

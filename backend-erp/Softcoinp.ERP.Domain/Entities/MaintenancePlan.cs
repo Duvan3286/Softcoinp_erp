@@ -15,6 +15,8 @@ public class MaintenancePlan
     public Guid? PreferredProviderId { get; set; }
     public Provider? PreferredProvider { get; set; }
     public decimal EstimatedCost { get; set; }
+    public Guid? ExpenseItemId { get; set; }
+    public ExpenseItem? ExpenseItem { get; set; }
     public bool RequiresServiceSuspension { get; set; }
     public int EstimatedDowntimeHours { get; set; }
     public bool IsActive { get; set; } = true;

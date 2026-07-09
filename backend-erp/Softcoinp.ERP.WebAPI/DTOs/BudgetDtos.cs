@@ -154,6 +154,7 @@ public class ExecutedExpenseDto
     public string ProviderName { get; set; } = string.Empty;
     public string InvoiceReference { get; set; } = string.Empty;
     public bool CouncilApproved { get; set; }
+    public bool RequiresCouncilApproval { get; set; }
 }
 
 public class CreateModificationRequestDto

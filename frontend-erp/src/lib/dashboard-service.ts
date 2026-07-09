@@ -10,7 +10,6 @@ export interface DashboardData {
   unitSummaries: UnitSummaryDto[];
   contingencyFund: ContingencyFundInfoDto | null;
   pendingCouncilApprovals: CouncilApprovalDto[];
-  accountingStatus: AccountingStatusDto | null;
   residentData: ResidentDashboardDto | null;
 }
 
@@ -99,14 +98,6 @@ export interface CouncilApprovalDto {
   amount: number;
   requestedAt: string;
   moduleLink: string;
-}
-
-export interface AccountingStatusDto {
-  currentPeriodLabel: string;
-  periodStatus: string;
-  unreconciledBankAccounts: number;
-  draftEntryCount: number;
-  daysSinceMonthEnd: number;
 }
 
 export interface ResidentDashboardDto {

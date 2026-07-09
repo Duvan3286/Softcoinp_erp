@@ -19,6 +19,17 @@ public class BudgetService
         _context = context;
     }
 
+    private static ExpenseCategory ParseExpenseCategory(string category)
+    {
+        var parseSucceeded = Enum.TryParse<ExpenseCategory>(category, true, out var parsedCategory);
+        if (!parseSucceeded)
+        {
+            throw new ArgumentException($"Categoria de gasto invalida: '{category}'. Los valores permitidos son 'Fixed' y 'Variable'.");
+        }
+
+        return parsedCategory;
+    }
+
     public async Task<BudgetDetailDto> CreateBudgetAsync(
         string tenantId,
         CreateBudgetRequestDto request,
@@ -125,7 +136,7 @@ public class BudgetService
                         BudgetId = budget.Id,
                         Name = item.Name,
                         Description = item.Description,
-                        Category = Enum.Parse<ExpenseCategory>(item.Category),
+                        Category = ParseExpenseCategory(item.Category),
                         AnnualValue = Math.Round(item.AnnualValue, 2),
                         IsContingencyFund = item.IsContingencyFund,
                         ContingencyPercentage = item.ContingencyPercentage,
@@ -234,12 +245,11 @@ public class BudgetService
 
         _context.RemoveRange(budget.IncomeItems);
         _context.RemoveRange(budget.ExpenseItems);
-        budget.IncomeItems.Clear();
-        budget.ExpenseItems.Clear();
 
+        var newIncomeItems = new List<IncomeItem>();
         foreach (var item in incomeItems)
         {
-            budget.IncomeItems.Add(new IncomeItem
+            newIncomeItems.Add(new IncomeItem
             {
                 Id = Guid.NewGuid(),
                 BudgetId = budget.Id,
@@ -249,15 +259,16 @@ public class BudgetService
             });
         }
 
+        var newExpenseItems = new List<ExpenseItem>();
         foreach (var item in expenseItems)
         {
-            budget.ExpenseItems.Add(new ExpenseItem
+            newExpenseItems.Add(new ExpenseItem
             {
                 Id = Guid.NewGuid(),
                 BudgetId = budget.Id,
                 Name = item.Name,
                 Description = item.Description,
-                Category = Enum.Parse<ExpenseCategory>(item.Category),
+                Category = ParseExpenseCategory(item.Category),
                 AnnualValue = Math.Round(item.AnnualValue, 2),
                 IsContingencyFund = item.IsContingencyFund,
                 ContingencyPercentage = item.ContingencyPercentage,
@@ -266,6 +277,8 @@ public class BudgetService
             });
         }
 
+        await _context.IncomeItems.AddRangeAsync(newIncomeItems);
+        await _context.ExpenseItems.AddRangeAsync(newExpenseItems);
         await _context.SaveChangesAsync();
 
         return (await GetBudgetDetailAsync(tenantId, budgetId))!;

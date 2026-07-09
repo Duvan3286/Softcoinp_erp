@@ -52,7 +52,6 @@ export default function AssemblyPropagationsPage() {
       Budget: "Presupuesto",
       ExtraordinaryFee: "Cuota Extraordinaria",
       AuthRoles: "Roles y Permisos",
-      AccountingEntry: "Asiento Contable",
       Contract: "Contrato",
       Other: "Otro",
     };

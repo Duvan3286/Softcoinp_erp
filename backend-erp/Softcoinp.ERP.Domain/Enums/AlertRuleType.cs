@@ -7,6 +7,5 @@ public enum AlertRuleType
     PqrOverdue,
     PaymentAgreementInstallmentOverdue,
     BudgetAccountExceeded,
-    AccountingPeriodNotClosed,
     LatePaymentThreshold
 }

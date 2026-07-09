@@ -412,6 +412,8 @@ public class MaintenanceService
                 ExecutionEndDate = w.ExecutionEndDate,
                 EstimatedCost = w.EstimatedCost,
                 ActualCost = w.ActualCost,
+                ExpenseItemId = w.ExpenseItemId,
+                ExpenseItemName = w.ExpenseItem != null ? w.ExpenseItem.Name : string.Empty,
                 Status = w.Status.ToString(),
                 Outcome = w.Outcome != null ? w.Outcome.ToString() : null,
                 OutcomeNotes = w.OutcomeNotes,
@@ -456,6 +458,14 @@ public class MaintenanceService
             if (pqr != null) relatedPqrNumber = pqr.RadicadoNumber;
         }
 
+        if (request.ExpenseItemId.HasValue)
+        {
+            var expenseItemExists = await _context.ExpenseItems
+                .AnyAsync(e => e.Id == request.ExpenseItemId.Value && e.Budget != null && e.Budget.TenantId == tenantId);
+            if (!expenseItemExists)
+                throw new KeyNotFoundException("El rubro presupuestal especificado no existe.");
+        }
+
         var order = new WorkOrder
         {
             Id = Guid.NewGuid(),
@@ -470,6 +480,7 @@ public class MaintenanceService
             AssignedProviderId = request.AssignedProviderId,
             ScheduledDate = request.ScheduledDate,
             EstimatedCost = request.EstimatedCost ?? 0,
+            ExpenseItemId = request.ExpenseItemId,
             Status = request.AssignedProviderId.HasValue ? WorkOrderStatus.Assigned : WorkOrderStatus.PendingAssignment,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
@@ -502,6 +513,14 @@ public class MaintenanceService
         if (request.ExecutionStartDate != null) order.ExecutionStartDate = request.ExecutionStartDate;
         if (request.EstimatedCost != null) order.EstimatedCost = request.EstimatedCost.Value;
         if (request.ActualCost != null) order.ActualCost = request.ActualCost.Value;
+        if (request.ExpenseItemId != null)
+        {
+            var expenseItemExists = await _context.ExpenseItems
+                .AnyAsync(e => e.Id == request.ExpenseItemId.Value && e.Budget != null && e.Budget.TenantId == tenantId);
+            if (!expenseItemExists)
+                throw new KeyNotFoundException("El rubro presupuestal especificado no existe.");
+            order.ExpenseItemId = request.ExpenseItemId;
+        }
         if (request.Outcome != null && Enum.TryParse<WorkOrderOutcome>(request.Outcome, true, out var outcome))
             order.Outcome = outcome;
         if (request.OutcomeNotes != null) order.OutcomeNotes = request.OutcomeNotes;
@@ -711,28 +730,39 @@ public class MaintenanceService
         var now = DateTime.UtcNow;
         var cutoff = now.AddDays(daysAhead);
 
-        var items = await _context.MaintenancePlans
+        var plans = await _context.MaintenancePlans
             .Where(p => p.TenantId == tenantId &&
                 p.IsActive &&
                 p.NextExecutionDate != null &&
                 p.NextExecutionDate >= now &&
                 p.NextExecutionDate <= cutoff)
             .OrderBy(p => p.NextExecutionDate)
-            .Select(p => new ScheduledMaintenanceItemDto
+            .Select(p => new
             {
-                AssetId = p.Asset!.Id,
-                AssetName = p.Asset.Name,
-                AssetLocation = p.Asset.Location,
-                ActivityType = p.ActivityType.ToString(),
-                ScheduledDate = p.NextExecutionDate!.Value,
-                EstimatedCost = p.EstimatedCost,
-                PreferredProviderName = p.PreferredProvider != null ? p.PreferredProvider.BusinessName : string.Empty
+                Item = new ScheduledMaintenanceItemDto
+                {
+                    AssetId = p.Asset!.Id,
+                    AssetName = p.Asset.Name,
+                    AssetLocation = p.Asset.Location,
+                    ActivityType = p.ActivityType.ToString(),
+                    ScheduledDate = p.NextExecutionDate!.Value,
+                    EstimatedCost = p.EstimatedCost,
+                    PreferredProviderName = p.PreferredProvider != null ? p.PreferredProvider.BusinessName : string.Empty
+                },
+                p.ExpenseItemId
             })
             .ToListAsync();
 
+        var items = plans.Select(p => p.Item).ToList();
         var totalEstimated = items.Sum(i => i.EstimatedCost);
 
-        decimal budgetAvailable = 0;
+        var linkedExpenseItemIds = plans
+            .Where(p => p.ExpenseItemId.HasValue)
+            .Select(p => p.ExpenseItemId!.Value)
+            .Distinct()
+            .ToList();
+
+        var budgetAvailable = await GetAvailableBudgetForExpenseItemsAsync(tenantId, linkedExpenseItemIds);
 
         return new MaintenanceReportDto
         {
@@ -741,6 +771,37 @@ public class MaintenanceService
             BudgetAvailable = budgetAvailable,
             ScheduledItems = items
         };
+    }
+
+    private async Task<decimal> GetAvailableBudgetForExpenseItemsAsync(string tenantId, List<Guid> expenseItemIds)
+    {
+        if (expenseItemIds.Count == 0)
+        {
+            return 0m;
+        }
+
+        var currentYear = DateTime.Today.Year;
+        var startDate = new DateTime(currentYear, 1, 1);
+        var endDate = new DateTime(currentYear, 12, 31, 23, 59, 59);
+
+        var expenseItems = await _context.ExpenseItems
+            .Where(e => expenseItemIds.Contains(e.Id) && e.Budget != null && e.Budget.TenantId == tenantId && e.Budget.Status == BudgetStatus.Approved)
+            .ToListAsync();
+
+        var executedByItem = await _context.ExecutedExpenses
+            .Where(e => e.TenantId == tenantId && expenseItemIds.Contains(e.ExpenseItemId) && e.ExpenseDate >= startDate && e.ExpenseDate <= endDate)
+            .GroupBy(e => e.ExpenseItemId)
+            .Select(g => new { ExpenseItemId = g.Key, Total = g.Sum(e => e.Amount) })
+            .ToDictionaryAsync(x => x.ExpenseItemId, x => x.Total);
+
+        var totalAvailable = 0m;
+        foreach (var expenseItem in expenseItems)
+        {
+            var executed = executedByItem.TryGetValue(expenseItem.Id, out var val) ? val : 0m;
+            totalAvailable += expenseItem.AnnualValue - executed;
+        }
+
+        return totalAvailable;
     }
 
     // ── Indicadores ────────────────────────────────────────────────

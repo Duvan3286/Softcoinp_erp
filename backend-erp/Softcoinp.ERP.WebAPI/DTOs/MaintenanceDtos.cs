@@ -161,7 +161,7 @@ public class CreateWorkOrderRequestDto
     public Guid? AssignedProviderId { get; set; }
     public DateTime? ScheduledDate { get; set; }
     public decimal? EstimatedCost { get; set; }
-    public Guid? BudgetAccountId { get; set; }
+    public Guid? ExpenseItemId { get; set; }
 }
 
 public class UpdateWorkOrderRequestDto
@@ -174,7 +174,7 @@ public class UpdateWorkOrderRequestDto
     public DateTime? ExecutionEndDate { get; set; }
     public decimal? EstimatedCost { get; set; }
     public decimal? ActualCost { get; set; }
-    public Guid? BudgetAccountId { get; set; }
+    public Guid? ExpenseItemId { get; set; }
     public string? Status { get; set; }
     public string? Outcome { get; set; }
     public string? OutcomeNotes { get; set; }
@@ -219,8 +219,8 @@ public class WorkOrderDetailDto
     public DateTime? ExecutionEndDate { get; set; }
     public decimal EstimatedCost { get; set; }
     public decimal ActualCost { get; set; }
-    public Guid? BudgetAccountId { get; set; }
-    public string BudgetAccountName { get; set; } = string.Empty;
+    public Guid? ExpenseItemId { get; set; }
+    public string ExpenseItemName { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? Outcome { get; set; }
     public string OutcomeNotes { get; set; } = string.Empty;

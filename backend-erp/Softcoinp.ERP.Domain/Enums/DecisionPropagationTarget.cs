@@ -5,7 +5,6 @@ public enum DecisionPropagationTarget
     Budget,
     ExtraordinaryFee,
     AuthRoles,
-    AccountingEntry,
     Contract,
     Other
 }

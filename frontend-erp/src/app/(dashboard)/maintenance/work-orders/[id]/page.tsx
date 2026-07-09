@@ -227,6 +227,7 @@ export default function WorkOrderDetailPage() {
                 <div><span className="text-muted-foreground">Fin Ejecución:</span><p className="font-medium">{formatDateTime(order.executionEndDate)}</p></div>
                 <div><span className="text-muted-foreground">Costo Estimado:</span><p className="font-medium">{formatCurrency(order.estimatedCost)}</p></div>
                 <div><span className="text-muted-foreground">Costo Real:</span><p className="font-medium">{formatCurrency(order.actualCost)}</p></div>
+                <div><span className="text-muted-foreground">Rubro Presupuestal:</span><p className="font-medium">{order.expenseItemName || 'Sin imputar'}</p></div>
                 {order.outcome && (
                   <div><span className="text-muted-foreground">Resultado:</span><p className="font-medium">{outcomeLabels[order.outcome] || order.outcome}</p></div>
                 )}

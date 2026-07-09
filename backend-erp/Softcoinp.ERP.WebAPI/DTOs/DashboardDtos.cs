@@ -15,7 +15,6 @@ public class DashboardDataDto
     public List<UnitSummaryDto> UnitSummaries { get; set; } = new();
     public ContingencyFundInfoDto? ContingencyFund { get; set; }
     public List<CouncilApprovalDto> PendingCouncilApprovals { get; set; } = new();
-    public AccountingStatusDto? AccountingStatus { get; set; }
     public ResidentDashboardDto? ResidentData { get; set; }
 }
 
@@ -113,15 +112,6 @@ public class CouncilApprovalDto
     public decimal Amount { get; set; }
     public DateTime RequestedAt { get; set; }
     public string ModuleLink { get; set; } = string.Empty;
-}
-
-public class AccountingStatusDto
-{
-    public string CurrentPeriodLabel { get; set; } = string.Empty;
-    public string PeriodStatus { get; set; } = string.Empty;
-    public int UnreconciledBankAccounts { get; set; }
-    public int DraftEntryCount { get; set; }
-    public int DaysSinceMonthEnd { get; set; }
 }
 
 public class ResidentDashboardDto

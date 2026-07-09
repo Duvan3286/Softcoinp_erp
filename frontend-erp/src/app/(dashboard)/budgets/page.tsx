@@ -20,7 +20,8 @@ type TabKey = 'list' | 'execution' | 'expenses' | 'modifications' | 'contingency
 
 export default function BudgetsPage() {
   const { user } = useAuth();
-  const canEdit = user?.role === 'SuperAdmin' || user?.role === 'Admin' || user?.role === 'Accountant';
+  const canEdit = user?.role === 'SuperAdmin' || user?.role === 'Admin';
+  const canApproveCouncilExpense = user?.role === 'SuperAdmin' || user?.role === 'Admin' || user?.role === 'Council';
 
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [tab, setTab] = useState<TabKey>('list');
@@ -100,9 +101,17 @@ export default function BudgetsPage() {
   const handleCreateBudget = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const fiscalYear = Number(form.get('fiscalYear'));
     try {
+      const existingBudgetsForYear = await budgetService.getBudgets(fiscalYear);
+      const alreadyApproved = existingBudgetsForYear.some(b => b.status === 'Approved');
+      if (alreadyApproved) {
+        setError(`Ya existe un presupuesto aprobado para el año fiscal ${fiscalYear}.`);
+        return;
+      }
+
       await budgetService.createBudget({
-        fiscalYear: Number(form.get('fiscalYear')),
+        fiscalYear,
         meetingActNumber: form.get('meetingActNumber') as string,
         approvalDate: (form.get('approvalDate') as string) || undefined,
         observations: form.get('observations') as string,
@@ -189,6 +198,14 @@ export default function BudgetsPage() {
       fetchExpenses();
       if (dashboard) fetchDashboard();
     } catch { setError('Error al registrar gasto'); }
+  };
+
+  const handleApproveCouncilExpense = async (executedExpenseId: string) => {
+    try {
+      await budgetService.approveCouncilExpense(executedExpenseId);
+      setSuccess('Gasto aprobado por el consejo');
+      fetchExpenses();
+    } catch { setError('Error al aprobar el gasto'); }
   };
 
   const handleCreateModification = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -636,12 +653,13 @@ export default function BudgetsPage() {
                   <th className="text-right px-4 py-3">Monto</th>
                   <th className="text-left px-4 py-3">Factura</th>
                   <th className="text-left px-4 py-3">Proveedor</th>
+                  <th className="text-left px-4 py-3">Consejo</th>
                 </tr>
               </thead>
               <tbody>
                 {expenses.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-muted-foreground">No hay gastos registrados</td>
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">No hay gastos registrados</td>
                   </tr>
                 ) : expenses.map(e => (
                   <tr key={e.id} className="border-b border-border/50 hover:bg-muted/30">
@@ -651,6 +669,22 @@ export default function BudgetsPage() {
                     <td className="px-4 py-3 text-right font-medium">${e.amount.toLocaleString()}</td>
                     <td className="px-4 py-3">{e.invoiceReference || '-'}</td>
                     <td className="px-4 py-3">{e.providerName || '-'}</td>
+                    <td className="px-4 py-3">
+                      {!e.requiresCouncilApproval && (
+                        <span className="text-xs text-muted-foreground">No aplica</span>
+                      )}
+                      {e.requiresCouncilApproval && e.councilApproved && (
+                        <span className="text-xs text-green-600 font-medium">Aprobado</span>
+                      )}
+                      {e.requiresCouncilApproval && !e.councilApproved && !canApproveCouncilExpense && (
+                        <span className="text-xs text-amber-600 font-medium">Pendiente</span>
+                      )}
+                      {e.requiresCouncilApproval && !e.councilApproved && canApproveCouncilExpense && (
+                        <Button variant="secondary" onClick={() => handleApproveCouncilExpense(e.id)}>
+                          Aprobar
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1109,7 +1143,7 @@ export default function BudgetsPage() {
                         value={item.category} onChange={e => { const items = [...editExpenseItems]; items[idx].category = e.target.value; setEditExpenseItems(items); }}
                         className="w-28 border border-border rounded px-2 py-1 text-sm bg-card"
                       >
-                        <option value="Fijo">Fijo</option>
+                        <option value="Fixed">Fijo</option>
                         <option value="Variable">Variable</option>
                       </select>
                       <input

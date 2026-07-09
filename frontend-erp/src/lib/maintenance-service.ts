@@ -169,8 +169,8 @@ export interface WorkOrderDetail {
   executionEndDate: string | null;
   estimatedCost: number;
   actualCost: number;
-  budgetAccountId: string | null;
-  budgetAccountName: string;
+  expenseItemId: string | null;
+  expenseItemName: string;
   status: string;
   outcome: string | null;
   outcomeNotes: string;
@@ -191,7 +191,7 @@ export interface CreateWorkOrderRequest {
   assignedProviderId?: string;
   scheduledDate?: string;
   estimatedCost?: number;
-  budgetAccountId?: string;
+  expenseItemId?: string;
 }
 
 export interface UpdateWorkOrderRequest {
@@ -203,7 +203,7 @@ export interface UpdateWorkOrderRequest {
   executionEndDate?: string;
   estimatedCost?: number;
   actualCost?: number;
-  budgetAccountId?: string;
+  expenseItemId?: string;
   status?: string;
   outcome?: string;
   outcomeNotes?: string;

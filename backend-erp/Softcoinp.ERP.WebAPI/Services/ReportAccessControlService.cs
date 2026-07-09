@@ -23,9 +23,8 @@ public class ReportAccessControlService
     {
         ["SuperAdmin"] = new List<string>
         {
-            "BalanceGeneral", "IncomeExpense", "TrialBalance", "BudgetExecution",
-            "ContingencyFund", "CashFlow", "GeneralLedger", "SubsidiaryLedger",
-            "JournalEntryDetail", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
+            "BudgetExecution",
+            "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
             "PeriodCollection", "PortfolioProjection", "PaymentAgreements",
             "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
@@ -33,9 +32,8 @@ public class ReportAccessControlService
         },
         ["Admin"] = new List<string>
         {
-            "BalanceGeneral", "IncomeExpense", "TrialBalance", "BudgetExecution",
-            "ContingencyFund", "CashFlow", "GeneralLedger", "SubsidiaryLedger",
-            "JournalEntryDetail", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
+            "BudgetExecution",
+            "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
             "PeriodCollection", "PortfolioProjection", "PaymentAgreements",
             "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
@@ -43,23 +41,21 @@ public class ReportAccessControlService
         },
         ["Council"] = new List<string>
         {
-            "BalanceGeneral", "IncomeExpense", "TrialBalance", "BudgetExecution",
-            "ContingencyFund", "CashFlow", "GeneralLedger", "SubsidiaryLedger",
+            "BudgetExecution",
+            "ContingencyFund", "CashFlow",
             "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
             "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport"
         },
         ["Accountant"] = new List<string>
         {
-            "BalanceGeneral", "IncomeExpense", "TrialBalance", "BudgetExecution",
-            "ContingencyFund", "CashFlow", "GeneralLedger", "SubsidiaryLedger",
-            "JournalEntryDetail", "PortfolioAging", "PeriodCollection", "OwnerRegistry"
+            "BudgetExecution",
+            "ContingencyFund", "CashFlow", "PortfolioAging", "PeriodCollection", "OwnerRegistry"
         },
         ["Auditor"] = new List<string>
         {
-            "BalanceGeneral", "IncomeExpense", "TrialBalance", "BudgetExecution",
-            "ContingencyFund", "CashFlow", "GeneralLedger", "SubsidiaryLedger",
-            "JournalEntryDetail", "PortfolioAging", "PeriodCollection", "OwnerRegistry"
+            "BudgetExecution",
+            "ContingencyFund", "CashFlow", "PortfolioAging", "PeriodCollection", "OwnerRegistry"
         },
         ["Resident"] = new List<string>
         {

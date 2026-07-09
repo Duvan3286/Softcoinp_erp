@@ -109,6 +109,9 @@ public class ExcelGenerationEngine
             case "ContingencyFund":
                 FillContingencyFund(ws, tenantId);
                 break;
+            case "BudgetExecution":
+                FillBudgetExecution(ws, tenantId);
+                break;
             case "PortfolioProjection":
                 ws.Cell(1, 1).Value = "Proyeccion de Cartera";
                 ws.Cell(2, 1).Value = "Funcionalidad en desarrollo.";
@@ -225,6 +228,99 @@ public class ExcelGenerationEngine
         ws.Columns(3, 3).Width = 40;
         ws.Columns(4, 4).Width = 15;
         ws.Columns(5, 5).Width = 20;
+    }
+
+    private void FillBudgetExecution(IXLWorksheet ws, string tenantId)
+    {
+        var fiscalYear = DateTime.Today.Year;
+
+        var budget = _context.Budgets
+            .Include(b => b.ExpenseItems)
+            .Include(b => b.IncomeItems)
+            .FirstOrDefault(b => b.TenantId == tenantId && b.FiscalYear == fiscalYear && b.Status == BudgetStatus.Approved);
+
+        if (budget == null)
+        {
+            ws.Cell(1, 1).Value = "Ejecucion Presupuestal";
+            ws.Cell(2, 1).Value = $"No hay presupuesto aprobado para el ano fiscal {fiscalYear}.";
+            ws.Columns().AdjustToContents();
+            return;
+        }
+
+        var startDate = new DateTime(fiscalYear, 1, 1);
+        var endDate = new DateTime(fiscalYear, 12, 31, 23, 59, 59);
+
+        var executedByItem = _context.ExecutedExpenses
+            .Where(e => e.TenantId == tenantId && e.ExpenseDate >= startDate && e.ExpenseDate <= endDate)
+            .GroupBy(e => e.ExpenseItemId)
+            .Select(g => new { ExpenseItemId = g.Key, Total = g.Sum(e => e.Amount) })
+            .ToList()
+            .ToDictionary(x => x.ExpenseItemId, x => x.Total);
+
+        var headers = new[] { "Rubro", "Categoria", "Presupuestado", "Ejecutado", "Disponible", "% Ejecucion" };
+        for (var i = 0; i < headers.Length; i++)
+        {
+            var cell = ws.Cell(1, i + 1);
+            cell.Value = headers[i];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
+            cell.Style.Font.FontColor = XLColor.White;
+        }
+
+        var row = 2;
+        var altColor = XLColor.FromHtml("#f8fafc");
+        var totalApproved = 0m;
+        var totalExecuted = 0m;
+
+        foreach (var item in budget.ExpenseItems)
+        {
+            var executed = executedByItem.TryGetValue(item.Id, out var val) ? val : 0m;
+            var available = item.AnnualValue - executed;
+            var percentage = item.AnnualValue > 0 ? Math.Round(executed / item.AnnualValue * 100m, 2) : 0m;
+
+            ws.Cell(row, 1).Value = item.Name;
+            ws.Cell(row, 2).Value = item.Category.ToString();
+            ws.Cell(row, 3).Value = item.AnnualValue;
+            ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 4).Value = executed;
+            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 5).Value = available;
+            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(row, 6).Value = percentage;
+            ws.Cell(row, 6).Style.NumberFormat.Format = "0.00";
+
+            if (row % 2 == 0)
+            {
+                for (var c = 1; c <= 6; c++)
+                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
+            }
+
+            totalApproved += item.AnnualValue;
+            totalExecuted += executed;
+            row++;
+        }
+
+        var overallPercentage = totalApproved > 0 ? Math.Round(totalExecuted / totalApproved * 100m, 2) : 0m;
+
+        ws.Cell(row, 1).Value = "TOTALES";
+        ws.Cell(row, 1).Style.Font.Bold = true;
+        ws.Cell(row, 3).Value = totalApproved;
+        ws.Cell(row, 3).Style.Font.Bold = true;
+        ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
+        ws.Cell(row, 4).Value = totalExecuted;
+        ws.Cell(row, 4).Style.Font.Bold = true;
+        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
+        ws.Cell(row, 5).Value = totalApproved - totalExecuted;
+        ws.Cell(row, 5).Style.Font.Bold = true;
+        ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
+        ws.Cell(row, 6).Value = overallPercentage;
+        ws.Cell(row, 6).Style.Font.Bold = true;
+        ws.Cell(row, 6).Style.NumberFormat.Format = "0.00";
+
+        ws.Range(1, 1, row, 6).SetAutoFilter();
+        ws.Columns(1, 1).Width = 30;
+        ws.Columns(2, 2).Width = 14;
+        ws.Columns(3, 6).Width = 16;
     }
 
     private void FillPortfolioAging(IXLWorksheet ws, string tenantId)

@@ -143,6 +143,7 @@ export interface ExecutedExpense {
   providerName: string;
   invoiceReference: string;
   councilApproved: boolean;
+  requiresCouncilApproval: boolean;
 }
 
 export interface CreateModificationRequest {
@@ -268,6 +269,11 @@ const budgetService = {
 
   async recordContingencyFundUsage(request: RecordContingencyFundUsageRequest): Promise<{ id: string; amount: number; justification: string }> {
     const response = await apiClient.post<{ id: string; amount: number; justification: string }>('/budgets/contingency-fund/usage', request);
+    return response.data;
+  },
+
+  async approveCouncilExpense(executedExpenseId: string): Promise<ExecutedExpense> {
+    const response = await apiClient.post<ExecutedExpense>(`/budgets/expenses/${executedExpenseId}/approve-council`);
     return response.data;
   }
 };

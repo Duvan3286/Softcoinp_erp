@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import maintenanceService, { CreateWorkOrderRequest, CommonAssetListItem } from '@/lib/maintenance-service';
 import supplierService, { ProviderListItem } from '@/lib/supplier-service';
+import budgetService, { ExpenseExecutionItem } from '@/lib/budget-service';
 
 const orderTypes = [
   { value: 'Preventive', label: 'Preventivo' },
@@ -34,6 +35,7 @@ export default function NewWorkOrderPage() {
 
   const [assets, setAssets] = useState<CommonAssetListItem[]>([]);
   const [providers, setProviders] = useState<ProviderListItem[]>([]);
+  const [expenseItems, setExpenseItems] = useState<ExpenseExecutionItem[]>([]);
 
   const [orderType, setOrderType] = useState('Corrective');
   const [assetId, setAssetId] = useState('');
@@ -43,6 +45,7 @@ export default function NewWorkOrderPage() {
   const [assignedProviderId, setAssignedProviderId] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [estimatedCost, setEstimatedCost] = useState('');
+  const [expenseItemId, setExpenseItemId] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -54,6 +57,14 @@ export default function NewWorkOrderPage() {
         setAssets(assetsData);
         setProviders(providersData);
       } catch {}
+
+      try {
+        const currentYear = new Date().getFullYear();
+        const execution = await budgetService.getBudgetExecution(currentYear);
+        setExpenseItems(execution.expenseItems);
+      } catch {
+        setExpenseItems([]);
+      }
     };
     loadData();
   }, []);
@@ -77,6 +88,7 @@ export default function NewWorkOrderPage() {
         assignedProviderId: assignedProviderId || undefined,
         scheduledDate,
         estimatedCost: estimatedCost ? parseFloat(estimatedCost) : undefined,
+        expenseItemId: expenseItemId || undefined,
       };
       const result = await maintenanceService.createWorkOrder(request);
       setCreatedId(result.id);
@@ -179,6 +191,14 @@ export default function NewWorkOrderPage() {
                 <input type="number" placeholder="Valor en COP" value={estimatedCost}
                   onChange={(e) => setEstimatedCost(e.target.value)} min="0"
                   className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Rubro Presupuestal</label>
+                <select value={expenseItemId} onChange={(e) => setExpenseItemId(e.target.value)}
+                  className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none">
+                  <option value="">Sin imputar al presupuesto</option>
+                  {expenseItems.map((item) => <option key={item.id} value={item.id}>{item.name} (disponible: ${item.availableValue.toLocaleString()})</option>)}
+                </select>
               </div>
             </div>
 
