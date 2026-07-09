@@ -71,7 +71,6 @@ public class CreateContractRequestDto
     public DateTime EndDate { get; set; }
     public bool HasAutoRenewal { get; set; }
     public int AutoRenewalNoticeDays { get; set; }
-    public Guid? BudgetAccountId { get; set; }
 }
 
 public class UpdateContractRequestDto
@@ -85,7 +84,6 @@ public class UpdateContractRequestDto
     public DateTime? EndDate { get; set; }
     public bool? HasAutoRenewal { get; set; }
     public int? AutoRenewalNoticeDays { get; set; }
-    public Guid? BudgetAccountId { get; set; }
     public string? SignedContractFilePath { get; set; }
 }
 
@@ -308,7 +306,6 @@ public class ContractDetailDto
     public string ApprovalLevel { get; set; } = string.Empty;
     public string CouncilMeetingActNumber { get; set; } = string.Empty;
     public string AssemblyMeetingActNumber { get; set; } = string.Empty;
-    public string BudgetAccountId { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string SignedContractFilePath { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }

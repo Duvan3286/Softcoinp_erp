@@ -103,7 +103,7 @@ public class DbInitializer
             {
                 TenantId = tenantId, ReportTypeCode = ReportTypeEnum.CashFlow,
                 Name = "Flujo de Caja", Description = "Estado de flujos de efectivo que muestra las entradas y salidas de dinero operativas, de inversión y de financiación.",
-                Category = ReportCategory.Financial, SourceModules = "Accounting,Billing", AllowedRoles = "SuperAdmin,Admin,Council,Accountant,Auditor",
+                Category = ReportCategory.Financial,                 SourceModules = "Billing", AllowedRoles = "SuperAdmin,Admin,Council,Accountant,Auditor",
                 ContainsPersonalData = false, IsActive = true
             },
             new()
@@ -243,7 +243,7 @@ public class DbInitializer
                 ? "CONFIDENCIAL: Este informe contiene datos personales protegidos por la Ley 1581 de 2012. Su divulgación no autorizada está prohibida."
                 : null,
             DisclaimerNote = r.Category == ReportCategory.Financial
-                ? "Nota: Este informe financiero ha sido preparado con base en los registros contables del conjunto. Los saldos están expresados en pesos colombianos (COP)."
+                ? "Nota: Este informe financiero ha sido preparado con base en los registros presupuestales del conjunto. Los saldos están expresados en pesos colombianos (COP)."
                 : null,
             PrimaryColor = "#059669",
             SecondaryColor = "#1e293b",

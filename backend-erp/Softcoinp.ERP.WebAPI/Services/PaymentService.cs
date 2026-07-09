@@ -261,21 +261,6 @@ public class PaymentService
             throw new ArgumentException("El medio de pago especificado es inválido (Cash, Transfer, Check, Online).");
         }
 
-        BankAccount? bankAccount = null;
-        if (request.BankAccountId.HasValue)
-        {
-            bankAccount = await _context.BankAccounts
-                .FirstOrDefaultAsync(ba => ba.Id == request.BankAccountId.Value && ba.TenantId == tenantId);
-            if (bankAccount == null)
-            {
-                throw new KeyNotFoundException("Cuenta bancaria no encontrada.");
-            }
-            if (!bankAccount.IsActive)
-            {
-                throw new InvalidOperationException("La cuenta bancaria está inactiva.");
-            }
-        }
-
         var preview = await PreviewPaymentAllocationAsync(tenantId, request.UnitId, request.Amount);
 
         var payment = new Payment
@@ -283,7 +268,6 @@ public class PaymentService
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             UnitId = request.UnitId,
-            BankAccountId = request.BankAccountId,
             PaymentDate = request.PaymentDate,
             Amount = request.Amount,
             PaymentMethod = paymentMethod,
@@ -332,37 +316,6 @@ public class PaymentService
         }
 
         await _context.SaveChangesAsync();
-
-        if (bankAccount != null)
-        {
-            var previousBalance = bankAccount.CurrentBalance;
-            bankAccount.CurrentBalance += payment.Amount;
-            bankAccount.UpdatedAt = DateTime.UtcNow;
-
-            var bankMovement = new BankMovement
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                BankAccountId = bankAccount.Id,
-                MovementType = BankMovementType.Deposit,
-                Amount = payment.Amount,
-                MovementDate = payment.PaymentDate,
-                Description = $"Pago recibido unidad - {payment.PaymentDate:yyyy-MM-dd}",
-                ReferenceNumber = payment.ReferenceNumber,
-                RunningBalance = bankAccount.CurrentBalance,
-                CreatedByUserId = userId
-            };
-
-            _context.BankMovements.Add(bankMovement);
-            await _context.SaveChangesAsync();
-
-            if (bankAccount.CurrentBalance < 0)
-            {
-                throw new InvalidOperationException(
-                    $"Saldo insuficiente en la cuenta bancaria '{bankAccount.BankName}' ({bankAccount.AccountNumber}). " +
-                    $"Saldo anterior: {previousBalance:C2}, Pago: {payment.Amount:C2}, Saldo resultante: {bankAccount.CurrentBalance:C2}.");
-            }
-        }
 
         _cache.Remove($"mora_map_{tenantId}");
         await _indicatorCache.InvalidateAsync(tenantId, "kpis_");

@@ -273,7 +273,7 @@ function Step2DebtVerification({
               Confirmo que he verificado el estado de cuenta de esta unidad
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Al marcar esta casilla, el administrador declara haber revisado los libros contables
+              Al marcar esta casilla, el administrador declara haber revisado el estado financiero
               y confirma que la unidad no presenta deudas activas, o que las partes han acordado
               su situación mediante paz y salvo.
             </p>

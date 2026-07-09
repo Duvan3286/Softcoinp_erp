@@ -97,8 +97,6 @@ builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<PaymentAgreementService>();
 builder.Services.AddScoped<StatementService>();
 builder.Services.AddScoped<DashboardService>();
-builder.Services.AddScoped<FixedAssetService>();
-builder.Services.AddScoped<BankReconciliationService>();
 builder.Services.AddScoped<IndicatorCacheService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<PQRRadicationService>();

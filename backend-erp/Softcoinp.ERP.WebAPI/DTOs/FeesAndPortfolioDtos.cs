@@ -157,7 +157,6 @@ public class RegisterPaymentRequestDto
     public string PaymentMethod { get; set; } = string.Empty;
     public string ReferenceNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
-    public Guid? BankAccountId { get; set; }
 }
 
 public class PaymentPreviewDto

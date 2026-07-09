@@ -15,21 +15,20 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 3. [Dashboard (Tablero Principal)](#3-dashboard-tablero-principal)
 4. [Módulo de Unidades](#4-módulo-de-unidades)
 5. [Módulo de Residentes y Propietarios](#5-módulo-de-residentes-y-propietarios)
-6. [Módulo de Contabilidad](#6-módulo-de-contabilidad)
-7. [Módulo de Presupuesto](#7-módulo-de-presupuesto)
-8. [Módulo de Fondo de Imprevistos](#8-módulo-de-fondo-de-imprevistos)
-9. [Módulo de Cuotas y Cartera](#9-módulo-de-cuotas-y-cartera)
-10. [Módulo de Configuración](#10-módulo-de-configuración)
-11. [Módulo PQR](#11-módulo-pqr)
-12. [Módulo de Proveedores y Contratos](#12-módulo-de-proveedores-y-contratos)
-13. [Módulo de Mantenimiento y Zonas Comunes](#13-módulo-de-mantenimiento-y-zonas-comunes)
-14. [Módulo de Comunicados y Notificaciones](#14-módulo-de-comunicados-y-notificaciones)
-15. [Módulo de Asambleas](#15-módulo-de-asambleas)
-16. [Módulo de Reservas](#16-módulo-de-reservas)
-17. [Roles y Permisos](#17-roles-y-permisos)
-18. [Preguntas Frecuentes](#18-preguntas-frecuentes)
-19. [Glosario](#19-glosario)
-20. [Módulo de Reportes y Exportaciones](#20-módulo-de-reportes-y-exportaciones)
+6. [Módulo de Presupuesto](#6-módulo-de-presupuesto)
+7. [Módulo de Fondo de Imprevistos](#7-módulo-de-fondo-de-imprevistos)
+8. [Módulo de Cuotas y Cartera](#8-módulo-de-cuotas-y-cartera)
+9. [Módulo de Configuración](#9-módulo-de-configuración)
+10. [Módulo PQR](#10-módulo-pqr)
+11. [Módulo de Proveedores y Contratos](#11-módulo-de-proveedores-y-contratos)
+12. [Módulo de Mantenimiento y Zonas Comunes](#12-módulo-de-mantenimiento-y-zonas-comunes)
+13. [Módulo de Comunicados y Notificaciones](#13-módulo-de-comunicados-y-notificaciones)
+14. [Módulo de Asambleas](#14-módulo-de-asambleas)
+15. [Módulo de Reservas](#15-módulo-de-reservas)
+16. [Roles y Permisos](#16-roles-y-permisos)
+17. [Preguntas Frecuentes](#17-preguntas-frecuentes)
+18. [Glosario](#18-glosario)
+19. [Módulo de Reportes y Exportaciones](#19-módulo-de-reportes-y-exportaciones)
 
 ---
 
@@ -43,8 +42,6 @@ Este manual se actualizará conforme el proyecto crezca. Consulte la versión m�
 - Gestionar propietarios, arrendatarios y grupos de convivencia
 - Liquidar cuotas de administración ordinarias y extraordinarias
 - Registrar pagos y administrar la cartera
-- Gestionar el plan de cuentas contable (Resolución 029 de 2019)
-- Registrar asientos contables y generar reportes financieros
 - Administrar el presupuesto anual y el fondo de imprevistos (Ley 675 de 2001)
 - Expedir paz y salvos y estados de cuenta
 - Gestionar proveedores, contratos, facturas y pagos
@@ -244,94 +241,9 @@ Cada unidad puede tener registrados los miembros del hogar y mascotas. Esta info
 
 ---
 
-## 6. Módulo de Contabilidad
+## 6. Módulo de Presupuesto
 
-### 6.1 Plan de Cuentas
-
-Acceda desde el menú: **Finanzas → Plan de Cuentas**.
-
-El plan de cuentas sigue la **Resolución 029 de 2019** del Consejo Técnico de la Contaduría Pública, adaptada para propiedades horizontales.
-
-**Estructura jerárquica:**
-
-| Nivel | Longitud | Ejemplo |
-|-------|----------|---------|
-| Clase | 1 dígito | `1` Activo |
-| Grupo | 2 dígitos | `11` |
-| Cuenta | 4 dígitos | `1105` Caja |
-| Subcuenta | 6 dígitos | `110501` Caja General |
-| Auxiliar | 8 dígitos | `11050101` |
-
-**Actions disponibles:**
-- **Filtrar** por categoría (Activo, Pasivo, Ingreso, Gasto) o naturaleza (Débito, Crédito).
-- **Crear cuenta auxiliar** bajo una cuenta existente (solo cuentas no oficiales).
-- **Editar nombre** o estado de cuentas auxiliares.
-- **Eliminar** cuentas auxiliares creadas por el usuario.
-
-> Las cuentas del estándar oficial **no pueden modificarse ni eliminarse**.
-
-### 6.2 Períodos Contables
-
-Acceda desde el menú: **Finanzas → Períodos Contables**.
-
-Cada mes calendario debe tener un período contable abierto para registrar asientos.
-
-**Pasos:**
-1. **Abrir período**: Seleccione año y mes. El sistema crea el período en estado `Abierto`.
-2. **Cerrar período**: Al finalizar el mes, puede cerrarlo. Un período cerrado no acepta nuevos asientos.
-
-### 6.3 Libro Diario (Asientos Contables)
-
-Acceda desde el menú: **Finanzas → Libro Diario**.
-
-#### Crear un asiento contable
-
-1. Haga clic en **Nuevo Asiento**.
-2. Seleccione la **fecha del asiento**.
-3. Ingrese una **descripción** del movimiento.
-4. Agregue **líneas de asiento** (mínimo 2, una de débito y una de crédito):
-
-   - Seleccione la cuenta contable.
-   - Ingrese el valor en débito o crédito (nunca ambos en la misma línea).
-
-5. Verifique que la suma de débitos sea igual a la suma de créditos.
-6. Guarde como **Borrador** o **Contabilice** directamente.
-
-#### Contabilizar un asiento
-
-Un asiento en borrador puede editarse. Al **contabilizarlo**:
-- Pasa a estado `Final` (inmutable).
-- Se asigna un número correlativo único.
-- Se contabiliza en el período correspondiente.
-
-#### Revertir un asiento
-
-Para corregir un asiento contabilizado:
-1. Abra el detalle del asiento.
-2. Haga clic en **Revertir**.
-3. Ingrese el **motivo** de la reversión.
-4. El sistema genera automáticamente un nuevo asiento con los valores opuestos.
-
-### 6.4 Reportes Contables
-
-Acceda desde el menú: **Finanzas → Reportes Contables**.
-
-Cuatro reportes disponibles:
-
-| Reporte | Descripción |
-|---------|-------------|
-| **Balance de Comprobación** | Listado de todas las cuentas con sus movimientos débito/crédito y saldos. |
-| **Mayor Contable** | Historial detallado de movimientos de una cuenta específica con saldo corrido. |
-| **Estado de Resultados** | Ingresos y egresos del período seleccionado (PyG). |
-| **Balance General** | Activos, pasivos y patrimonio a una fecha determinada. |
-
-Filtre por **período contable** para ver los reportes del mes deseado.
-
----
-
-## 7. Módulo de Presupuesto
-
-### 7.1 Presupuesto Anual
+### 6.1 Presupuesto Anual
 
 Acceda desde el menú: **Finanzas → Presupuesto**.
 
@@ -366,7 +278,7 @@ Para registrar:
 2. Haga clic en **Nuevo Movimiento**.
 3. Seleccione tipo (Traslado o Adición), cuentas origen/destino, monto y datos del acta.
 
-### 7.2 Vista de ejecución
+### 6.2 Vista de ejecución
 
 El presupuesto activo muestra la ejecución en tiempo real:
 
@@ -374,7 +286,7 @@ El presupuesto activo muestra la ejecución en tiempo real:
 - **Adiciones**: Incrementos aprobados durante el año.
 - **Traslados**: Movimientos entre rubros.
 - **Presupuesto Ajustado**: Inicial + Adiciones ± Traslados.
-- **Ejecutado**: Gastos reales registrados en contabilidad.
+- **Ejecutado**: Gastos reales registrados.
 - **Disponible**: Presupuesto ajustado - Ejecutado.
 - **% Ejecutado**: Porcentaje de ejecución.
 - **Proyección**: Estimación a fin de año basada en la tendencia actual.
@@ -383,15 +295,15 @@ El presupuesto activo muestra la ejecución en tiempo real:
 
 ---
 
-## 8. Módulo de Fondo de Imprevistos
+## 7. Módulo de Fondo de Imprevistos
 
-### 8.1 Fondo de Imprevistos (Ley 675)
+### 7.1 Fondo de Imprevistos (Ley 675)
 
 Acceda desde el menú: **Finanzas → Fondo Imprevistos**.
 
 El **Artículo 35 de la Ley 675 de 2001** establece que toda copropiedad debe constituir un fondo de imprevistos con un mínimo del **1% de los ingresos** del período.
 
-### 8.2 Liquidar aporte mensual
+### 7.2 Liquidar aporte mensual
 
 1. Seleccione el **año** y **mes** a liquidar.
 2. Haga clic en **Liquidar Aporte Mensual**.
@@ -401,11 +313,9 @@ El **Artículo 35 de la Ley 675 de 2001** establece que toda copropiedad debe co
    - **Porcentaje aplicado**: El configurado en el conjunto (mínimo 1%).
    - **Monto del aporte**: Base × Porcentaje / 100.
 
-4. El sistema genera automáticamente el asiento contable (Débito Gasto / Crédito Fondo Social).
-
 > **Tope de acumulación**: Si el saldo del fondo supera el **10% del presupuesto anual**, el sistema no generará el aporte para evitar acumulación excesiva.
 
-### 8.3 Registrar uso del fondo
+### 7.3 Registrar uso del fondo
 
 1. Haga clic en **Registrar Uso del Fondo**.
 2. Complete:
@@ -415,13 +325,13 @@ El **Artículo 35 de la Ley 675 de 2001** establece que toda copropiedad debe co
    - **Acta del Consejo de Administración** que aprobó el retiro.
    - **Fecha de aprobación**.
 
-3. Guarde. El sistema genera el asiento contable correspondiente.
-
 ---
 
-## 9. Módulo de Cuotas y Cartera
 
-### 9.1 Períodos de Liquidación
+
+## 8. Módulo de Cuotas y Cartera
+
+### 8.1 Períodos de Liquidación
 
 Acceda desde el menú: **Finanzas → Facturación**.
 
@@ -443,7 +353,7 @@ El sistema:
 - Aplica el ajuste de redondeo si es necesario.
 - Genera las cuotas ordinarias en estado `Pendiente`.
 
-### 9.2 Cuotas Extraordinarias
+### 8.2 Cuotas Extraordinarias
 
 Acceda desde el menú: **Finanzas → Facturación → Cuotas Extraordinarias** (pestaña).
 
@@ -458,7 +368,7 @@ Acceda desde el menú: **Finanzas → Facturación → Cuotas Extraordinarias** 
 
 3. Guarde. El sistema genera automáticamente la distribución por unidad.
 
-### 9.3 Cobros Individuales
+### 8.3 Cobros Individuales
 
 Acceda desde el menú: **Finanzas → Facturación → Cobros Individuales** (pestaña).
 
@@ -472,7 +382,7 @@ Acceda desde el menú: **Finanzas → Facturación → Cobros Individuales** (pe
 2. Seleccione la **unidad**, **tipo de cobro**, **concepto** y **monto**.
 3. Si aplica, indique si está **en disputa**.
 
-### 9.4 Cartera
+### 8.4 Cartera
 
 Acceda desde el menú: **Finanzas → Cartera**.
 
@@ -494,7 +404,7 @@ Vista general del estado de la cartera del conjunto:
 
 Cada etapa se expande para ver el detalle de unidades, deuda total, días de mora y último pago.
 
-### 9.5 Acuerdos de Pago
+### 8.5 Acuerdos de Pago
 
 Acceda desde el menú: **Finanzas → Facturación → Acuerdos de Pago** (pestaña).
 
@@ -521,7 +431,7 @@ Desde el detalle del acuerdo puede:
 
 > Solo puede existir **un acuerdo activo** por unidad a la vez.
 
-### 9.6 Registro de Pagos
+### 8.6 Registro de Pagos
 
 Acceda desde el menú: **Finanzas → Facturación → Registrar Pago**.
 
@@ -537,7 +447,7 @@ Acceda desde el menú: **Finanzas → Facturación → Registrar Pago**.
 4. Si hay excedente, se registra como **anticipo** para el período siguiente.
 5. Confirme el pago.
 
-### 9.7 Estados de Cuenta y Paz y Salvos
+### 8.7 Estados de Cuenta y Paz y Salvos
 
 Acceda desde el menú: **Finanzas → Facturación → Documentos** (pestaña).
 
@@ -559,18 +469,18 @@ Acceda desde el menú: **Finanzas → Facturación → Documentos** (pestaña).
 
 ---
 
-## 10. Módulo de Configuración
+## 9. Módulo de Configuración
 
 Acceda desde el menú inferior: **Configuración**.
 
-### 10.1 Legal e Identidad
+### 9.1 Legal e Identidad
 
 - **Nombre oficial del conjunto** y NIT (con DV automático).
 - **Dirección**, municipio, departamento.
 - **Datos del representante legal** (nombre, documento).
 - **Logo del conjunto** (formato PNG o SVG).
 
-### 10.2 Financiero
+### 9.2 Financiero
 
 | Parámetro | Descripción |
 |-----------|-------------|
@@ -580,20 +490,20 @@ Acceda desde el menú inferior: **Configuración**.
 | Tasa de Interés Aplicada | Tasa que cobra el conjunto (no puede exceder la máxima legal). |
 | Inicio Año Fiscal | Mes en que comienza el año contable. |
 
-### 10.3 Operativo
+### 9.3 Operativo
 
 - **Total de unidades y torres** del conjunto.
 - **Política de redondeo** para liquidación de cuotas.
 - **Máximo de cuotas extraordinarias activas** simultáneas.
 - **Porcentaje del fondo de imprevistos** (mínimo 1%).
 
-### 10.4 Notificaciones
+### 9.4 Notificaciones
 
 - **Correo remitente** para notificaciones automáticas.
 - **Frecuencia de notificaciones** a morosos.
 - **Plantilla de pie de firma** para comunicaciones.
 
-### 10.5 Documentos
+### 9.5 Documentos
 
 Gestión de documentos oficiales:
 
@@ -601,7 +511,7 @@ Gestión de documentos oficiales:
 - Formatos soportados: PDF.
 - Descargue documentos previamente cargados.
 
-### 10.6 Historial de Auditoría
+### 9.6 Historial de Auditoría
 
 Registro de todos los cambios realizados en la configuración:
 
@@ -612,9 +522,9 @@ Registro de todos los cambios realizados en la configuración:
 
 ---
 
-## 11. Módulo PQR (Peticiones, Quejas y Reclamos)
+## 10. Módulo PQR (Peticiones, Quejas y Reclamos)
 
-### 11.1 ¿Qué es una PQR?
+### 10.1 ¿Qué es una PQR?
 
 **PQR** significa **Petición, Queja o Reclamo**. Es el canal oficial de comunicación entre los residentes y la administración del conjunto. La Ley 675 de 2001 establece la obligación del administrador de atender y responder las solicitudes de los copropietarios dentro de plazos razonables.
 
@@ -626,7 +536,7 @@ Registro de todos los cambios realizados en la configuración:
 
 > Los plazos pueden ser ajustados por el administrador según el reglamento del conjunto.
 
-### 11.2 Radicar una PQR
+### 10.2 Radicar una PQR
 
 #### Desde el portal del administrador
 
@@ -656,7 +566,7 @@ Registro de todos los cambios realizados en la configuración:
 
 Los residentes pueden radicar PQR desde su portal personal. Las PQR internas de la administración no aparecen en este portal.
 
-### 11.3 Bandeja del Administrador
+### 10.3 Bandeja del Administrador
 
 Acceda a la lista de PQR activas ordenadas por urgencia. Cada PQR muestra:
 
@@ -669,7 +579,7 @@ Puede filtrar por:
 - Tipo (Petición, Queja, Reclamo)
 - Internas (mostrar/ocultar)
 
-### 11.4 Detalle de una PQR
+### 10.4 Detalle de una PQR
 
 Al abrir una PQR, encuentra:
 
@@ -680,7 +590,7 @@ Al abrir una PQR, encuentra:
 - **Archivos adjuntos**: Documentos subidos por el radicante y por la administración.
 - **Alertas**: Alertas generadas por vencimiento de tiempos.
 
-### 11.5 Responder una PQR
+### 10.5 Responder una PQR
 
 1. Desde el detalle de la PQR, haga clic en **Responder**.
 2. Redacte el texto de la respuesta.
@@ -689,7 +599,7 @@ Al abrir una PQR, encuentra:
 5. Si requiere que el residente confirme haber recibido la respuesta, active la opción.
 6. Haga clic en **Enviar Respuesta**.
 
-### 11.6 Cambiar estado de una PQR
+### 10.6 Cambiar estado de una PQR
 
 | Acción | Nuevo Estado | Cuándo usarlo |
 |--------|-------------|---------------|
@@ -700,7 +610,7 @@ Al abrir una PQR, encuentra:
 | Reabrir | Reabierta | Cuando el radicante considera insatisfactoria la respuesta (dentro de 10 días). |
 | Escalar | Escalada | Cuando se requiere intervención del Consejo de Administración. |
 
-### 11.7 Alertas automáticas
+### 10.7 Alertas automáticas
 
 El sistema monitorea automáticamente los tiempos de respuesta:
 
@@ -712,7 +622,7 @@ El sistema monitorea automáticamente los tiempos de respuesta:
 
 Las alertas activas se pueden consultar desde el panel de indicadores y resolver manualmente cuando la situación esté controlada.
 
-### 11.8 Vínculo con cartera (reclamos de cobro)
+### 10.8 Vínculo con cartera (reclamos de cobro)
 
 Si un reclamo está relacionado con un cobro (cuota ordinaria, extraordinaria o cobro individual):
 
@@ -722,7 +632,7 @@ Si un reclamo está relacionado con un cobro (cuota ordinaria, extraordinaria o 
    - **Procedente**: Marque "Reclamo Resuelto = Sí". El sistema genera automáticamente una **nota de crédito** en el módulo de cuotas, ajustando el saldo sin intervención manual adicional.
    - **Improcedente**: Marque "Reclamo Resuelto = No". El cobro se mantiene y el radicante es notificado.
 
-### 11.9 Configuración de tiempos
+### 10.9 Configuración de tiempos
 
 El administrador puede ajustar los plazos de respuesta desde la configuración del módulo:
 
@@ -732,7 +642,7 @@ El administrador puede ajustar los plazos de respuesta desde la configuración d
 
 > Los valores por defecto son: Petición 5 días, Queja 3 días, Reclamo 10 días.
 
-### 11.10 Panel de indicadores PQR
+### 10.10 Panel de indicadores PQR
 
 El administrador cuenta con un tablero de indicadores que muestra:
 
@@ -743,7 +653,7 @@ El administrador cuenta con un tablero de indicadores que muestra:
 - **Tendencia mensual**: Número de radicaciones por mes.
 - **Estado actual**: Cantidad de PQR en cada estado.
 
-### 11.11 Portal del residente
+### 10.11 Portal del residente
 
 Los residentes pueden:
 
@@ -753,11 +663,11 @@ Los residentes pueden:
 
 ---
 
-## 12. Módulo de Proveedores y Contratos
+## 11. Módulo de Proveedores y Contratos
 
 Gestión integral de proveedores, contratos, facturas, pagos, evaluaciones de desempeño y configuración de retenciones.
 
-### 12.1 Bandeja de Proveedores
+### 11.1 Bandeja de Proveedores
 
 **Ruta:** `Proveedores > Proveedores`
 
@@ -772,7 +682,7 @@ La bandeja muestra todos los proveedores registrados con filtros por estado, tip
 - **Tipo**: Todos, Natural, Jurídica.
 - **Búsqueda libre**: Por nombre, documento o contacto.
 
-### 12.2 Crear Proveedor
+### 11.2 Crear Proveedor
 
 **Ruta:** `Proveedores > Nuevo Proveedor`
 
@@ -787,7 +697,7 @@ La bandeja muestra todos los proveedores registrados con filtros por estado, tip
 - Para tipos numéricos (CC, NIT), solo se permiten dígitos.
 - Se puede marcar como "Proveedor Preferido" para identificación rápida.
 
-### 12.3 Detalle del Proveedor
+### 11.3 Detalle del Proveedor
 
 **Ruta:** `Proveedores > [Proveedor]`
 
@@ -799,7 +709,7 @@ Muestra toda la información del proveedor organizada en secciones:
 - **Contratos**: Lista de contratos asociados con valor, fechas y estado. Botón "Nuevo Contrato" para crear uno vinculado.
 - **Evaluaciones**: Historial de evaluaciones con puntaje promedio y recomendación. Botón "Evaluar" para crear una nueva evaluación con scoring del 1-5 en 4 criterios.
 
-### 12.4 Bandeja de Contratos
+### 11.4 Bandeja de Contratos
 
 **Ruta:** `Proveedores > Contratos`
 
@@ -816,7 +726,7 @@ Muestra toda la información del proveedor organizada en secciones:
 - **Tipo**: Contrato de Servicios, Suministro, Obra Civil, Arrendamiento.
 - **Búsqueda libre**: Por número, objeto o proveedor.
 
-### 12.5 Crear Contrato
+### 11.5 Crear Contrato
 
 **Ruta:** `Proveedores > Nuevo Contrato`
 
@@ -830,7 +740,7 @@ Muestra toda la información del proveedor organizada en secciones:
 - Para contratos con aprobación de Consejo o Asamblea, se requiere el número de acta al activar.
 - Solo los contratos en estado Borrador pueden editarse o eliminarse.
 
-### 12.6 Detalle del Contrato
+### 11.6 Detalle del Contrato
 
 **Ruta:** `Proveedores > [Contrato]`
 
@@ -848,7 +758,7 @@ Muestra toda la información del contrato:
 - **Terminar** (desde Activo/Suspendido): Requiere justificación.
 - **Eliminar** (solo Borrador): Elimina el contrato permanentemente.
 
-### 12.7 Indicadores de Proveedores
+### 11.7 Indicadores de Proveedores
 
 **Ruta:** `Proveedores > Indicadores`
 
@@ -869,7 +779,7 @@ Dashboard ejecutivo con 10 KPIs:
 
 También muestra valores monetarios: Valor total de contratos activos, valor mensual, y monto de facturas pendientes.
 
-### 12.8 Motor de Alertas de Contratos
+### 11.8 Motor de Alertas de Contratos
 
 El sistema ejecuta un servicio en segundo plano cada 6 horas que genera automáticamente:
 
@@ -883,7 +793,7 @@ El sistema ejecuta un servicio en segundo plano cada 6 horas que genera automát
 
 Las alertas se pueden resolver manualmente desde el detalle del contrato. Las alertas resueltas con más de 30 días se limpian automáticamente.
 
-### 12.9 Configuración de Retenciones
+### 11.9 Configuración de Retenciones
 
 **Ruta:** `Proveedores > Contratos > Configuración de Retenciones`
 
@@ -895,7 +805,7 @@ Permite configurar las tarifas de retención por tipo de servicio:
 | **Tarifa Retención Fuente** | Porcentaje de retención en la fuente (ej. 2.5%) |
 | **Tarifa Retención ICA** | Porcentaje de retención ICA (ej. 0.28%) |
 
-### 12.10 Umbrales de Aprobación
+### 11.10 Umbrales de Aprobación
 
 **Ruta:** `Proveedores > Contratos > Umbrales de Aprobación`
 
@@ -911,11 +821,11 @@ Si el valor del contrato no cae en ningún rango configurado, el nivel por defec
 
 ---
 
-## 13. Módulo de Mantenimiento y Zonas Comunes
+## 12. Módulo de Mantenimiento y Zonas Comunes
 
 Gestión integral del inventario físico de bienes comunes, planes de mantenimiento preventivo, órdenes de trabajo correctivo y registro de siniestros. Este módulo protege el patrimonio colectivo de los copropietarios y garantiza que las zonas comunes se conserven en condiciones óptimas.
 
-### 13.1 Inventario de Bienes Comunes
+### 12.1 Inventario de Bienes Comunes
 
 **Ruta:** `Mantenimiento > Inventario`
 
@@ -933,7 +843,7 @@ Pantalla principal que muestra el inventario completo de bienes del conjunto. Pe
 - **Es Esencial**: Filtrar solo bienes esenciales (cuya afectación compromete seguridad o habitabilidad).
 - **Búsqueda libre**: Por nombre, ubicación, marca o modelo.
 
-### 13.2 Registrar Nuevo Bien Común
+### 12.2 Registrar Nuevo Bien Común
 
 **Ruta:** `Mantenimiento > Nuevo Bien`
 
@@ -950,7 +860,7 @@ Pantalla principal que muestra el inventario completo de bienes del conjunto. Pe
 - Un bien fuera de servicio no puede ser reservado en el módulo de Reservas.
 - Si el bien es esencial y queda fuera de servicio, la alerta se escala al Consejo de Administración.
 
-### 13.3 Detalle del Bien Común
+### 12.3 Detalle del Bien Común
 
 **Ruta:** `Mantenimiento > [Bien]`
 
@@ -971,7 +881,7 @@ Historial de todas las órdenes de trabajo (preventivas y correctivas) asociadas
 #### Historial de Estados
 Registro cronológico de cada cambio de estado del bien con fecha, motivo y usuario responsable. Inmutable como evidencia ante reclamaciones.
 
-### 13.4 Planes de Mantenimiento Preventivo
+### 12.4 Planes de Mantenimiento Preventivo
 
 **Ruta:** `Mantenimiento > [Bien] > Planes > Nuevo Plan`
 
@@ -990,7 +900,7 @@ Registro cronológico de cada cambio de estado del bien con fecha, motivo y usua
 - Al completar una orden preventiva, la próxima fecha se recalcula sumando la frecuencia a la fecha de ejecución real (no a la programada).
 - Solo los planes activos generan órdenes automáticas.
 
-### 13.5 Órdenes de Trabajo
+### 12.5 Órdenes de Trabajo
 
 **Ruta:** `Mantenimiento > Órdenes de Trabajo`
 
@@ -1009,7 +919,7 @@ Lista de todas las órdenes de trabajo del conjunto con información resumida: n
 - **Origen**: Automática, Reporte del Administrador, PQR de Residente.
 - **Búsqueda libre**: Por descripción, bien o proveedor.
 
-### 13.6 Registrar Orden de Trabajo
+### 12.6 Registrar Orden de Trabajo
 
 **Ruta:** `Mantenimiento > Nueva Orden de Trabajo`
 
@@ -1017,14 +927,14 @@ Lista de todas las órdenes de trabajo del conjunto con información resumida: n
 |---------|---------------------|-------------|
 | **Información de la Orden** | Tipo, Bien, Descripción, Prioridad | Seleccione si es preventiva o correctiva, el bien afectado y describa el trabajo. |
 | **Asignación** | (Ninguno obligatorio) | Proveedor asignado, fecha programada de ejecución. |
-| **Costos y Contabilidad** | (Ninguno obligatorio) | Costo estimado, cuenta presupuestal del PUC a imputar. |
+| **Costos** | (Ninguno obligatorio) | Costo estimado, cuenta presupuestal del PUC a imputar. |
 
 **Reglas:**
 - Si la orden es correctiva originada desde una PQR, seleccione la PQR en el campo correspondiente.
 - Las órdenes de emergencia aplican solo a bienes esenciales.
 - El sistema genera automáticamente órdenes preventivas según los planes configurados.
 
-### 13.7 Detalle de Orden de Trabajo
+### 12.7 Detalle de Orden de Trabajo
 
 **Ruta:** `Mantenimiento > [Orden]`
 
@@ -1049,7 +959,7 @@ Página de detalle con las siguientes secciones:
 - Al completar una orden originada desde una PQR, el sistema actualiza automáticamente el estado de la PQR a "Respondida".
 - Si el costo real supera el estimado en más del 20%, se alerta al administrador antes de confirmar.
 
-### 13.8 Panel de Fuera de Servicio
+### 12.8 Panel de Fuera de Servicio
 
 **Ruta:** `Mantenimiento > Fuera de Servicio`
 
@@ -1065,7 +975,7 @@ Muestra todos los bienes con estado `Fuera de Servicio` organizados por priorida
 - Si un bien esencial está fuera de servicio, se muestra alerta destacada con escalación al Consejo de Administración.
 - Los bienes fuera de servicio aparecen bloqueados en el módulo de Reservas.
 
-### 13.9 Registro de Siniestros
+### 12.9 Registro de Siniestros
 
 **Ruta:** `Mantenimiento > Siniestros`
 
@@ -1076,7 +986,7 @@ Lista de todos los siniestros registrados (inundaciones, incendios, daños estru
 - **Tipo**: Inundación, Incendio, Daño Estructural, Falla Eléctrica, Otro.
 - **Búsqueda libre**: Por nombre o descripción.
 
-### 13.10 Crear Siniestro
+### 12.10 Crear Siniestro
 
 **Ruta:** `Mantenimiento > Nuevo Siniestro`
 
@@ -1092,7 +1002,7 @@ Lista de todos los siniestros registrados (inundaciones, incendios, daños estru
 - Una orden solo puede pertenecer a un siniestro a la vez.
 - El número de póliza se puede vincular con los contratos de seguros registrados en el módulo de Proveedores.
 
-### 13.11 Detalle de Siniestro
+### 12.11 Detalle de Siniestro
 
 **Ruta:** `Mantenimiento > [Siniestro]`
 
@@ -1104,7 +1014,7 @@ Página de detalle con tres secciones:
 
 **Datos de Seguro:** Información de la póliza de seguro, aseguradora y archivo digitalizado de la póliza.
 
-### 13.12 Reportes de Mantenimiento
+### 12.12 Reportes de Mantenimiento
 
 **Ruta:** `Mantenimiento > Reportes`
 
@@ -1123,11 +1033,11 @@ Permite generar reportes de mantenimientos programados para los próximos 30, 60
 
 ---
 
-## 14. Módulo de Comunicados y Notificaciones
+## 13. Módulo de Comunicados y Notificaciones
 
 Este módulo gestiona toda la comunicación oficial entre la administración y los residentes. Está compuesto por dos subsistemas principales: los **comunicados formales** (circulares, avisos, boletines) y las **notificaciones automáticas** (alertas generadas por eventos de otros módulos).
 
-### 14.1 Comunicados
+### 13.1 Comunicados
 
 Los comunicados son documentos formales que la administración envía a los residentes. Pueden ser inmediatos o programados, y soportan múltiples canales de envío simultáneos.
 
@@ -1163,7 +1073,7 @@ Desde el detalle del comunicado puede ver:
 
 Los comunicados enviados pueden archivarse (ocultarse de la vista activa) pero nunca eliminarse del sistema.
 
-### 14.2 Plantillas de Notificación
+### 13.2 Plantillas de Notificación
 
 Las plantillas definen el contenido de las notificaciones automáticas generadas por eventos de otros módulos.
 
@@ -1177,7 +1087,7 @@ Las plantillas definen el contenido de las notificaciones automáticas generadas
    - **Variables dinámicas**: nombres de variables que serán reemplazadas automáticamente. Use `{Propietario}`, `{Unidad}`, `{Valor}`, etc. según la plantilla.
 3. Las plantillas pueden activarse o desactivarse.
 
-### 14.3 Cartelera Digital
+### 13.3 Cartelera Digital
 
 La cartelera digital es un mural de publicaciones visible para todos los residentes autenticados.
 
@@ -1195,7 +1105,7 @@ Los residentes ven las publicaciones activas ordenadas por fecha (las fijadas al
    - **Vence el**: fecha opcional después de la cual la publicación se archiva automáticamente.
 3. Las publicaciones archivadas no se eliminan, pueden consultarse activando *Incluir archivadas*.
 
-### 14.4 Preferencias de Comunicación
+### 13.4 Preferencias de Comunicación
 
 Cada residente puede configurar qué canales desea usar para recibir notificaciones.
 
@@ -1210,7 +1120,7 @@ Cada residente puede configurar qué canales desea usar para recibir notificacio
 > [!NOTE]
 > Las notificaciones críticas (emergencias, cortes de servicios, convocatorias de asamblea) se envían por todos los canales sin importar las preferencias individuales.
 
-### 14.5 Secuencia de Avisos de Mora
+### 13.5 Secuencia de Avisos de Mora
 
 Configura la progresión automática de avisos para unidades en mora.
 
@@ -1223,7 +1133,7 @@ Configura la progresión automática de avisos para unidades en mora.
    - Use el formulario *Nueva Pausa* indicando el ID de la unidad, motivo y fechas.
 4. **Ejecutar Proceso de Mora**: procesa manualmente la secuencia para todas las unidades vencidas.
 
-### 14.6 Eventos que generan notificaciones automáticas
+### 13.6 Eventos que generan notificaciones automáticas
 
 | Módulo | Evento | Descripción |
 |--------|--------|-------------|
@@ -1251,11 +1161,11 @@ Configura la progresión automática de avisos para unidades en mora.
 
 ---
 
-## 15. Módulo de Asambleas
+## 14. Módulo de Asambleas
 
 La Ley 675 de 2001 establece que toda copropiedad debe celebrar asambleas generales de propietarios al menos una vez al año (asamblea ordinaria) y adicionalmente cuando se requiera (asambleas extraordinarias). Este módulo gestiona todo el ciclo de vida de las asambleas: convocatoria, registro de asistencia, orden del día, votación, constancias, generación de actas, publicación y propagación de decisiones a otros módulos.
 
-### 15.1 Ciclo de vida de una asamblea
+### 14.1 Ciclo de vida de una asamblea
 
 El sistema maneja los siguientes estados:
 
@@ -1274,7 +1184,7 @@ El sistema maneja los siguientes estados:
 Borrador → Convocada → En Sesión → Cerrada → Acta Aprobada → Publicada
 ```
 
-### 15.2 Lista de asambleas
+### 14.2 Lista de asambleas
 
 **Ruta:** `Asambleas`
 
@@ -1304,7 +1214,7 @@ Acceda desde el menú lateral. La página muestra el listado completo de asamble
 
 **Acción:** "Ver" para acceder al detalle de la asamblea.
 
-### 15.3 Crear una nueva asamblea
+### 14.3 Crear una nueva asamblea
 
 **Ruta:** `Asambleas > Nueva Asamblea`
 
@@ -1321,7 +1231,7 @@ Acceda desde el menú lateral. La página muestra el listado completo de asamble
 
 > La asamblea se crea en estado **Borrador**. Para continuar, debe **Convocarla** desde el detalle.
 
-### 15.4 Detalle de la asamblea
+### 14.4 Detalle de la asamblea
 
 **Ruta:** `Asambleas > [Asamblea]`
 
@@ -1346,7 +1256,7 @@ La página de detalle está organizada en **7 pestañas**:
 | En Sesión | **Cerrar Sesión** |
 | Cerrada | **Generar Acta** |
 
-### 15.5 Convocatoria
+### 14.5 Convocatoria
 
 Desde la pestaña **Convocatoria** puede:
 
@@ -1363,7 +1273,7 @@ Desde la pestaña **Convocatoria** puede:
 
 > Solo puede haber una convocatoria activa a la vez. La segunda convocatoria se crea después de la primera si no se alcanza quórum.
 
-### 15.6 Registro de asistencia
+### 14.6 Registro de asistencia
 
 **Ruta:** `Asambleas > [Asamblea] > Asistencia`
 
@@ -1400,7 +1310,7 @@ Muestra en tiempo real:
 - **Salida**: Registra la salida del propietario con hora.
 - **Levantar restricción**: Permite habilitar el voto de un propietario con voto restringido, registrando el motivo.
 
-### 15.7 Orden del día y votación
+### 14.7 Orden del día y votación
 
 **Ruta:** `Asambleas > [Asamblea] > Orden del Día`
 
@@ -1438,7 +1348,7 @@ Muestra en tiempo real:
 
 > Para mayoría calificada, el sistema verifica que los votos a favor representen al menos 2/3 de los coeficientes presentes.
 
-### 15.8 Constancias
+### 14.8 Constancias
 
 **Ruta:** `Asambleas > [Asamblea] > Constancias`
 
@@ -1451,7 +1361,7 @@ Las constancias son manifestaciones formales que un propietario solicita que que
 3. Redacte el **texto** de la constancia.
 4. Haga clic en **Agregar Constancia**.
 
-### 15.9 Gestión del acta
+### 14.9 Gestión del acta
 
 **Ruta:** `Asambleas > [Asamblea] > Acta`
 
@@ -1485,7 +1395,7 @@ El sistema genera automáticamente el acta con los datos de la asamblea, asisten
 
 > Una vez publicada, el acta no puede modificarse. Se notifica automáticamente a todos los propietarios.
 
-### 15.10 Propagación de decisiones
+### 14.10 Propagación de decisiones
 
 **Ruta:** `Asambleas > [Asamblea] > Propagación`
 
@@ -1506,7 +1416,7 @@ La tabla de propagación muestra:
 - Estado: Pendiente, Propagada o Fallida.
 - Fecha y mensaje de error si falló.
 
-### 15.11 Sesión en vivo
+### 14.11 Sesión en vivo
 
 **Ruta:** `Asambleas > [Asamblea] > Sesión`
 
@@ -1517,17 +1427,17 @@ Página dedicada para gestionar la asamblea durante su desarrollo en tiempo real
 - **Registro de constancias**: formulario rápido vinculado a la lista de asistentes.
 - Los resultados de votación se muestran con indicadores visuales de umbral (línea punteada para mayoría calificada).
 
-### 15.12 Reportes
+### 14.12 Reportes
 
 El sistema permite generar un reporte consolidado de asambleas para un período determinado, útil para el Informe Anual de Gestión.
 
 ---
 
-## 16. Módulo de Reservas
+## 15. Módulo de Reservas
 
 Este módulo gestiona la reserva de espacios comunes del conjunto (salón social, piscina, zonas BBQ, canchas, gimnasio, etc.). Los residentes pueden solicitar reservas y la administración las aprueba, gestiona check-in/check-out y administra depósitos de garantía.
 
-### 16.1 Ciclo de vida de una reserva
+### 15.1 Ciclo de vida de una reserva
 
 | Estado | Descripción |
 |--------|-------------|
@@ -1551,7 +1461,7 @@ Pendiente → Aprobada → En Uso → Completada
          +→ Rechazada
 ```
 
-### 16.2 Estados del depósito de garantía
+### 15.2 Estados del depósito de garantía
 
 | Estado | Descripción |
 |--------|-------------|
@@ -1561,7 +1471,7 @@ Pendiente → Aprobada → En Uso → Completada
 | **Devuelto** | Depósito devuelto al residente (sin novedad). |
 | **Aplicado a Daño** | Depósito aplicado a cubrir daños. |
 
-### 16.3 Lista de reservas
+### 15.3 Lista de reservas
 
 **Ruta:** `Reservas > Reservas`
 
@@ -1579,7 +1489,7 @@ Muestra todas las reservas del conjunto en tarjetas con:
 - Costo total y estado del depósito.
 - Asistentes estimados.
 
-### 16.4 Crear una nueva reserva
+### 15.4 Crear una nueva reserva
 
 **Ruta:** `Reservas > Nueva Reserva`
 
@@ -1596,7 +1506,7 @@ Muestra todas las reservas del conjunto en tarjetas con:
 
 > Si la unidad tiene mora, el sistema muestra una advertencia. Dependiendo de la configuración del espacio, puede bloquear la reserva o solo advertir.
 
-### 16.5 Detalle de la reserva
+### 15.5 Detalle de la reserva
 
 **Ruta:** `Reservas > [Reserva]`
 
@@ -1646,7 +1556,7 @@ Si se reporta un incidente durante el uso del espacio:
    - **Monto del Daño** (si aplica).
 3. Guarde. El sistema cambia el estado de la reserva a **Con Incidente**.
 
-### 16.6 Bandeja de administración
+### 15.6 Bandeja de administración
 
 **Ruta:** `Reservas > Bandeja Admin`
 
@@ -1662,7 +1572,7 @@ Panel simplificado para acciones rápidas del administrador:
 
 > Diseñado para flujo rápido: el administrador puede aprobar/rechazar y gestionar check-in sin entrar al detalle de cada reserva.
 
-### 16.7 Calendario de reservas
+### 15.7 Calendario de reservas
 
 **Ruta:** `Reservas > Calendario`
 
@@ -1679,7 +1589,7 @@ Vista mensual que muestra las reservas de un espacio seleccionado:
   - Naranja: Con Incidente.
 - Los chips son clickables para ir al detalle de la reserva.
 
-### 16.8 Gestión de espacios reservables
+### 15.8 Gestión de espacios reservables
 
 **Ruta:** `Reservas > Espacios`
 
@@ -1757,7 +1667,7 @@ Muestra toda la configuración del espacio y permite gestionar **horarios de dis
 
 > Un espacio sin horarios configurados no estará disponible para reservas, aunque esté activo.
 
-### 16.9 Notificaciones automáticas
+### 15.9 Notificaciones automáticas
 
 El módulo de reservas genera las siguientes notificaciones automáticas:
 
@@ -1770,7 +1680,7 @@ El módulo de reservas genera las siguientes notificaciones automáticas:
 | Depósito Devuelto | Confirmación de devolución del depósito de garantía. |
 
 
-## 17. Roles y Permisos
+## 16. Roles y Permisos
 
 El sistema cuenta con los siguientes roles:
 
@@ -1779,11 +1689,11 @@ El sistema cuenta con los siguientes roles:
 | **SuperAdmin** | Acceso total a todos los módulos y conjuntos. |
 | **Admin** | Administrador del conjunto. Acceso completo a configuración, finanzas y residentes. |
 | **Council** | Miembro del Consejo de Administración. Puede aprobar traslados presupuestales y usos del fondo. |
-| **Accountant** | Contador. Acceso a contabilidad, presupuesto y reportes. |
+| **Accountant** | Contador. Acceso a presupuesto, fondo de imprevistos y reportes. |
 | **Auditor** | Acceso de solo lectura a reportes financieros. |
 | **Resident** | Propietario o residente. Acceso solo a su unidad, su estado de cuenta y notificaciones. |
 
-### 15.1 Permisos por módulo
+### 14.1 Permisos por módulo
 
 | Módulo | Admin | Council | Accountant | Auditor | Resident |
 |--------|-------|---------|------------|---------|----------|
@@ -1791,7 +1701,6 @@ El sistema cuenta con los siguientes roles:
 | Unidades | CRUD | Lectura | Lectura | Lectura | Su unidad |
 | Propietarios | CRUD | Lectura | Lectura | Lectura | — |
 | Arrendatarios | CRUD | Lectura | Lectura | Lectura | — |
-| Contabilidad | CRUD | — | CRUD | Lectura | — |
 | Presupuesto | CRUD | Aprobar | CRUD | Lectura | — |
 | Fondo Imprevistos | CRUD | Aprobar | CRUD | Lectura | — |
 | Cuotas y Cartera | CRUD | — | CRUD | Lectura | Su estado de cuenta |
@@ -1806,7 +1715,7 @@ El sistema cuenta con los siguientes roles:
 
 ---
 
-## 18. Preguntas Frecuentes
+## 17. Preguntas Frecuentes
 
 **¿Cómo recupero mi contraseña?**
 Actualmente debe contactar al administrador del sistema para restablecerla.
@@ -1819,9 +1728,6 @@ Verifique que la suma de coeficientes de todas las unidades activas sea exactame
 
 **¿Qué pasa si una unidad no paga?**
 El sistema calcula intereses de mora diariamente. Después de 30 días pasa a etapa prejurídica y después de 60 a jurídica.
-
-**¿Puedo editar un asiento contable ya contabilizado?**
-No. Los asientos en estado `Final` son inmutables. Debe revertirlo (generando un asiento de reversión) y crear uno nuevo.
 
 **¿Cómo se actualiza el presupuesto después de activado?**
 Solo mediante traslados o adiciones presupuestales, cada uno requiriendo aprobación del Consejo o Asamblea.
@@ -1843,7 +1749,7 @@ El administrador puede reenviar el comunicado solo a los no confirmantes desde l
 
 ---
 
-## 19. Glosario
+## 18. Glosario
 
 | Término | Definición |
 |---------|------------|
@@ -1889,11 +1795,11 @@ El administrador puede reenviar el comunicado solo a los no confirmantes desde l
 
 ---
 
-## 20. Módulo de Reportes y Exportaciones
+## 19. Módulo de Reportes y Exportaciones
 
 Este módulo centraliza todos los reportes del sistema. Podrá generar informes financieros, de cartera, operativos, de asamblea y anuales, consultar el historial de reportes generados, configurar reportes recurrentes, construir el informe anual de gestión, personalizar la apariencia de los PDF y controlar el acceso según su rol.
 
-### 18.1 Catálogo de Reportes (página /reports)
+### 17.1 Catálogo de Reportes (página /reports)
 
 Acceda desde el menú lateral: **Reportes → Catálogo**.
 
@@ -1926,7 +1832,7 @@ Aquí encontrará la lista completa de todos los tipos de reporte disponibles en
 | Estado de Resultados | Ingresos y egresos del período seleccionado. | PDF, Excel |
 | Balance de Comprobación | Listado de cuentas con movimientos débito/crédito y saldos. | PDF, Excel |
 | Mayor Contable | Historial detallado de movimientos de una cuenta específica con saldo corrido. | PDF, Excel |
-| Libro Diario | Listado cronológico de todos los asientos contables del período. | PDF, Excel |
+
 | Ejecución Presupuestal | Comparativo entre presupuesto ajustado y ejecutado por rubro. | PDF, Excel |
 | Detalle de Adiciones y Traslados | Movimientos presupuestales (adiciones y traslados) del período. | PDF, Excel |
 
@@ -1975,7 +1881,7 @@ Aquí encontrará la lista completa de todos los tipos de reporte disponibles en
 | Informe de Recaudo Anual | Comparativo mensual de recaudo vs. facturado del año. | PDF, Excel |
 | Informe de Morosidad | Análisis anual de morosidad con tendencias. | PDF, Excel |
 
-### 18.2 Historial de Reportes (página /reports/history)
+### 17.2 Historial de Reportes (página /reports/history)
 
 Acceda desde el menú lateral: **Reportes → Historial**.
 
@@ -2001,7 +1907,7 @@ Aquí encontrará todos los reportes que han sido generados en el sistema, orden
 
 > Si no hay reportes generados, la página mostrará el mensaje: *"Aún no se han generado reportes. Vaya al catálogo de reportes para generar su primer reporte."*
 
-### 18.3 Reportes Recurrentes (página /reports/recurring)
+### 17.3 Reportes Recurrentes (página /reports/recurring)
 
 Acceda desde el menú lateral: **Reportes → Recurrentes**.
 
@@ -2039,7 +1945,7 @@ Cada configuración en la lista muestra:
 
 > El motor de recurrencia ejecuta cada **5 minutos** para verificar si hay configuraciones que deban generar un reporte en ese momento. Si encuentra una configuración cuya próxima ejecución ya venció, la procesa inmediatamente.
 
-### 18.4 Informe Anual de Gestión (página /reports/annual)
+### 17.4 Informe Anual de Gestión (página /reports/annual)
 
 Acceda desde el menú lateral: **Reportes → Informe Anual**.
 
@@ -2086,7 +1992,7 @@ Cuando todas las secciones estén completas:
 
 > Puede consolidar el informe aunque haya secciones en estado "Pendiente", pero el sistema le mostrará una advertencia antes de proceder.
 
-### 18.5 Plantillas PDF (página /reports/templates)
+### 17.5 Plantillas PDF (página /reports/templates)
 
 Acceda desde el menú lateral: **Reportes → Plantillas PDF**.
 
@@ -2120,7 +2026,7 @@ Al hacer clic en una plantilla, se despliegan los siguientes campos editables:
 
 > Los cambios aplican **inmediatamente** a todos los nuevos reportes que se generen. Los reportes ya generados no se ven afectados.
 
-### 18.6 Roles y Permisos
+### 17.6 Roles y Permisos
 
 El acceso al módulo de Reportes y Exportaciones está controlado por rol, tanto para la generación de reportes como para la visualización de datos personales.
 

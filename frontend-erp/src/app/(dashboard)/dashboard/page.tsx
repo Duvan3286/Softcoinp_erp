@@ -128,7 +128,7 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
             <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            <p>Vista de solo lectura. Los reportes financieros están disponibles en la sección de Reportes Contables.</p>
+            <p>Vista de solo lectura. Los reportes están disponibles en la sección de Reportes.</p>
           </CardContent>
         </Card>
       )}

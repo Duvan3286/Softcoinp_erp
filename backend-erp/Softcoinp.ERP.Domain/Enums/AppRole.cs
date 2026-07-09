@@ -14,7 +14,7 @@ public enum AppRole
     /// <summary>Lectura de módulos financieros y capacidad de aprobar solicitudes.</summary>
     Council,
 
-    /// <summary>Acceso completo al módulo contable y de reportes. Sin acceso a módulos operativos.</summary>
+    /// <summary>Acceso completo a reportes financieros y presupuesto. Sin acceso a módulos operativos.</summary>
     Accountant,
 
     /// <summary>Acceso exclusivo al portal personal: estado de cuenta, reservas y PQR.</summary>

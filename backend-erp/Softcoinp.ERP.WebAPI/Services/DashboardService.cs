@@ -228,11 +228,7 @@ public class DashboardService
             .Where(x => x.DaysOverdue > 180)
             .Sum(x => x.Balance);
 
-        var totalBankBalance = await _context.BankAccounts
-            .Where(ba => ba.TenantId == tenantId && ba.IsActive)
-            .SumAsync(ba => ba.CurrentBalance);
-
-        kpis.AvailableCash = totalBankBalance;
+        kpis.AvailableCash = 0m;
 
         var currentYear = now.Year;
         var yearStart = new DateTime(currentYear, 1, 1);
