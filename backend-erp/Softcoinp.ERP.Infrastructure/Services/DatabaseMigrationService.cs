@@ -26,8 +26,8 @@ public class DatabaseMigrationService
     private readonly IConfiguration _configuration;
 
     public DatabaseMigrationService(
-        MasterDbContext masterDbContext, 
-        IServiceScopeFactory scopeFactory, 
+        MasterDbContext masterDbContext,
+        IServiceScopeFactory scopeFactory,
         ILogger<DatabaseMigrationService> logger,
         IConfiguration configuration)
     {
@@ -39,8 +39,9 @@ public class DatabaseMigrationService
 
     /// <summary>
     /// Migrates the Master database and all active tenant databases.
+    /// A tenant whose migration fails is reported as failed and is never silently
+    /// baselined, so schema drift is always visible instead of hidden.
     /// </summary>
-    /// <returns>A dictionary containing the status of each migration.</returns>
     public async Task<Dictionary<string, string>> MigrateAllAsync()
     {
         var results = new Dictionary<string, string>();
@@ -48,8 +49,6 @@ public class DatabaseMigrationService
         _logger.LogInformation("Starting Master database migration...");
         try
         {
-            // Use only EnsureCreated for MasterDB — it was created with EnsureCreated (not migrations),
-            // so MigrateAsync would fail with "pending changes" because there is no migration history.
             await _masterDbContext.Database.EnsureCreatedAsync();
             results.Add("MasterDB", "Success");
             _logger.LogInformation("Master database initialized successfully.");
@@ -69,7 +68,7 @@ public class DatabaseMigrationService
         foreach (var tenant in tenants)
         {
             _logger.LogInformation("Migrating database for tenant: {TenantName} ({Subdomain})", tenant.Name, tenant.Subdomain);
-            
+
             try
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -102,20 +101,24 @@ public class DatabaseMigrationService
                     await createCmd.ExecuteNonQueryAsync();
                 }
 
-                // Now apply EF Core migrations. MigrateAsync creates the __EFMigrationsHistory
-                // table and applies all pending migrations in order.
-                try
+                var historyTableExists = await HistoryTableExistsAsync(tenantContext);
+                var hasApplicationTables = await HasApplicationTablesAsync(tenantContext);
+
+                if (!historyTableExists && hasApplicationTables)
                 {
-                    await tenantContext.Database.MigrateAsync();
+                    // Genuine legacy scenario: schema was created with EnsureCreated before
+                    // migrations were introduced. This is the only case where baselining
+                    // the CURRENT model as fully applied is safe, because there is no
+                    // migration history to reconcile against yet.
+                    _logger.LogWarning(
+                        "Tenant {Subdomain} has application tables but no migration history. Baselining current model as the starting point.",
+                        tenant.Subdomain);
+                    await BaselineFreshLegacySchemaAsync(tenantContext);
                 }
-                catch (Exception migEx)
-                {
-                    // If MigrateAsync fails, it likely means the schema was previously created
-                    // via EnsureCreated (without migration tracking). Check if the history table
-                    // exists and is empty — if so, mark all assembly migrations as applied.
-                    _logger.LogWarning(migEx, "MigrateAsync failed for {Subdomain}, attempting to baseline migration history...", tenant.Subdomain);
-                    await BaselineMigrationHistoryAsync(tenantContext);
-                }
+
+                // Apply EF Core migrations for real. If this throws, the tenant is reported
+                // as failed below instead of having its history silently rewritten.
+                await tenantContext.Database.MigrateAsync();
 
                 // Seed default users and roles using DI-resolved UserManager.
                 // The ApplicationDbContext resolved from DI has IsConfigured=false →
@@ -123,53 +126,88 @@ public class DatabaseMigrationService
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
                 await DbInitializer.SeedUsersAsync(userManager, roleManager, _configuration);
-                
-                // Seed 26 standard report types and default PDF templates
+
+                // Seed standard report types and default PDF templates
                 await DbInitializer.SeedReportTypesAsync(tenantContext, tenant.Id.ToString());
-                
+
                 results.Add(tenant.Subdomain, "Success");
                 _logger.LogInformation("Successfully migrated tenant: {Subdomain}", tenant.Subdomain);
             }
             catch (Exception ex)
             {
+                // Fail loudly. Never fabricate migration history to make an error disappear:
+                // doing so leaves the physical schema out of sync with the EF model while
+                // reporting everything as up to date, which is far worse than a visible failure.
                 results.Add(tenant.Subdomain, $"Failed: {ex.Message}");
-                _logger.LogError(ex, "Error migrating tenant database for {Subdomain}", tenant.Subdomain);
+                _logger.LogError(ex, "Error migrating tenant database for {Subdomain}. Manual intervention required.", tenant.Subdomain);
             }
         }
 
         return results;
     }
 
-    private async Task BaselineMigrationHistoryAsync(ApplicationDbContext context)
+    private async Task<bool> HistoryTableExistsAsync(ApplicationDbContext context)
     {
-        try
+        var connection = context.Database.GetDbConnection();
+        var wasClosed = connection.State != System.Data.ConnectionState.Open;
+        if (wasClosed)
         {
-            var migrationsAssembly = context.Database.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly>();
-            var allMigrations = migrationsAssembly.Migrations
-                .OrderBy(kvp => kvp.Key)
-                .ToList();
-
-            if (allMigrations.Count == 0)
-            {
-                _logger.LogWarning("No migrations found in assembly for baselining.");
-                return;
-            }
-
-            foreach (var (migrationId, _) in allMigrations)
-            {
-                await context.Database.ExecuteSqlRawAsync(
-                    "INSERT IGNORE INTO `__EFMigrationsHistory` (MigrationId, ProductVersion) VALUES ({0}, {1})",
-                    migrationId, "8.0.10");
-            }
-
-            _logger.LogInformation("Migration history baselined with {Count} entries.", allMigrations.Count);
-
-            await context.Database.MigrateAsync();
-            _logger.LogInformation("MigrateAsync succeeded after baselining.");
+            await connection.OpenAsync();
         }
-        catch (Exception ex)
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '__EFMigrationsHistory'";
+        var count = Convert.ToInt32(await command.ExecuteScalarAsync());
+
+        if (wasClosed)
         {
-            _logger.LogWarning(ex, "Failed to baseline migration history for tenant.");
+            await connection.CloseAsync();
         }
+
+        return count > 0;
+    }
+
+    private async Task<bool> HasApplicationTablesAsync(ApplicationDbContext context)
+    {
+        var connection = context.Database.GetDbConnection();
+        var wasClosed = connection.State != System.Data.ConnectionState.Open;
+        if (wasClosed)
+        {
+            await connection.OpenAsync();
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name != '__EFMigrationsHistory'";
+        var count = Convert.ToInt32(await command.ExecuteScalarAsync());
+
+        if (wasClosed)
+        {
+            await connection.CloseAsync();
+        }
+
+        return count > 0;
+    }
+
+    private async Task BaselineFreshLegacySchemaAsync(ApplicationDbContext context)
+    {
+        var migrationsAssembly = context.Database.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrationsAssembly>();
+        var allMigrations = migrationsAssembly.Migrations
+            .OrderBy(kvp => kvp.Key)
+            .ToList();
+
+        if (allMigrations.Count == 0)
+        {
+            _logger.LogWarning("No migrations found in assembly for baselining.");
+            return;
+        }
+
+        foreach (var (migrationId, _) in allMigrations)
+        {
+            await context.Database.ExecuteSqlRawAsync(
+                "INSERT IGNORE INTO `__EFMigrationsHistory` (MigrationId, ProductVersion) VALUES ({0}, {1})",
+                migrationId, "8.0.10");
+        }
+
+        _logger.LogInformation("Migration history baselined with {Count} entries for a fresh legacy schema.", allMigrations.Count);
     }
 }

@@ -2,9 +2,6 @@ namespace Softcoinp.ERP.Domain.Enums;
 
 public enum ReportTypeEnum
 {
-    BalanceGeneral,
-    IncomeExpense,
-    TrialBalance,
     BudgetExecution,
     ContingencyFund,
     CashFlow,
