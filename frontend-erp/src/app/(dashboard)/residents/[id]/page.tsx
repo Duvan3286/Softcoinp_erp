@@ -196,18 +196,18 @@ export default function OwnerDetailPage() {
   if (loading) {
     return (
       <div className="flex justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
       </div>
     );
   }
 
   if (!owner) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Propietario no encontrado</h2>
+      <div className="bg-card rounded-xl shadow-sm border border-border p-10 text-center">
+        <h2 className="text-xl font-bold text-foreground mb-2">Propietario no encontrado</h2>
         <Link
           href="/residents"
-          className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl"
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors"
         >
           Volver al listado
         </Link>
@@ -231,34 +231,34 @@ export default function OwnerDetailPage() {
       <div className="flex items-start gap-4">
         <Link
           href="/residents"
-          className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-gray-500 font-bold shrink-0 mt-1"
+          className="w-10 h-10 flex items-center justify-center bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors shadow-sm text-muted-foreground font-bold shrink-0 mt-1"
         >
           ←
         </Link>
         <div className="flex-1 flex items-start gap-4">
           <div
             className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${
-              isLegal ? "bg-indigo-100" : "bg-blue-100"
+              isLegal ? "bg-indigo-100 dark:bg-indigo-950/30" : "bg-blue-100 dark:bg-blue-950/30"
             }`}
           >
             {isLegal ? (
-              <Building2 className="w-7 h-7 text-indigo-600" />
+              <Building2 className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
             ) : (
-              <Users className="w-7 h-7 text-blue-600" />
+              <Users className="w-7 h-7 text-blue-600 dark:text-blue-400" />
             )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">
+              <h1 className="text-2xl font-bold text-foreground tracking-tight truncate">
                 {owner.fullNameOrCompanyName}
               </h1>
               {!owner.isActive && (
-                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">
+                <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 rounded-full text-xs font-bold">
                   Inactivo
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-muted-foreground mt-0.5">
               {docLabel}{" "}
               {owner.documentNumber}
               {owner.verificationDigit ? `-${owner.verificationDigit}` : ""} ·{" "}
@@ -272,16 +272,16 @@ export default function OwnerDetailPage() {
         {/* Main content */}
         <div className="lg:col-span-2 space-y-0">
           {/* Tabs */}
-          <div className="bg-white rounded-t-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex border-b border-gray-100 overflow-x-auto">
+          <div className="bg-card rounded-t-2xl border border-border shadow-sm overflow-hidden">
+            <div className="flex border-b border-border overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 ${
                     activeTab === tab.key
-                      ? "border-blue-600 text-blue-600 bg-blue-50/30"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50/50"
+                      ? "border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20"
+                      : "border-transparent text-muted-foreground hover:text-muted-foreground hover:bg-muted/30"
                   }`}
                 >
                   {tab.icon}
@@ -292,40 +292,40 @@ export default function OwnerDetailPage() {
 
             {/* Tab: Info */}
             {activeTab === "info" && (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-border">
                 <div className="p-6 space-y-5">
-                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                     Contacto
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="flex items-start gap-3">
-                      <Mail className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                      <Mail className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Correo
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-0.5">{owner.email}</p>
+                        <p className="text-sm font-semibold text-foreground mt-0.5">{owner.email}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <Phone className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                      <Phone className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Teléfono Principal
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                        <p className="text-sm font-semibold text-foreground mt-0.5">
                           {owner.mainPhone}
                         </p>
                       </div>
                     </div>
                     {owner.alternativePhone && (
                       <div className="flex items-start gap-3">
-                        <Phone className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                        <Phone className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                             Teléfono Alternativo
                           </p>
-                          <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                          <p className="text-sm font-semibold text-foreground mt-0.5">
                             {owner.alternativePhone}
                           </p>
                         </div>
@@ -333,12 +333,12 @@ export default function OwnerDetailPage() {
                     )}
                     {owner.correspondenceAddress && (
                       <div className="flex items-start gap-3">
-                        <Home className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                        <Home className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                             Dirección de Correspondencia
                           </p>
-                          <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                          <p className="text-sm font-semibold text-foreground mt-0.5">
                             {owner.correspondenceAddress}
                           </p>
                         </div>
@@ -349,25 +349,25 @@ export default function OwnerDetailPage() {
 
                 {isLegal ? (
                   <div className="p-6 space-y-5">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                       Representación Legal
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Nombre
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {owner.legalRepresentativeName || "—"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Documento
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {owner.legalRepresentativeDocumentType && (
-                            <span className="text-gray-500 mr-1">
+                            <span className="text-muted-foreground mr-1">
                               {owner.legalRepresentativeDocumentType}
                             </span>
                           )}
@@ -375,18 +375,18 @@ export default function OwnerDetailPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Cargo
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {owner.legalRepresentativeRole || "—"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Vigencia del Poder
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {formatDate(owner.powerOfAttorneyExpiration)}
                         </p>
                       </div>
@@ -394,23 +394,23 @@ export default function OwnerDetailPage() {
                   </div>
                 ) : (
                   <div className="p-6 space-y-5">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                       Datos Personales
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Fecha de Nacimiento
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {formatDate(owner.dateOfBirth)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Estado Civil
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {owner.civilStatus || "—"}
                         </p>
                       </div>
@@ -422,45 +422,45 @@ export default function OwnerDetailPage() {
 
             {/* Tab: Unidades */}
             {activeTab === "units" && (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-border">
                 {(owner.units ?? []).length === 0 ? (
                   <div className="p-8 text-center">
-                    <Home className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-                    <p className="text-sm font-semibold text-gray-500">
+                    <Home className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+                    <p className="text-sm font-semibold text-muted-foreground">
                       Sin unidades vinculadas
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Usa "Vincular a Unidad" para asignarlo.
                     </p>
                   </div>
                 ) : (
                   (owner.units ?? []).map((u: UnitOwnerSummary) => (
                     <div key={u.assignmentId} className="px-6 py-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                        <Home className="w-5 h-5 text-gray-600" />
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                        <Home className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-bold text-gray-900">
+                          <p className="text-sm font-bold text-foreground">
                             Unidad {u.unitIdentifier}
                           </p>
                           {u.isSpokesperson && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-bold rounded-full border border-amber-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full border border-amber-200 dark:border-amber-900">
                               <Star className="w-3 h-3" /> Vocero
                             </span>
                           )}
                           {u.residesInUnit && (
-                            <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-bold rounded-full border border-green-200">
+                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full border border-emerald-200 dark:border-emerald-900">
                               Reside
                             </span>
                           )}
                           {u.endDate && (
-                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">
+                            <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs font-bold rounded-full">
                               Finalizado
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {u.ownershipPercentage}% · Desde {formatDate(u.startDate)}
                           {u.endDate && ` → ${formatDate(u.endDate)}`}
                         </p>
@@ -468,14 +468,14 @@ export default function OwnerDetailPage() {
                       <div className="flex gap-2 shrink-0">
                         <Link
                           href={`/units/${u.unitId}`}
-                          className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+                          className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 px-3 py-1.5 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                         >
                           Ver Unidad
                         </Link>
                         {!u.endDate && (
                           <Link
                             href={`/residents/transfer/${u.unitId}`}
-                            className="text-xs font-semibold text-gray-600 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                            className="text-xs font-semibold text-muted-foreground bg-muted/50 border border-border px-3 py-1.5 rounded-lg hover:bg-muted transition-colors"
                           >
                             Transferir
                           </Link>
@@ -492,40 +492,40 @@ export default function OwnerDetailPage() {
               <div className="p-6">
                 {loadingHistory ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600" />
                   </div>
                 ) : contactHistory.length === 0 ? (
                   <div className="text-center py-8">
-                    <Clock className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-                    <p className="text-sm font-semibold text-gray-500">
+                    <Clock className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+                    <p className="text-sm font-semibold text-muted-foreground">
                       Sin cambios registrados aún
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Cada modificación de datos quedará registrada aquí.
                     </p>
                   </div>
                 ) : (
-                  <div className="relative border-l-2 border-gray-100 pl-5 ml-2 space-y-5">
+                  <div className="relative border-l-2 border-border pl-5 ml-2 space-y-5">
                     {contactHistory.map((entry) => (
                       <div key={entry.id} className="relative">
-                        <div className="absolute w-3 h-3 bg-blue-400 rounded-full -left-[1.45rem] top-1 border-2 border-white" />
-                        <p className="text-xs text-gray-500">{formatDateTime(entry.changedAt)}</p>
-                        <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                        <div className="absolute w-3 h-3 bg-emerald-400 rounded-full -left-[1.45rem] top-1 border-2 border-card" />
+                        <p className="text-xs text-muted-foreground">{formatDateTime(entry.changedAt)}</p>
+                        <p className="text-sm font-semibold text-foreground mt-0.5">
                           Campo modificado:{" "}
-                          <span className="font-bold text-gray-900">{entry.fieldChanged}</span>
+                          <span className="font-bold text-foreground">{entry.fieldChanged}</span>
                         </p>
                         {entry.oldValue !== null && entry.newValue !== null && (
                           <div className="mt-1 flex items-center gap-2 flex-wrap">
-                            <span className="text-xs px-2 py-0.5 bg-red-50 text-red-700 rounded line-through font-mono">
+                            <span className="text-xs px-2 py-0.5 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 rounded line-through font-mono">
                               {entry.oldValue || "—"}
                             </span>
-                            <span className="text-gray-400 text-xs">→</span>
-                            <span className="text-xs px-2 py-0.5 bg-green-50 text-green-700 rounded font-mono font-semibold">
+                            <span className="text-muted-foreground text-xs">→</span>
+                            <span className="text-xs px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded font-mono font-semibold">
                               {entry.newValue || "—"}
                             </span>
                           </div>
                         )}
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           Por: {entry.changedByUserId}
                         </p>
                       </div>
@@ -537,20 +537,20 @@ export default function OwnerDetailPage() {
           </div>
 
           {/* Rounded bottom */}
-          <div className="bg-white rounded-b-2xl border border-t-0 border-gray-100 shadow-sm h-2" />
+          <div className="bg-card rounded-b-2xl border border-t-0 border-border shadow-sm h-2" />
         </div>
 
         {/* Sidebar */}
         <div className="space-y-5">
           {/* Acciones */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-              <h3 className="font-bold text-gray-800 text-sm">Acciones</h3>
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-muted/50">
+              <h3 className="font-bold text-foreground text-sm">Acciones</h3>
             </div>
             <div className="p-4 space-y-2">
               <button
                 onClick={handleOpenAssignUnit}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-sm transition-colors border border-blue-100"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 font-semibold text-sm transition-colors border border-emerald-100 dark:border-emerald-900"
               >
                 <Plus className="w-5 h-5" />
                 Vincular a Unidad
@@ -559,7 +559,7 @@ export default function OwnerDetailPage() {
               {activeUnits.length > 0 && (
                 <Link
                   href={`/residents/transfer/${activeUnits[0].unitId}`}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 font-semibold text-sm transition-colors border border-amber-100"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:bg-amber-950/30 font-semibold text-sm transition-colors border border-amber-100"
                 >
                   <ArrowRightLeft className="w-5 h-5" />
                   Transferir Propiedad
@@ -569,7 +569,7 @@ export default function OwnerDetailPage() {
               {owner.isActive && (
                 <button
                   onClick={() => setShowDeactivate(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 font-semibold text-sm transition-colors border border-red-100"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-950/30 font-semibold text-sm transition-colors border border-rose-100 dark:border-rose-900"
                 >
                   <AlertTriangle className="w-5 h-5" />
                   Inactivar Propietario
@@ -579,26 +579,26 @@ export default function OwnerDetailPage() {
           </div>
 
           {/* Metadata */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-              <h3 className="font-bold text-gray-800 text-sm">Registro</h3>
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-muted/50">
+              <h3 className="font-bold text-foreground text-sm">Registro</h3>
             </div>
             <div className="p-5 space-y-3">
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Creado en el sistema
                 </p>
-                <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                <p className="text-sm font-semibold text-foreground mt-0.5">
                   {formatDate(owner.createdAt)}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado</p>
                 <span
                   className={`inline-block mt-0.5 px-2 py-0.5 rounded-full text-xs font-bold ${
                     owner.isActive
                       ? "bg-emerald-100 text-emerald-700"
-                      : "bg-red-100 text-red-700"
+                      : "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
                   }`}
                 >
                   {owner.isActive ? "Activo" : "Inactivo"}
@@ -609,9 +609,9 @@ export default function OwnerDetailPage() {
 
           {/* Assign Unit Panel */}
           {showAssignUnit && (
-            <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-blue-100 bg-blue-50/50 flex items-center justify-between">
-                <h3 className="font-bold text-blue-800 text-sm flex items-center gap-2">
+            <div className="bg-card rounded-2xl shadow-sm border border-emerald-200 dark:border-emerald-900 overflow-hidden">
+              <div className="px-5 py-4 border-b border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/20 flex items-center justify-between">
+                <h3 className="font-bold text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-2">
                   <Plus className="w-4 h-4" />
                   Vincular a Unidad
                 </h3>
@@ -620,7 +620,7 @@ export default function OwnerDetailPage() {
                     setShowAssignUnit(false);
                     setAssignError("");
                   }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-muted-foreground hover:text-muted-foreground transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -628,18 +628,18 @@ export default function OwnerDetailPage() {
               <div className="p-5 space-y-4">
                 {loadingUnits ? (
                   <div className="flex justify-center py-4">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600" />
                   </div>
                 ) : (
                   <>
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                         Unidad *
                       </label>
                       <select
                         value={assignUnitId}
                         onChange={(e) => setAssignUnitId(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none"
                       >
                         <option value="">Seleccione una unidad...</option>
                         {availableUnits.map((u) => (
@@ -652,7 +652,7 @@ export default function OwnerDetailPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                         % Copropiedad *
                       </label>
                       <input
@@ -662,19 +662,19 @@ export default function OwnerDetailPage() {
                         step="0.01"
                         value={assignPercentage}
                         onChange={(e) => setAssignPercentage(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                      <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                         Fecha de Inicio *
                       </label>
                       <input
                         type="date"
                         value={assignStartDate}
                         onChange={(e) => setAssignStartDate(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none"
                       />
                     </div>
 
@@ -683,16 +683,16 @@ export default function OwnerDetailPage() {
                         <div
                           onClick={() => setAssignSpokesperson(!assignSpokesperson)}
                           className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${
-                            assignSpokesperson ? "bg-amber-500" : "bg-gray-200"
+                            assignSpokesperson ? "bg-amber-500" : "bg-muted"
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                            className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${
                               assignSpokesperson ? "translate-x-4" : "translate-x-0"
                             }`}
                           />
                         </div>
-                        <span className="text-sm font-semibold text-gray-700">
+                        <span className="text-sm font-semibold text-muted-foreground">
                           Es vocero de la unidad
                         </span>
                       </label>
@@ -701,23 +701,23 @@ export default function OwnerDetailPage() {
                         <div
                           onClick={() => setAssignResides(!assignResides)}
                           className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${
-                            assignResides ? "bg-emerald-500" : "bg-gray-200"
+                            assignResides ? "bg-emerald-500" : "bg-muted"
                           }`}
                         >
                           <div
-                            className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                            className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${
                               assignResides ? "translate-x-4" : "translate-x-0"
                             }`}
                           />
                         </div>
-                        <span className="text-sm font-semibold text-gray-700">
+                        <span className="text-sm font-semibold text-muted-foreground">
                           Reside en la unidad
                         </span>
                       </label>
                     </div>
 
                     {assignError && (
-                      <p className="text-sm text-red-600 font-semibold bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                      <p className="text-sm text-rose-600 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-xl px-3 py-2">
                         {assignError}
                       </p>
                     )}
@@ -725,7 +725,7 @@ export default function OwnerDetailPage() {
                     <button
                       onClick={handleAssignUnit}
                       disabled={assignSubmitting || !assignUnitId}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm disabled:opacity-50 transition-colors"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm disabled:opacity-50 transition-colors"
                     >
                       {assignSubmitting ? (
                         <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -742,32 +742,32 @@ export default function OwnerDetailPage() {
 
           {/* Deactivate Modal */}
           {showDeactivate && (
-            <div className="bg-white rounded-2xl shadow-sm border border-red-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-red-100 bg-red-50/50">
-                <h3 className="font-bold text-red-800 text-sm flex items-center gap-2">
+            <div className="bg-card rounded-2xl shadow-sm border border-rose-200 dark:border-rose-900 overflow-hidden">
+              <div className="px-5 py-4 border-b border-rose-100 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/20">
+                <h3 className="font-bold text-rose-700 dark:text-rose-400 text-sm flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" />
                   Confirmar Inactivación
                 </h3>
               </div>
               <div className="p-5 space-y-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   El propietario no podrá seguir vinculado a unidades activas. Esta acción
                   queda registrada en el historial.
                 </p>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  <label className="block text-xs font-bold text-muted-foreground mb-1.5">
                     Motivo *
                   </label>
                   <textarea
                     value={deactivateReason}
                     onChange={(e) => setDeactivateReason(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-500/20 outline-none resize-none"
+                    className="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-500/20 outline-none resize-none"
                     placeholder="Ej: Venta de la unidad, fallecimiento, etc."
                   />
                 </div>
                 {deactivateError && (
-                  <p className="text-sm text-red-600 font-semibold">{deactivateError}</p>
+                  <p className="text-sm text-rose-600 dark:text-rose-400 font-semibold">{deactivateError}</p>
                 )}
                 <div className="flex gap-2">
                   <button
@@ -776,7 +776,7 @@ export default function OwnerDetailPage() {
                       setDeactivateReason("");
                       setDeactivateError("");
                     }}
-                    className="flex-1 py-2 px-3 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2 px-3 bg-card border border-border text-muted-foreground rounded-xl text-sm font-semibold hover:bg-muted/30 transition-colors"
                   >
                     Cancelar
                   </button>

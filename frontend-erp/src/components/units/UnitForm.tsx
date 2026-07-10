@@ -150,9 +150,9 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-100">
-      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-        <h3 className="text-lg font-semibold text-gray-800">
+    <div className="bg-card rounded-lg shadow-lg border border-border">
+      <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/50">
+        <h3 className="text-lg font-semibold text-foreground">
           {(() => {
             if (initialData) {
               return "Editar Unidad";
@@ -164,18 +164,18 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
       
       <form onSubmit={handleSubmit} className="p-6">
         {error && (
-          <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm font-medium border border-red-100 flex items-center gap-3 shadow-sm">
+          <div className="mb-6 bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 p-4 rounded-xl text-sm font-medium border border-rose-100 dark:border-rose-900 flex items-center gap-3 shadow-sm">
             <span>{error}</span>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Identificador de la Unidad</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Identificador de la Unidad</label>
             <input
               type="text"
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder="Ej. Apto 101"
@@ -183,11 +183,11 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Unidad</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Tipo de Unidad</label>
             <div className="flex gap-2">
               <select
                 required
-                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+                className="flex-1 pl-4 pr-9 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
                 value={unitTypeId}
                 onChange={(e) => setUnitTypeId(e.target.value)}
               >
@@ -210,7 +210,7 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
                     }
                   }
                 }}
-                className="px-4 py-2.5 bg-blue-50 text-blue-600 font-semibold rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors"
+                className="px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 font-semibold rounded-xl border border-emerald-100 dark:border-emerald-900 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                 title="Añadir nuevo tipo"
               >
                 +
@@ -219,10 +219,10 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Torre o Bloque</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Torre o Bloque</label>
             <input
               type="text"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={towerOrBlock}
               onChange={(e) => setTowerOrBlock(e.target.value)}
               placeholder="Ej. Torre A"
@@ -230,51 +230,51 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Piso</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Piso</label>
             <input
               type="number"
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={floorLevel}
               onChange={(e) => setFloorLevel(Number(e.target.value))}
             />
           </div>
         </div>
 
-        <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Áreas y Coeficientes</h4>
+        <h4 className="text-md font-semibold text-foreground mb-4 pb-2 border-b border-border">Áreas y Coeficientes</h4>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Área Privada (m2)</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Área Privada (m2)</label>
             <input
               type="number"
               step="0.01"
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={privateArea}
               onChange={(e) => setPrivateArea(Number(e.target.value))}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Área de Balcón (m2)</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Área de Balcón (m2)</label>
             <input
               type="number"
               step="0.01"
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={balconyArea}
               onChange={(e) => setBalconyArea(Number(e.target.value))}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Coeficiente de Copropiedad (%)</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Coeficiente de Copropiedad (%)</label>
             <input
               type="number"
               step="0.0001"
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={coproprietyCoefficient}
               onChange={(e) => setCoproprietyCoefficient(Number(e.target.value))}
             />
@@ -282,21 +282,21 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
         </div>
 
         {summary && (
-          <div className="mb-8 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-sm font-medium text-blue-800">
+          <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
               {getCoefficientStatusMessage()}
             </p>
           </div>
         )}
 
-        <h4 className="text-md font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Estado y Complementos</h4>
+        <h4 className="text-md font-semibold text-foreground mb-4 pb-2 border-b border-border">Estado y Complementos</h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Estado Actual</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Estado Actual</label>
             <select
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full pl-4 pr-9 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={status}
               onChange={(e) => setStatus(Number(e.target.value))}
             >
@@ -309,10 +309,10 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Entrega</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Fecha de Entrega</label>
             <input
               type="date"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={constructionDeliveryDate}
               onChange={(e) => setConstructionDeliveryDate(e.target.value)}
             />
@@ -321,11 +321,11 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
 
         {initialData && (
           <div className="mb-8">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Motivo del Cambio</label>
+            <label className="block text-sm font-semibold text-muted-foreground mb-2">Motivo del Cambio</label>
             <input
               type="text"
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+              className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
               value={reasonForChange}
               onChange={(e) => setReasonForChange(e.target.value)}
               placeholder="Proporciona el motivo para actualizar esta unidad..."
@@ -334,25 +334,25 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div className="bg-muted/50 p-4 rounded-xl border border-border">
             <div className="flex items-center mb-4">
               <input
                 type="checkbox"
                 id="hasPrivateParking"
-                className="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                className="w-5 h-5 text-emerald-600 dark:text-emerald-400 bg-card border-border rounded focus:ring-emerald-500"
                 checked={hasPrivateParking}
                 onChange={(e) => setHasPrivateParking(e.target.checked)}
               />
-              <label htmlFor="hasPrivateParking" className="ml-3 text-sm font-medium text-gray-700">Tiene Parqueadero Privado</label>
+              <label htmlFor="hasPrivateParking" className="ml-3 text-sm font-medium text-muted-foreground">Tiene Parqueadero Privado</label>
             </div>
             
             {hasPrivateParking && (
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Identificador de Parqueadero</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Identificador de Parqueadero</label>
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 text-sm"
+                  className="w-full px-4 py-2.5 bg-card border border-border rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground text-sm"
                   value={parkingIdentifier}
                   onChange={(e) => setParkingIdentifier(e.target.value)}
                   placeholder="Ej. P-12"
@@ -361,25 +361,25 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
             )}
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div className="bg-muted/50 p-4 rounded-xl border border-border">
             <div className="flex items-center mb-4">
               <input
                 type="checkbox"
                 id="hasAssignedStorage"
-                className="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
+                className="w-5 h-5 text-emerald-600 dark:text-emerald-400 bg-card border-border rounded focus:ring-emerald-500"
                 checked={hasAssignedStorage}
                 onChange={(e) => setHasAssignedStorage(e.target.checked)}
               />
-              <label htmlFor="hasAssignedStorage" className="ml-3 text-sm font-medium text-gray-700">Tiene Bodega / Depósito</label>
+              <label htmlFor="hasAssignedStorage" className="ml-3 text-sm font-medium text-muted-foreground">Tiene Bodega / Depósito</label>
             </div>
             
             {hasAssignedStorage && (
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Identificador de Bodega</label>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Identificador de Bodega</label>
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 text-sm"
+                  className="w-full px-4 py-2.5 bg-card border border-border rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground text-sm"
                   value={storageIdentifier}
                   onChange={(e) => setStorageIdentifier(e.target.value)}
                   placeholder="Ej. B-05"
@@ -390,21 +390,21 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
         </div>
 
         <div className="mb-8">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones Internas</label>
+          <label className="block text-sm font-semibold text-muted-foreground mb-2">Observaciones Internas</label>
           <textarea
             rows={3}
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 resize-none"
+            className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground resize-none"
             value={internalObservations}
             onChange={(e) => setInternalObservations(e.target.value)}
             placeholder="Notas privadas visibles solo para administradores..."
           />
         </div>
 
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+        <div className="flex justify-end gap-3 pt-6 border-t border-border">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="px-6 py-2.5 text-sm font-semibold text-muted-foreground bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors"
             disabled={isSubmitting}
           >
             Cancelar
@@ -412,7 +412,7 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
           <button
             type="submit"
             disabled={isSubmitDisabled()}
-            className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-200"
+            className="px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-emerald-200"
           >
             {(() => {
               if (isSubmitting) {

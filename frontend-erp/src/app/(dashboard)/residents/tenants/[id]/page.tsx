@@ -30,7 +30,7 @@ const DOC_LABEL: Record<string, string> = {
 };
 
 const inputClass =
-  "w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all";
+  "w-full px-3 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all";
 
 const toTitleCase = (val: string): string =>
   val.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
@@ -145,19 +145,19 @@ export default function TenantDetailPage() {
 
   const leaseBadge = (days?: number): { text: string; cls: string } => {
     if (days === undefined || days === null) {
-      return { text: "Sin fecha de terminación", cls: "bg-gray-100 text-gray-600" };
+      return { text: "Sin fecha de terminación", cls: "bg-muted text-muted-foreground" };
     }
     if (days < 0) {
       return {
         text: `Contrato vencido hace ${Math.abs(days)} días`,
-        cls: "bg-red-100 text-red-700",
+        cls: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400",
       };
     }
     if (days === 0) {
-      return { text: "Vence hoy", cls: "bg-red-100 text-red-700" };
+      return { text: "Vence hoy", cls: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400" };
     }
     if (days <= 30) {
-      return { text: `Vence en ${days} días`, cls: "bg-amber-100 text-amber-700" };
+      return { text: `Vence en ${days} días`, cls: "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400" };
     }
     return { text: `${days} días restantes`, cls: "bg-emerald-100 text-emerald-700" };
   };
@@ -172,8 +172,8 @@ export default function TenantDetailPage() {
 
   if (!tenant) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
-        <h2 className="text-xl font-bold text-gray-800 mb-2">Arrendatario no encontrado</h2>
+      <div className="bg-card rounded-xl shadow-sm border border-border p-10 text-center">
+        <h2 className="text-xl font-bold text-foreground mb-2">Arrendatario no encontrado</h2>
         <Link
           href="/residents/tenants"
           className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-xl"
@@ -198,7 +198,7 @@ export default function TenantDetailPage() {
       <div className="flex items-start gap-4">
         <Link
           href="/residents/tenants"
-          className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-gray-500 font-bold shrink-0 mt-1"
+          className="w-10 h-10 flex items-center justify-center bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors shadow-sm text-muted-foreground font-bold shrink-0 mt-1"
         >
           ←
         </Link>
@@ -208,22 +208,22 @@ export default function TenantDetailPage() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">
+              <h1 className="text-2xl font-bold text-foreground tracking-tight truncate">
                 {tenant.fullName}
               </h1>
               {!tenant.isActive && (
-                <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">
+                <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 rounded-full text-xs font-bold">
                   Inactivo
                 </span>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3 mt-1">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 {docLabel} {tenant.documentNumber}
               </p>
               <Link
                 href={`/units/${tenant.unitId}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
               >
                 <Home className="w-3.5 h-3.5" />
                 Unidad {tenant.unitIdentifier}
@@ -237,8 +237,8 @@ export default function TenantDetailPage() {
         {/* Main content */}
         <div className="lg:col-span-2 space-y-0">
           {/* Tabs */}
-          <div className="bg-white rounded-t-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex border-b border-gray-100 overflow-x-auto">
+          <div className="bg-card rounded-t-2xl border border-border shadow-sm overflow-hidden">
+            <div className="flex border-b border-border overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -246,7 +246,7 @@ export default function TenantDetailPage() {
                   className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 ${
                     activeTab === tab.key
                       ? "border-emerald-600 text-emerald-600 bg-emerald-50/30"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50/50"
+                      : "border-transparent text-muted-foreground hover:text-muted-foreground hover:bg-muted/30"
                   }`}
                 >
                   {tab.label}
@@ -259,12 +259,12 @@ export default function TenantDetailPage() {
               <div className="p-6 space-y-5">
                 {editing ? (
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                       Editando información de contacto
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                           Correo Electrónico *
                         </label>
                         <input
@@ -277,7 +277,7 @@ export default function TenantDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                           Teléfono *
                         </label>
                         <input
@@ -290,14 +290,14 @@ export default function TenantDetailPage() {
                       </div>
                     </div>
                     {editError && (
-                      <p className="text-sm text-red-600 font-semibold bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                      <p className="text-sm text-rose-600 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-xl px-3 py-2">
                         {editError}
                       </p>
                     )}
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => setEditing(false)}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-card border border-border text-muted-foreground rounded-xl text-sm font-semibold hover:bg-muted/30 transition-colors"
                       >
                         <X className="w-4 h-4" />
                         Cancelar
@@ -318,28 +318,28 @@ export default function TenantDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                       Contacto
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div className="flex items-start gap-3">
-                        <Mail className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                        <Mail className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                             Correo
                           </p>
-                          <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                          <p className="text-sm font-semibold text-foreground mt-0.5">
                             {tenant.email}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
-                        <Phone className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
+                        <Phone className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                             Teléfono
                           </p>
-                          <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                          <p className="text-sm font-semibold text-foreground mt-0.5">
                             {tenant.phone}
                           </p>
                         </div>
@@ -361,12 +361,12 @@ export default function TenantDetailPage() {
 
                 {editing ? (
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
                       Editando contrato
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                           Fecha de Inicio *
                         </label>
                         <input
@@ -377,7 +377,7 @@ export default function TenantDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                           Fecha de Terminación
                         </label>
                         <input
@@ -389,7 +389,7 @@ export default function TenantDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                           Intermediario / Inmobiliaria
                         </label>
                         <input
@@ -401,7 +401,7 @@ export default function TenantDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                        <label className="block text-xs font-bold text-muted-foreground mb-1.5 uppercase tracking-wide">
                           Teléfono Intermediario
                         </label>
                         <input
@@ -416,30 +416,30 @@ export default function TenantDetailPage() {
                           <div
                             onClick={() => setEditAuthorizedToPay(!editAuthorizedToPay)}
                             className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${
-                              editAuthorizedToPay ? "bg-emerald-500" : "bg-gray-200"
+                              editAuthorizedToPay ? "bg-emerald-500" : "bg-muted"
                             }`}
                           >
                             <div
-                              className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                              className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${
                                 editAuthorizedToPay ? "translate-x-4" : "translate-x-0"
                               }`}
                             />
                           </div>
-                          <span className="text-sm font-semibold text-gray-700">
+                          <span className="text-sm font-semibold text-muted-foreground">
                             Autorizado a pagar administración
                           </span>
                         </label>
                       </div>
                     </div>
                     {editError && (
-                      <p className="text-sm text-red-600 font-semibold bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                      <p className="text-sm text-rose-600 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-xl px-3 py-2">
                         {editError}
                       </p>
                     )}
                     <div className="flex gap-2 pt-2">
                       <button
                         onClick={() => setEditing(false)}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-card border border-border text-muted-foreground rounded-xl text-sm font-semibold hover:bg-muted/30 transition-colors"
                       >
                         <X className="w-4 h-4" />
                         Cancelar
@@ -461,50 +461,50 @@ export default function TenantDetailPage() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         Inicio del Contrato
                       </p>
-                      <p className="text-sm font-semibold text-gray-800 mt-1">
+                      <p className="text-sm font-semibold text-foreground mt-1">
                         {formatDate(tenant.leaseStartDate)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         Terminación del Contrato
                       </p>
-                      <p className="text-sm font-semibold text-gray-800 mt-1">
+                      <p className="text-sm font-semibold text-foreground mt-1">
                         {formatDate(tenant.leaseEndDate)}
                       </p>
                     </div>
                     {tenant.realEstateAgentName && (
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Intermediario
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {tenant.realEstateAgentName}
                         </p>
                       </div>
                     )}
                     {tenant.realEstateAgentPhone && (
                       <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           Teléfono Intermediario
                         </p>
-                        <p className="text-sm font-semibold text-gray-800 mt-1">
+                        <p className="text-sm font-semibold text-foreground mt-1">
                           {tenant.realEstateAgentPhone}
                         </p>
                       </div>
                     )}
                     <div className="md:col-span-2">
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         Pago de Administración
                       </p>
                       <span
                         className={`inline-block mt-1 px-2.5 py-1 rounded-full text-xs font-bold ${
                           tenant.authorizedToPayAdmin
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-gray-100 text-gray-500"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {tenant.authorizedToPayAdmin
@@ -518,21 +518,21 @@ export default function TenantDetailPage() {
             )}
           </div>
 
-          <div className="bg-white rounded-b-2xl border border-t-0 border-gray-100 shadow-sm h-2" />
+          <div className="bg-card rounded-b-2xl border border-t-0 border-border shadow-sm h-2" />
         </div>
 
         {/* Sidebar */}
         <div className="space-y-5">
           {/* Acciones */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-              <h3 className="font-bold text-gray-800 text-sm">Acciones</h3>
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-muted/50">
+              <h3 className="font-bold text-foreground text-sm">Acciones</h3>
             </div>
             <div className="p-4 space-y-2">
               {tenant.isActive && !editing && (
                 <button
                   onClick={handleStartEdit}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-sm transition-colors border border-blue-100"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 font-semibold text-sm transition-colors border border-emerald-100 dark:border-emerald-900"
                 >
                   <Edit2 className="w-5 h-5" />
                   Editar Información
@@ -542,7 +542,7 @@ export default function TenantDetailPage() {
               {tenant.isActive && (
                 <button
                   onClick={() => setShowDeactivate(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 font-semibold text-sm transition-colors border border-red-100"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:bg-rose-950/30 font-semibold text-sm transition-colors border border-rose-100 dark:border-rose-900"
                 >
                   <AlertTriangle className="w-5 h-5" />
                   Finalizar Contrato
@@ -552,30 +552,30 @@ export default function TenantDetailPage() {
           </div>
 
           {/* Metadata */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-              <h3 className="font-bold text-gray-800 text-sm">Registro</h3>
+          <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border bg-muted/50">
+              <h3 className="font-bold text-foreground text-sm">Registro</h3>
             </div>
             <div className="p-5 space-y-3">
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado</p>
                 <span
                   className={`inline-block mt-0.5 px-2 py-0.5 rounded-full text-xs font-bold ${
                     tenant.isActive
                       ? "bg-emerald-100 text-emerald-700"
-                      : "bg-red-100 text-red-700"
+                      : "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
                   }`}
                 >
                   {tenant.isActive ? "Activo" : "Inactivo"}
                 </span>
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Unidad
                 </p>
                 <Link
                   href={`/units/${tenant.unitId}`}
-                  className="inline-flex items-center gap-1.5 mt-0.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
+                  className="inline-flex items-center gap-1.5 mt-0.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                 >
                   <Home className="w-3.5 h-3.5" />
                   {tenant.unitIdentifier}
@@ -586,20 +586,20 @@ export default function TenantDetailPage() {
 
           {/* Deactivate panel */}
           {showDeactivate && (
-            <div className="bg-white rounded-2xl shadow-sm border border-red-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-red-100 bg-red-50/50">
-                <h3 className="font-bold text-red-800 text-sm flex items-center gap-2">
+            <div className="bg-card rounded-2xl shadow-sm border border-rose-200 dark:border-rose-900 overflow-hidden">
+              <div className="px-5 py-4 border-b border-rose-100 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/20">
+                <h3 className="font-bold text-rose-700 dark:text-rose-400 text-sm flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" />
                   Confirmar Finalización
                 </h3>
               </div>
               <div className="p-5 space-y-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   Se registrará la salida del arrendatario de la unidad{" "}
                   <strong>{tenant.unitIdentifier}</strong>. Esta acción no se puede deshacer.
                 </p>
                 {deactivateError && (
-                  <p className="text-sm text-red-600 font-semibold">{deactivateError}</p>
+                  <p className="text-sm text-rose-600 dark:text-rose-400 font-semibold">{deactivateError}</p>
                 )}
                 <div className="flex gap-2">
                   <button
@@ -607,7 +607,7 @@ export default function TenantDetailPage() {
                       setShowDeactivate(false);
                       setDeactivateError("");
                     }}
-                    className="flex-1 py-2 px-3 bg-white border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2 px-3 bg-card border border-border text-muted-foreground rounded-xl text-sm font-semibold hover:bg-muted/30 transition-colors"
                   >
                     Cancelar
                   </button>

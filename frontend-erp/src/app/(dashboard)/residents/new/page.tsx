@@ -13,10 +13,10 @@ import Link from "next/link";
 import { Users, Building2, FileCheck } from "lucide-react";
 
 const inputClass =
-  "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white text-sm text-gray-900 transition-all outline-none";
-const labelClass = "block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2";
+  "w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-card text-sm text-foreground transition-all outline-none";
+const labelClass = "block text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2";
 const readonlyClass =
-  "w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500 font-bold text-center cursor-not-allowed outline-none";
+  "w-full px-4 py-2.5 bg-muted border border-border rounded-xl text-sm text-muted-foreground font-bold text-center cursor-not-allowed outline-none";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -161,15 +161,15 @@ export default function NewOwnerPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/residents"
-          className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-gray-500 font-bold"
+          className="w-10 h-10 flex items-center justify-center bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors shadow-sm text-muted-foreground font-bold"
         >
           ←
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
             Registrar Nuevo Propietario
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Completa los datos del propietario para vincularlo al conjunto.
           </p>
         </div>
@@ -177,28 +177,28 @@ export default function NewOwnerPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Tipo */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-base font-bold text-gray-800 mb-4">Tipo de Propietario</h3>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
+          <h3 className="text-base font-bold text-foreground mb-4">Tipo de Propietario</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               type="button"
               onClick={() => handleChangeOwnerType(OwnerType.NaturalPerson)}
               className={`relative flex items-start p-4 rounded-xl border-2 transition-all text-left ${
                 isNatural
-                  ? "border-blue-600 bg-blue-50/50"
-                  : "border-gray-200 hover:border-gray-300 bg-white"
+                  ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
+                  : "border-border hover:border-border bg-card"
               }`}
             >
               <Users
-                className={`w-8 h-8 mr-4 shrink-0 ${isNatural ? "text-blue-600" : "text-gray-400"}`}
+                className={`w-8 h-8 mr-4 shrink-0 ${isNatural ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
               />
               <div>
                 <span
-                  className={`block font-bold text-sm ${isNatural ? "text-blue-900" : "text-gray-900"}`}
+                  className={`block font-bold text-sm ${isNatural ? "text-emerald-900 dark:text-emerald-300" : "text-foreground"}`}
                 >
                   Persona Natural
                 </span>
-                <span className="block text-xs text-gray-500 mt-1">
+                <span className="block text-xs text-muted-foreground mt-1">
                   Ciudadano nacional o extranjero.
                 </span>
               </div>
@@ -209,20 +209,20 @@ export default function NewOwnerPage() {
               onClick={() => handleChangeOwnerType(OwnerType.LegalEntity)}
               className={`relative flex items-start p-4 rounded-xl border-2 transition-all text-left ${
                 !isNatural
-                  ? "border-indigo-600 bg-indigo-50/50"
-                  : "border-gray-200 hover:border-gray-300 bg-white"
+                  ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20"
+                  : "border-border hover:border-border bg-card"
               }`}
             >
               <Building2
-                className={`w-8 h-8 mr-4 shrink-0 ${!isNatural ? "text-indigo-600" : "text-gray-400"}`}
+                className={`w-8 h-8 mr-4 shrink-0 ${!isNatural ? "text-indigo-600 dark:text-indigo-400" : "text-muted-foreground"}`}
               />
               <div>
                 <span
-                  className={`block font-bold text-sm ${!isNatural ? "text-indigo-900" : "text-gray-900"}`}
+                  className={`block font-bold text-sm ${!isNatural ? "text-indigo-900 dark:text-indigo-300" : "text-foreground"}`}
                 >
                   Persona Jurídica
                 </span>
-                <span className="block text-xs text-gray-500 mt-1">
+                <span className="block text-xs text-muted-foreground mt-1">
                   Empresa, fideicomiso o sociedad.
                 </span>
               </div>
@@ -233,8 +233,8 @@ export default function NewOwnerPage() {
         {/* Natural Person Form */}
         {isNatural && (
           <>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-              <h3 className="text-base font-bold text-gray-800">Identificación</h3>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+              <h3 className="text-base font-bold text-foreground">Identificación</h3>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                 <div className="col-span-12 md:col-span-5">
                   <label className={labelClass}>Tipo de Documento</label>
@@ -281,8 +281,8 @@ export default function NewOwnerPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-              <h3 className="text-base font-bold text-gray-800">Datos Personales</h3>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+              <h3 className="text-base font-bold text-foreground">Datos Personales</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className={labelClass}>Fecha de Nacimiento</label>
@@ -312,8 +312,8 @@ export default function NewOwnerPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-              <h3 className="text-base font-bold text-gray-800">Contacto</h3>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+              <h3 className="text-base font-bold text-foreground">Contacto</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="md:col-span-2">
                   <label className={labelClass}>Correo Electrónico *</label>
@@ -367,8 +367,8 @@ export default function NewOwnerPage() {
         {/* Legal Entity Form */}
         {!isNatural && (
           <>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-              <h3 className="text-base font-bold text-gray-800">Datos de la Empresa</h3>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+              <h3 className="text-base font-bold text-foreground">Datos de la Empresa</h3>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                 <div className="col-span-12 md:col-span-9">
                   <label className={labelClass}>NIT (Sin DV) *</label>
@@ -446,8 +446,8 @@ export default function NewOwnerPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-              <h3 className="text-base font-bold text-gray-800">Representante Legal</h3>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+              <h3 className="text-base font-bold text-foreground">Representante Legal</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="md:col-span-2">
                   <label className={labelClass}>Nombre Completo *</label>
@@ -514,13 +514,13 @@ export default function NewOwnerPage() {
         )}
 
         {/* Footer */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
           {error ? (
-            <div className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 w-full sm:w-auto">
+            <div className="text-sm font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-xl px-4 py-2 w-full sm:w-auto">
               {error}
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <FileCheck className="w-4 h-4" />
               Los datos podrán actualizarse después del registro.
             </div>
@@ -529,14 +529,14 @@ export default function NewOwnerPage() {
           <div className="flex gap-3 w-full sm:w-auto">
             <Link
               href="/residents"
-              className="px-5 py-2.5 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition-colors text-center flex-1 sm:flex-none"
+              className="px-5 py-2.5 text-muted-foreground font-semibold rounded-xl hover:bg-muted transition-colors text-center flex-1 sm:flex-none"
             >
               Cancelar
             </Link>
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm shadow-blue-200 transition-colors flex-1 sm:flex-none flex items-center justify-center gap-2 disabled:opacity-50"
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm shadow-emerald-200 transition-colors flex-1 sm:flex-none flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {submitting && (
                 <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />

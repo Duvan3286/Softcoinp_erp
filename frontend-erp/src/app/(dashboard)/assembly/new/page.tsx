@@ -160,7 +160,7 @@ export default function NewAssemblyPage() {
                         onChange={(e) => setDescription(e.target.value.slice(0, 2000))}
                         rows={3}
                         maxLength={2000}
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none resize-none"
+                        className="w-full bg-muted border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none resize-none"
                       />
                     </div>
                   </div>

@@ -193,7 +193,7 @@ export default function SessionPage() {
       <main className="flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-500 text-sm font-medium">Cargando datos de sesión...</p>
+          <p className="text-muted-foreground text-sm font-medium">Cargando datos de sesión...</p>
         </div>
       </main>
     );
@@ -203,7 +203,7 @@ export default function SessionPage() {
     return (
       <main className="flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg">Asamblea no encontrada</p>
+          <p className="text-muted-foreground text-lg">Asamblea no encontrada</p>
           <button
             onClick={() => router.push("/assembly")}
             className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium text-sm"
@@ -227,86 +227,86 @@ export default function SessionPage() {
           >
             &larr; Volver
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
             Gestión de Sesión - {assembly.title}
           </h1>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Información de la Sesión</h2>
+        <div className="bg-card border border-border rounded-lg p-5">
+          <h2 className="text-lg font-bold text-foreground mb-4">Información de la Sesión</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                 Fecha de la Asamblea
               </label>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-foreground">
                 {formatDate(assembly.scheduledDate)}
               </p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                 Hora Programada
               </label>
-              <p className="text-sm font-semibold text-gray-900">{assembly.scheduledTime}</p>
+              <p className="text-sm font-semibold text-foreground">{assembly.scheduledTime}</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                 Presidente
               </label>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-foreground">
                 {assembly.presidentName || "—"}
               </p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                 Secretario
               </label>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-foreground">
                 {assembly.secretaryName || "—"}
               </p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                 Número de Convocatoria
               </label>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-foreground">
                 {assembly.convocationNumber}
               </p>
             </div>
             {assembly.sessionStartTime && (
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                   Inicio de Sesión
                 </label>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-foreground">
                   {formatDateTime(assembly.sessionStartTime)}
                 </p>
               </div>
             )}
             {assembly.sessionEndTime && (
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                   Fin de Sesión
                 </label>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-foreground">
                   {formatDateTime(assembly.sessionEndTime)}
                 </p>
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                 Lugar
               </label>
-              <p className="text-sm font-semibold text-gray-900">{assembly.location}</p>
+              <p className="text-sm font-semibold text-foreground">{assembly.location}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Orden del Día y Votaciones</h2>
+        <div className="bg-card border border-border rounded-lg p-5">
+          <h2 className="text-lg font-bold text-foreground mb-6">Orden del Día y Votaciones</h2>
 
           {sortedItems.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-8">
+            <p className="text-sm text-muted-foreground text-center py-8">
               No hay puntos en el orden del día.
             </p>
           )}
@@ -323,7 +323,7 @@ export default function SessionPage() {
               return (
                 <div
                   key={item.id}
-                  className="border border-gray-200 rounded-lg p-5"
+                  className="border border-border rounded-lg p-5"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -332,7 +332,7 @@ export default function SessionPage() {
                           Punto {item.sequenceNumber}
                         </span>
                         {item.isInformationOnly && (
-                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
                             Informativo
                           </span>
                         )}
@@ -341,7 +341,7 @@ export default function SessionPage() {
                             className={`text-xs font-semibold px-2 py-0.5 rounded ${
                               item.isApproved
                                 ? "bg-emerald-100 text-emerald-700"
-                                : "bg-red-100 text-red-700"
+                                : "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
                             }`}
                           >
                             {item.isApproved ? "Aprobada" : "No Aprobada"}
@@ -349,37 +349,37 @@ export default function SessionPage() {
                         )}
                       </div>
 
-                      <h3 className="text-sm font-semibold text-gray-900 mt-2">
+                      <h3 className="text-sm font-semibold text-foreground mt-2">
                         {item.title}
                       </h3>
 
                       {item.description && (
-                        <p className="text-xs text-gray-500 mt-1">{item.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
                       )}
 
-                      <div className="flex gap-4 mt-2 text-xs text-gray-500 flex-wrap">
+                      <div className="flex gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                         {item.presenterName && (
                           <span>Presenta: {item.presenterName}</span>
                         )}
                       </div>
 
-                      <div className="mt-3 bg-gray-50 rounded-md p-3 space-y-1">
+                      <div className="mt-3 bg-muted/50 rounded-md p-3 space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-700">
+                          <span className="text-xs font-semibold text-muted-foreground">
                             Mayoría requerida:
                           </span>
                           <span className="text-xs text-emerald-700 font-medium">
                             {MAJORITY_LABELS[item.majorityRequired] || item.majorityRequired}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           {MAJORITY_DESCRIPTIONS[item.majorityRequired] || ""}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs font-semibold text-gray-700">
+                          <span className="text-xs font-semibold text-muted-foreground">
                             Modo de votación:
                           </span>
-                          <span className="text-xs text-gray-600">
+                          <span className="text-xs text-muted-foreground">
                             {VOTING_MODE_LABELS[item.votingMode] || item.votingMode}
                           </span>
                         </div>
@@ -397,28 +397,28 @@ export default function SessionPage() {
                   </div>
 
                   {item.voteRegistered && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="mt-4 pt-4 border-t border-border">
                       <div className="grid grid-cols-3 gap-4 text-xs mb-3">
                         <div>
-                          <p className="text-gray-500 font-medium">A Favor</p>
+                          <p className="text-muted-foreground font-medium">A Favor</p>
                           <p className="font-bold text-emerald-600 text-sm">
                             {item.votesInFavorCoefficients} coef.
                           </p>
-                          <p className="text-gray-500">{item.votesInFavorCount} votos</p>
+                          <p className="text-muted-foreground">{item.votesInFavorCount} votos</p>
                         </div>
                         <div>
-                          <p className="text-gray-500 font-medium">En Contra</p>
-                          <p className="font-bold text-red-600 text-sm">
+                          <p className="text-muted-foreground font-medium">En Contra</p>
+                          <p className="font-bold text-rose-600 dark:text-rose-400 text-sm">
                             {item.votesAgainstCoefficients} coef.
                           </p>
-                          <p className="text-gray-500">{item.votesAgainstCount} votos</p>
+                          <p className="text-muted-foreground">{item.votesAgainstCount} votos</p>
                         </div>
                         <div>
-                          <p className="text-gray-500 font-medium">Abstenciones</p>
+                          <p className="text-muted-foreground font-medium">Abstenciones</p>
                           <p className="font-bold text-yellow-600 text-sm">
                             {item.abstentionCoefficients} coef.
                           </p>
-                          <p className="text-gray-500">{item.abstentionCount} votos</p>
+                          <p className="text-muted-foreground">{item.abstentionCount} votos</p>
                         </div>
                       </div>
 
@@ -426,12 +426,12 @@ export default function SessionPage() {
                         <div className="space-y-2">
                           <div>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-gray-500">A Favor</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-muted-foreground">A Favor</span>
+                              <span className="text-xs text-muted-foreground">
                                 {favorPct.toFixed(1)}%
                               </span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="w-full bg-muted rounded-full h-2">
                               <div
                                 className="h-2 rounded-full bg-emerald-500 transition-all"
                                 style={{ width: `${favorPct}%` }}
@@ -440,12 +440,12 @@ export default function SessionPage() {
                           </div>
                           <div>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-gray-500">En Contra</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-muted-foreground">En Contra</span>
+                              <span className="text-xs text-muted-foreground">
                                 {againstPct.toFixed(1)}%
                               </span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="w-full bg-muted rounded-full h-2">
                               <div
                                 className="h-2 rounded-full bg-red-500 transition-all"
                                 style={{ width: `${againstPct}%` }}
@@ -454,12 +454,12 @@ export default function SessionPage() {
                           </div>
                           <div>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-gray-500">Abstenciones</span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-muted-foreground">Abstenciones</span>
+                              <span className="text-xs text-muted-foreground">
                                 {abstentionPct.toFixed(1)}%
                               </span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="w-full bg-muted rounded-full h-2">
                               <div
                                 className="h-2 rounded-full bg-yellow-500 transition-all"
                                 style={{ width: `${abstentionPct}%` }}
@@ -470,7 +470,7 @@ export default function SessionPage() {
                       )}
 
                       {item.majorityRequired === "Qualified" && totalCoeff > 0 && (
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           Umbral requerido (2/3): {threshold.toFixed(2)} coef. —{" "}
                           {item.votesInFavorCoefficients >= threshold
                             ? "Resultado alcanza la mayoría calificada."
@@ -479,7 +479,7 @@ export default function SessionPage() {
                       )}
 
                       {item.observations && (
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           <span className="font-medium">Observaciones:</span>{" "}
                           {item.observations}
                         </p>
@@ -488,13 +488,13 @@ export default function SessionPage() {
                   )}
 
                   {showForm && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h4 className="text-xs font-semibold text-gray-900 mb-3">
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <h4 className="text-xs font-semibold text-foreground mb-3">
                         Registrar Voto — Punto {item.sequenceNumber}
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Coeficientes a Favor
                           </label>
                           <input
@@ -507,7 +507,7 @@ export default function SessionPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Coeficientes en Contra
                           </label>
                           <input
@@ -520,7 +520,7 @@ export default function SessionPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Coeficientes Abstenciones
                           </label>
                           <input
@@ -533,7 +533,7 @@ export default function SessionPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Votos a Favor
                           </label>
                           <input
@@ -545,7 +545,7 @@ export default function SessionPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Votos en Contra
                           </label>
                           <input
@@ -557,7 +557,7 @@ export default function SessionPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Abstenciones
                           </label>
                           <input
@@ -569,7 +569,7 @@ export default function SessionPage() {
                           />
                         </div>
                         <div className="md:col-span-3">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Observaciones
                           </label>
                           <textarea
@@ -591,7 +591,7 @@ export default function SessionPage() {
                         </button>
                         <button
                           onClick={resetVoteForm}
-                          className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                          className="px-4 py-2 text-sm font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted/30"
                         >
                           Cancelar
                         </button>
@@ -604,19 +604,19 @@ export default function SessionPage() {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Constancias</h2>
+        <div className="bg-card border border-border rounded-lg p-5">
+          <h2 className="text-lg font-bold text-foreground mb-4">Constancias</h2>
 
           {constancies.length > 0 && (
             <div className="space-y-3 mb-6">
               {constancies.map((constancy) => (
                 <div
                   key={constancy.id}
-                  className="border border-gray-200 rounded-lg p-4"
+                  className="border border-border rounded-lg p-4"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-foreground">
                         {constancy.ownerName}
                       </p>
                       {constancy.agendaItemTitle && (
@@ -625,25 +625,25 @@ export default function SessionPage() {
                         </p>
                       )}
                     </div>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       {formatDateTime(constancy.createdAt)}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">{constancy.text}</p>
+                  <p className="text-sm text-muted-foreground mt-2">{constancy.text}</p>
                 </div>
               ))}
             </div>
           )}
 
           {constancies.length === 0 && (
-            <p className="text-sm text-gray-500 mb-6">No hay constancias registradas.</p>
+            <p className="text-sm text-muted-foreground mb-6">No hay constancias registradas.</p>
           )}
 
-          <div className="border-t border-gray-200 pt-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Agregar Constancia</h3>
+          <div className="border-t border-border pt-5">
+            <h3 className="text-sm font-semibold text-foreground mb-4">Agregar Constancia</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Propietario
                 </label>
                 <select
@@ -660,7 +660,7 @@ export default function SessionPage() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Texto</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Texto</label>
                 <textarea
                   value={constancyText}
                   onChange={(e) => setConstancyText(e.target.value)}

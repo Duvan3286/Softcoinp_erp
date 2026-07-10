@@ -183,21 +183,21 @@ export default function AttendanceRegistrationPage() {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-400 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
         {/* Quorum Panel */}
         {quorum && (
-          <div className="bg-white border border-border rounded-lg p-5 space-y-4">
+          <div className="bg-card border border-border rounded-lg p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">Estado de Quórum</h2>
               <span
                 className={`text-sm font-bold px-3 py-1 rounded-full ${
                   quorum.firstCallQuorumMet
                     ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-red-100 text-red-700'
+                    : 'bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400'
                 }`}
               >
                 {quorum.firstCallQuorumMet
@@ -214,7 +214,7 @@ export default function AttendanceRegistrationPage() {
                   {quorum.totalCoefficients.toFixed(2)} coeficientes)
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full bg-muted rounded-full h-3">
                 <div
                   className={`h-3 rounded-full transition-all duration-500 ${
                     quorum.firstCallQuorumMet ? 'bg-emerald-500' : 'bg-red-400'
@@ -248,7 +248,7 @@ export default function AttendanceRegistrationPage() {
         )}
 
         {/* Registration Form */}
-        <div className="bg-white border border-border rounded-lg p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-lg font-bold text-foreground mb-4">Registrar Asistencia</h2>
           <form onSubmit={handleRegisterAttendance} className="space-y-4">
             <div>
@@ -385,7 +385,7 @@ export default function AttendanceRegistrationPage() {
         </div>
 
         {/* Registered Attendees */}
-        <div className="bg-white border border-border rounded-lg p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-lg font-bold text-foreground mb-4">
             Asistentes Registrados ({attendances.length})
           </h2>
@@ -433,7 +433,7 @@ export default function AttendanceRegistrationPage() {
                       <td className="px-4 py-2 text-sm text-center">{att.coefficient}</td>
                       <td className="px-4 py-2 text-center">
                         {att.attendsPersonally ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
                             Personal
                           </span>
                         ) : (
@@ -444,7 +444,7 @@ export default function AttendanceRegistrationPage() {
                       </td>
                       <td className="px-4 py-2 text-center">
                         {att.departureTime ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
                             Retirado
                           </span>
                         ) : (
@@ -464,7 +464,7 @@ export default function AttendanceRegistrationPage() {
                       </td>
                       <td className="px-4 py-2 text-center">
                         {att.votingRightRestricted ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400">
                             Restringido
                           </span>
                         ) : (

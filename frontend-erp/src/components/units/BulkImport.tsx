@@ -105,32 +105,32 @@ export default function BulkImport({ onSuccess, onCancel }: BulkImportProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-100">
-      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-        <h3 className="text-lg font-semibold text-gray-800">Carga Masiva de Unidades</h3>
+    <div className="bg-card rounded-lg shadow-lg border border-border">
+      <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/50">
+        <h3 className="text-lg font-semibold text-foreground">Carga Masiva de Unidades</h3>
       </div>
       
       <div className="p-6">
         <div className="mb-6">
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             Para facilitar la carga masiva, descarga nuestra plantilla prediseñada en español, diligénciala y súbela a continuación.
           </p>
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-xl flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-semibold text-blue-900">Plantilla Oficial de Carga</h4>
-              <p className="text-xs text-blue-700 mt-0.5">El archivo incluye los encabezados requeridos y un ejemplo de uso.</p>
+              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300">Plantilla Oficial de Carga</h4>
+              <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">El archivo incluye los encabezados requeridos y un ejemplo de uso.</p>
             </div>
             <button
               type="button"
               onClick={downloadTemplate}
-              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+              className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
             >
               Descargar Plantilla
             </button>
           </div>
           
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Columnas Requeridas:</h4>
-          <ul className="list-disc pl-5 text-sm text-gray-600 mb-4 space-y-1">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Columnas Requeridas:</h4>
+          <ul className="list-disc pl-5 text-sm text-muted-foreground mb-4 space-y-1">
             <li><strong>Identificador:</strong> Texto (Ej: 101, Apartamento 101).</li>
             <li><strong>Tipo de Unidad:</strong> Debe coincidir con un tipo creado (Ej: Apartamento, Parqueadero, Depósito).</li>
             <li><strong>Torre o Bloque:</strong> Nombre o número de la torre (Ej: Torre A, Bloque 2).</li>
@@ -147,29 +147,29 @@ export default function BulkImport({ onSuccess, onCancel }: BulkImportProps) {
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Seleccionar Archivo CSV Diligenciado</label>
+          <label className="block text-sm font-semibold text-muted-foreground mb-2">Seleccionar Archivo CSV Diligenciado</label>
           <input
             type="file"
             accept=".csv"
             onChange={handleFileChange}
             disabled={isSubmitting}
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900"
+            className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-card focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-foreground"
           />
         </div>
 
         {globalMessage && (
-          <div className={`mb-6 p-4 rounded-xl text-sm font-medium border shadow-sm ${errors.length > 0 ? 'bg-red-50 text-red-700 border-red-100' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
+          <div className={`mb-6 p-4 rounded-xl text-sm font-medium border shadow-sm ${errors.length > 0 ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-900' : 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900'}`}>
             {globalMessage}
           </div>
         )}
 
         {errors.length > 0 && (
-          <div className="mb-6 bg-red-50 rounded-xl border border-red-100 overflow-hidden">
-            <div className="px-4 py-2 bg-red-100 border-b border-red-200">
-              <h4 className="text-sm font-bold text-red-800">Errores de Validación</h4>
+          <div className="mb-6 bg-rose-50 dark:bg-rose-950/20 rounded-xl border border-rose-100 dark:border-rose-900 overflow-hidden">
+            <div className="px-4 py-2 bg-rose-100 dark:bg-rose-950/30 border-b border-rose-200 dark:border-rose-900">
+              <h4 className="text-sm font-bold text-rose-700 dark:text-rose-400">Errores de Validación</h4>
             </div>
             <div className="p-4 max-h-64 overflow-y-auto">
-              <ul className="list-disc pl-5 text-sm text-red-700 space-y-1">
+              <ul className="list-disc pl-5 text-sm text-rose-700 dark:text-rose-400 space-y-1">
                 {errors.map((errorMsg, idx) => (
                   <li key={idx}>{errorMsg}</li>
                 ))}
@@ -178,12 +178,12 @@ export default function BulkImport({ onSuccess, onCancel }: BulkImportProps) {
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+        <div className="flex justify-end gap-3 pt-6 border-t border-border">
           <button
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="px-6 py-2.5 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="px-6 py-2.5 text-sm font-semibold text-muted-foreground bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors"
           >
             Cancelar
           </button>
@@ -192,7 +192,7 @@ export default function BulkImport({ onSuccess, onCancel }: BulkImportProps) {
             type="button"
             onClick={handleUpload}
             disabled={!file || isSubmitting}
-            className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-blue-200"
+            className="px-6 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-emerald-200"
           >
             {(() => {
               if (isSubmitting) {

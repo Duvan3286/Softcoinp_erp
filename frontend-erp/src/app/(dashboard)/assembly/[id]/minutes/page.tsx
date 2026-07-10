@@ -19,8 +19,8 @@ const MINUTES_STATUS_LABELS: Record<string, string> = {
 };
 
 const MINUTES_STATUS_COLORS: Record<string, string> = {
-  Draft: "bg-gray-100 text-gray-700",
-  Generated: "bg-blue-100 text-blue-700",
+  Draft: "bg-muted text-muted-foreground",
+  Generated: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400",
   UnderReview: "bg-yellow-100 text-yellow-700",
   Approved: "bg-emerald-100 text-emerald-700",
   Published: "bg-emerald-200 text-emerald-800",
@@ -146,7 +146,7 @@ export default function MinutesPage() {
       <main className="flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-500 text-sm font-medium">Cargando acta...</p>
+          <p className="text-muted-foreground text-sm font-medium">Cargando acta...</p>
         </div>
       </main>
     );
@@ -156,7 +156,7 @@ export default function MinutesPage() {
     return (
       <main className="flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg">Asamblea no encontrada</p>
+          <p className="text-muted-foreground text-lg">Asamblea no encontrada</p>
           <button
             onClick={() => router.push("/assembly")}
             className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
@@ -183,21 +183,21 @@ export default function MinutesPage() {
             <div className="flex items-center gap-3 mb-2">
               <button
                 onClick={() => router.push(`/assembly/${assemblyId}`)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-muted-foreground hover:text-muted-foreground"
               >
                 &larr; Volver
               </button>
             </div>
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-foreground">
                   Acta de Asamblea - {assembly.title}
                 </h1>
-                <p className="text-sm text-gray-500 mt-1">{assembly.description}</p>
+                <p className="text-sm text-muted-foreground mt-1">{assembly.description}</p>
               </div>
               {hasMinutes && (
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold ${MINUTES_STATUS_COLORS[minutes.status] || "bg-gray-100 text-gray-700"}`}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${MINUTES_STATUS_COLORS[minutes.status] || "bg-muted text-muted-foreground"}`}
                 >
                   {MINUTES_STATUS_LABELS[minutes.status] || minutes.status}
                 </span>
@@ -207,46 +207,46 @@ export default function MinutesPage() {
 
           {/* No Minutes - Generation Form */}
           {!hasMinutes && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Generar Acta</h2>
-              <p className="text-sm text-gray-500 mb-6">
+            <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+              <h2 className="text-lg font-semibold text-foreground mb-2">Generar Acta</h2>
+              <p className="text-sm text-muted-foreground mb-6">
                 No se ha generado el acta para esta asamblea. Complete los datos y genere el acta.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Nombre del Presidente
                   </label>
                   <input
                     type="text"
                     value={minutesPresident}
                     onChange={(e) => setMinutesPresident(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     placeholder="Nombre completo del presidente"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Nombre del Secretario
                   </label>
                   <input
                     type="text"
                     value={minutesSecretary}
                     onChange={(e) => setMinutesSecretary(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     placeholder="Nombre completo del secretario"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
                     Miembros de Comision (separados por coma)
                   </label>
                   <input
                     type="text"
                     value={minutesCommissionMembers}
                     onChange={(e) => setMinutesCommissionMembers(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     placeholder="Nombre 1, Nombre 2, Nombre 3"
                   />
                 </div>
@@ -275,49 +275,49 @@ export default function MinutesPage() {
           {hasMinutes && minutes && (
             <div className="space-y-6">
               {/* Minutes Metadata */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Informacion del Acta</h2>
+              <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Informacion del Acta</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Generada
                     </label>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {formatDateTime(minutes.generatedAt)}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Presidente
                     </label>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {minutes.presidentName || "\u2014"}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Secretario
                     </label>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {minutes.secretaryName || "\u2014"}
                     </p>
                   </div>
                   {minutes.commissionMemberNames && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         Miembros de Comision
                       </label>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-foreground">
                         {minutes.commissionMemberNames}
                       </p>
                     </div>
                   )}
                   {minutes.approvedAt && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         Aprobada
                       </label>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-foreground">
                         {formatDateTime(minutes.approvedAt)}
                       </p>
                     </div>
@@ -326,10 +326,10 @@ export default function MinutesPage() {
               </div>
 
               {/* Full Text */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Texto Completo del Acta</h2>
-                <div className="max-h-[500px] overflow-y-auto border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
+              <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Texto Completo del Acta</h2>
+                <div className="max-h-[500px] overflow-y-auto border border-border rounded-lg p-4 bg-muted/50">
+                  <pre className="text-sm text-foreground whitespace-pre-wrap font-mono leading-relaxed">
                     {minutes.fullText}
                   </pre>
                 </div>
@@ -337,42 +337,42 @@ export default function MinutesPage() {
 
               {/* Commission Review Section */}
               {(isDraft || isUnderReview) && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+                  <h2 className="text-lg font-semibold text-foreground mb-4">
                     Revision de Comision
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Fecha Limite de Revision
                       </label>
                       <input
                         type="date"
                         value={commissionDeadline}
                         onChange={(e) => setCommissionDeadline(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Notas de Revision
                       </label>
                       <input
                         type="text"
                         value={revisionNotes}
                         onChange={(e) => setRevisionNotes(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         placeholder="Observaciones de la comision"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Comentarios
                       </label>
                       <textarea
                         value={commissionComments}
                         onChange={(e) => setCommissionComments(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
                         rows={4}
                         placeholder="Comentarios de la comision sobre el acta"
                       ></textarea>
@@ -383,14 +383,14 @@ export default function MinutesPage() {
 
               {/* Signature Fields */}
               {(isDraft || isUnderReview || isApproved) && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Firmas</h2>
+                <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Firmas</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Firma del Presidente
                       </label>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-emerald-400 transition-colors cursor-pointer">
+                      <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-400 transition-colors cursor-pointer">
                         <input
                           type="file"
                           accept="image/*"
@@ -411,7 +411,7 @@ export default function MinutesPage() {
                           ) : (
                             <>
                               <svg
-                                className="mx-auto h-8 w-8 text-gray-400 mb-2"
+                                className="mx-auto h-8 w-8 text-muted-foreground mb-2"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -423,7 +423,7 @@ export default function MinutesPage() {
                                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                                 />
                               </svg>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-muted-foreground">
                                 Arrastre o seleccione un archivo
                               </p>
                             </>
@@ -432,10 +432,10 @@ export default function MinutesPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Firma del Secretario
                       </label>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-emerald-400 transition-colors cursor-pointer">
+                      <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-emerald-400 transition-colors cursor-pointer">
                         <input
                           type="file"
                           accept="image/*"
@@ -456,7 +456,7 @@ export default function MinutesPage() {
                           ) : (
                             <>
                               <svg
-                                className="mx-auto h-8 w-8 text-gray-400 mb-2"
+                                className="mx-auto h-8 w-8 text-muted-foreground mb-2"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -468,7 +468,7 @@ export default function MinutesPage() {
                                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                                 />
                               </svg>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-muted-foreground">
                                 Arrastre o seleccione un archivo
                               </p>
                             </>
@@ -482,22 +482,22 @@ export default function MinutesPage() {
 
               {/* Published Info */}
               {isPublished && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Publicacion</h2>
+                <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Publicacion</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         Fecha de Publicacion
                       </label>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-foreground">
                         {minutes.publishedAt ? formatDateTime(minutes.publishedAt) : "\u2014"}
                       </p>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         Notificaciones Enviadas
                       </label>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-foreground">
                         {minutes.publishNotificationCount !== null
                           ? minutes.publishNotificationCount
                           : "0"}
@@ -508,8 +508,8 @@ export default function MinutesPage() {
               )}
 
               {/* Action Buttons */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Acciones</h2>
+              <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Acciones</h2>
                 <div className="flex flex-wrap gap-3">
                   {isDraft && (
                     <>

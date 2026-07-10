@@ -10,8 +10,8 @@ export default function UnitsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Catálogo de Unidades</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Catálogo de Unidades</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Gestiona todas las propiedades, sus coeficientes y visualiza el estado matemático del conjunto.
         </p>
       </div>

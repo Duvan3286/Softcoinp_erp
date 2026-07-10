@@ -20,19 +20,19 @@ const typeLabels: Record<string, string> = {
 };
 
 const statusBadgeClass = (status: string): string => {
-  if (status === 'Draft') return 'bg-gray-100 text-gray-700';
-  if (status === 'Convoked') return 'bg-blue-100 text-blue-700';
+  if (status === 'Draft') return 'bg-muted text-muted-foreground';
+  if (status === 'Convoked') return 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400';
   if (status === 'InSession') return 'bg-yellow-100 text-yellow-700';
   if (status === 'Closed') return 'bg-orange-100 text-orange-700';
   if (status === 'MinutesApproved') return 'bg-purple-100 text-purple-700';
-  if (status === 'Published') return 'bg-green-100 text-green-700';
-  return 'bg-gray-100 text-gray-700';
+  if (status === 'Published') return 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400';
+  return 'bg-muted text-muted-foreground';
 };
 
 const typeBadgeClass = (type: string): string => {
-  if (type === 'Ordinary') return 'bg-blue-100 text-blue-700';
+  if (type === 'Ordinary') return 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400';
   if (type === 'Extraordinary') return 'bg-purple-100 text-purple-700';
-  return 'bg-gray-100 text-gray-700';
+  return 'bg-muted text-muted-foreground';
 };
 
 export default function AssemblyListPage() {
@@ -105,25 +105,25 @@ export default function AssemblyListPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-border rounded-lg p-4 text-center">
+          <div className="bg-card border border-border rounded-lg p-4 text-center">
             <p className="text-2xl font-bold text-foreground">{assemblies.length}</p>
             <p className="text-xs text-muted-foreground">Total Asambleas</p>
           </div>
-          <div className="bg-white border border-border rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600">{totalOrdinary}</p>
+          <div className="bg-card border border-border rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalOrdinary}</p>
             <p className="text-xs text-muted-foreground">Ordinarias</p>
           </div>
-          <div className="bg-white border border-border rounded-lg p-4 text-center">
+          <div className="bg-card border border-border rounded-lg p-4 text-center">
             <p className="text-2xl font-bold text-purple-600">{totalExtraordinary}</p>
             <p className="text-xs text-muted-foreground">Extraordinarias</p>
           </div>
-          <div className="bg-white border border-border rounded-lg p-4 text-center">
+          <div className="bg-card border border-border rounded-lg p-4 text-center">
             <p className="text-2xl font-bold text-green-600">{totalPublished}</p>
             <p className="text-xs text-muted-foreground">Publicadas</p>
           </div>
         </div>
 
-        <div className="bg-white border border-border rounded-lg p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex flex-col md:flex-row gap-3">
             <select
               value={statusFilter}
@@ -169,7 +169,7 @@ export default function AssemblyListPage() {
             <p className="text-sm">Crea la primera asamblea del conjunto.</p>
           </div>
         ) : (
-          <div className="bg-white border border-border rounded-lg overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-border">
                 <thead className="bg-muted/50">

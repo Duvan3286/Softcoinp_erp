@@ -12,9 +12,9 @@ import Link from "next/link";
 import { Home, FileCheck } from "lucide-react";
 
 const inputClass =
-  "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white text-sm text-gray-900 transition-all outline-none";
+  "w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-card text-sm text-foreground transition-all outline-none";
 const labelClass =
-  "block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2";
+  "block text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -112,15 +112,15 @@ export default function NewTenantPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/residents/tenants"
-          className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors shadow-sm text-gray-500 font-bold"
+          className="w-10 h-10 flex items-center justify-center bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors shadow-sm text-muted-foreground font-bold"
         >
           ←
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
             Registrar Arrendatario
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Vincula un arrendatario a una unidad del conjunto.
           </p>
         </div>
@@ -128,20 +128,20 @@ export default function NewTenantPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Unidad */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Home className="w-5 h-5 text-blue-600" />
+            <div className="w-9 h-9 bg-blue-100 dark:bg-blue-950/30 rounded-lg flex items-center justify-center">
+              <Home className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <h3 className="text-base font-bold text-gray-800">Unidad a Arrendar</h3>
+            <h3 className="text-base font-bold text-foreground">Unidad a Arrendar</h3>
           </div>
           {loadingUnits ? (
             <div className="flex items-center gap-2 py-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600" />
-              <span className="text-sm text-gray-500">Cargando unidades...</span>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-600" />
+              <span className="text-sm text-muted-foreground">Cargando unidades...</span>
             </div>
           ) : units.length === 0 ? (
-            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 font-semibold">
+            <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3 font-semibold">
               No hay unidades disponibles. Crea unidades primero en el módulo de Unidades.
             </p>
           ) : (
@@ -166,8 +166,8 @@ export default function NewTenantPage() {
         </div>
 
         {/* Identificación */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-          <h3 className="text-base font-bold text-gray-800">Identificación</h3>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+          <h3 className="text-base font-bold text-foreground">Identificación</h3>
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
             <div className="col-span-12 md:col-span-5">
               <label className={labelClass}>Tipo de Documento</label>
@@ -213,8 +213,8 @@ export default function NewTenantPage() {
         </div>
 
         {/* Contacto */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-          <h3 className="text-base font-bold text-gray-800">Contacto</h3>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+          <h3 className="text-base font-bold text-foreground">Contacto</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="md:col-span-2">
               <label className={labelClass}>Correo Electrónico *</label>
@@ -243,8 +243,8 @@ export default function NewTenantPage() {
         </div>
 
         {/* Contrato */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-          <h3 className="text-base font-bold text-gray-800">Contrato de Arrendamiento</h3>
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-6 space-y-5">
+          <h3 className="text-base font-bold text-foreground">Contrato de Arrendamiento</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className={labelClass}>Fecha de Inicio *</label>
@@ -259,7 +259,7 @@ export default function NewTenantPage() {
             <div>
               <label className={labelClass}>
                 Fecha de Terminación{" "}
-                <span className="font-normal normal-case text-gray-400">(opcional)</span>
+                <span className="font-normal normal-case text-muted-foreground">(opcional)</span>
               </label>
               <input
                 type="date"
@@ -272,7 +272,7 @@ export default function NewTenantPage() {
             <div>
               <label className={labelClass}>
                 Nombre Inmobiliaria / Intermediario{" "}
-                <span className="font-normal normal-case text-gray-400">(opcional)</span>
+                <span className="font-normal normal-case text-muted-foreground">(opcional)</span>
               </label>
               <input
                 type="text"
@@ -286,7 +286,7 @@ export default function NewTenantPage() {
             <div>
               <label className={labelClass}>
                 Teléfono Intermediario{" "}
-                <span className="font-normal normal-case text-gray-400">(opcional)</span>
+                <span className="font-normal normal-case text-muted-foreground">(opcional)</span>
               </label>
               <input
                 type="tel"
@@ -301,20 +301,20 @@ export default function NewTenantPage() {
                 <div
                   onClick={() => setAuthorizedToPay(!authorizedToPay)}
                   className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${
-                    authorizedToPay ? "bg-emerald-500" : "bg-gray-200"
+                    authorizedToPay ? "bg-emerald-500" : "bg-muted"
                   }`}
                 >
                   <div
-                    className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${
                       authorizedToPay ? "translate-x-5" : "translate-x-0"
                     }`}
                   />
                 </div>
                 <div>
-                  <span className="block text-sm font-semibold text-gray-800">
+                  <span className="block text-sm font-semibold text-foreground">
                     Autorizado a pagar administración
                   </span>
-                  <span className="block text-xs text-gray-400">
+                  <span className="block text-xs text-muted-foreground">
                     El arrendatario puede realizar pagos de cuotas de administración directamente.
                   </span>
                 </div>
@@ -324,13 +324,13 @@ export default function NewTenantPage() {
         </div>
 
         {/* Footer */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
           {error ? (
-            <div className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 w-full sm:w-auto">
+            <div className="text-sm font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-xl px-4 py-2 w-full sm:w-auto">
               {error}
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <FileCheck className="w-4 h-4" />
               Los datos podrán actualizarse después del registro.
             </div>
@@ -339,7 +339,7 @@ export default function NewTenantPage() {
           <div className="flex gap-3 w-full sm:w-auto">
             <Link
               href="/residents/tenants"
-              className="px-5 py-2.5 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition-colors text-center flex-1 sm:flex-none"
+              className="px-5 py-2.5 text-muted-foreground font-semibold rounded-xl hover:bg-muted transition-colors text-center flex-1 sm:flex-none"
             >
               Cancelar
             </Link>

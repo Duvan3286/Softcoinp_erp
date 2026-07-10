@@ -53,10 +53,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  Draft: "bg-gray-100 text-gray-700",
-  Convoked: "bg-blue-100 text-blue-700",
+  Draft: "bg-muted text-muted-foreground",
+  Convoked: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400",
   InSession: "bg-emerald-100 text-emerald-700",
-  Closed: "bg-red-100 text-red-700",
+  Closed: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400",
 };
 
 const ATTENDANCE_STATUS_LABELS: Record<string, string> = {
@@ -88,9 +88,9 @@ const PROPAGATION_STATUS_LABELS: Record<string, string> = {
 
 const PROPAGATION_STATUS_COLORS: Record<string, string> = {
   Pending: "bg-yellow-100 text-yellow-700",
-  Processing: "bg-blue-100 text-blue-700",
+  Processing: "bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400",
   Completed: "bg-emerald-100 text-emerald-700",
-  Failed: "bg-red-100 text-red-700",
+  Failed: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400",
 };
 
 const MINUTES_STATUS_LABELS: Record<string, string> = {
@@ -436,7 +436,7 @@ export default function AssemblyDetailPage() {
       <main className="flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
-          <p className="text-gray-500 text-sm font-medium">Cargando asamblea...</p>
+          <p className="text-muted-foreground text-sm font-medium">Cargando asamblea...</p>
         </div>
       </main>
     );
@@ -446,7 +446,7 @@ export default function AssemblyDetailPage() {
     return (
       <main className="flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg">Asamblea no encontrada</p>
+          <p className="text-muted-foreground text-lg">Asamblea no encontrada</p>
           <button
             onClick={() => router.push("/assembly")}
             className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
@@ -473,18 +473,18 @@ export default function AssemblyDetailPage() {
             <div className="flex items-center gap-3 mb-2">
               <button
                 onClick={() => router.push("/assembly")}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-muted-foreground hover:text-muted-foreground"
               >
                 ← Volver
               </button>
             </div>
             <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{assembly.title}</h1>
-                <p className="text-sm text-gray-500 mt-1">{assembly.description}</p>
+                <h1 className="text-2xl font-bold text-foreground">{assembly.title}</h1>
+                <p className="text-sm text-muted-foreground mt-1">{assembly.description}</p>
               </div>
               <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[assembly.status] || "bg-gray-100 text-gray-700"}`}
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[assembly.status] || "bg-muted text-muted-foreground"}`}
               >
                 {STATUS_LABELS[assembly.status] || assembly.status}
               </span>
@@ -531,7 +531,7 @@ export default function AssemblyDetailPage() {
           </div>
 
           {/* Tabs */}
-          <div className="border-b border-gray-200 mb-6">
+          <div className="border-b border-border mb-6">
             <nav className="flex gap-1 -mb-px">
               {TABS.map((tab) => (
                 <button
@@ -540,7 +540,7 @@ export default function AssemblyDetailPage() {
                   className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.id
                       ? "border-emerald-600 text-emerald-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      : "border-transparent text-muted-foreground hover:text-muted-foreground hover:border-border"
                   }`}
                 >
                   {tab.label}
@@ -550,90 +550,90 @@ export default function AssemblyDetailPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-card rounded-xl shadow-sm border border-border p-6">
             {/* ════════════════════════════════════════════════════════════ */}
             {/* TAB: Información */}
             {/* ════════════════════════════════════════════════════════════ */}
             {activeTab === "informacion" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Información de la Asamblea</h2>
+                <h2 className="text-lg font-semibold text-foreground">Información de la Asamblea</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Tipo
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.type}</p>
+                    <p className="text-sm text-foreground">{assembly.type}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Tipo de Participación
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.participationType}</p>
+                    <p className="text-sm text-foreground">{assembly.participationType}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Fecha Programada
                     </label>
-                    <p className="text-sm text-gray-900">{formatDate(assembly.scheduledDate)}</p>
+                    <p className="text-sm text-foreground">{formatDate(assembly.scheduledDate)}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Hora Programada
                     </label>
-                    <p className="text-sm text-gray-900">{formatTime(assembly.scheduledTime)}</p>
+                    <p className="text-sm text-foreground">{formatTime(assembly.scheduledTime)}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Lugar
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.location}</p>
+                    <p className="text-sm text-foreground">{assembly.location}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Coeficiente Total
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.totalCoefficients}</p>
+                    <p className="text-sm text-foreground">{assembly.totalCoefficients}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Umbral Quórum Primera Convocatoria
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.quorumThresholdFirstCall}%</p>
+                    <p className="text-sm text-foreground">{assembly.quorumThresholdFirstCall}%</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Umbral Quórum Segunda Convocatoria
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.quorumThresholdSecondCall}%</p>
+                    <p className="text-sm text-foreground">{assembly.quorumThresholdSecondCall}%</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Presidente
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.presidentName || "—"}</p>
+                    <p className="text-sm text-foreground">{assembly.presidentName || "—"}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                       Secretario
                     </label>
-                    <p className="text-sm text-gray-900">{assembly.secretaryName || "—"}</p>
+                    <p className="text-sm text-foreground">{assembly.secretaryName || "—"}</p>
                   </div>
                   {assembly.sessionStartTime && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         Inicio de Sesión
                       </label>
-                      <p className="text-sm text-gray-900">
+                      <p className="text-sm text-foreground">
                         {formatDateTime(assembly.sessionStartTime)}
                       </p>
                     </div>
                   )}
                   {assembly.sessionEndTime && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         Fin de Sesión
                       </label>
-                      <p className="text-sm text-gray-900">
+                      <p className="text-sm text-foreground">
                         {formatDateTime(assembly.sessionEndTime)}
                       </p>
                     </div>
@@ -647,7 +647,7 @@ export default function AssemblyDetailPage() {
             {/* ════════════════════════════════════════════════════════════ */}
             {activeTab === "convocatoria" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Convocatorias</h2>
+                <h2 className="text-lg font-semibold text-foreground">Convocatorias</h2>
 
                 {/* Convocation List */}
                 {assembly.convocations && assembly.convocations.length > 0 && (
@@ -655,40 +655,40 @@ export default function AssemblyDetailPage() {
                     {assembly.convocations.map((conv) => (
                       <div
                         key={conv.id}
-                        className="border border-gray-200 rounded-lg p-4"
+                        className="border border-border rounded-lg p-4"
                       >
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="text-sm font-semibold text-gray-900">
+                            <h3 className="text-sm font-semibold text-foreground">
                               Convocatoria N.° {conv.convocationNumber}
                             </h3>
-                            <p className="text-sm text-gray-600 mt-1">{conv.subject}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{conv.subject}</p>
                             {conv.notes && (
-                              <p className="text-xs text-gray-500 mt-1">{conv.notes}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{conv.notes}</p>
                             )}
                           </div>
                           <div className="text-right">
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {conv.sentAt ? formatDateTime(conv.sentAt) : "No enviada"}
                             </span>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                               Canal: {conv.channel}
                             </p>
                           </div>
                         </div>
-                        <div className="mt-3 flex gap-4 text-xs text-gray-500">
+                        <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
                           <span>Destinatarios: {conv.totalRecipients}</span>
                           <span>Entregados: {conv.deliveredCount}</span>
                           <span>Fallidos: {conv.failedCount}</span>
                         </div>
                         {conv.recipients && conv.recipients.length > 0 && (
                           <div className="mt-3">
-                            <p className="text-xs font-medium text-gray-700 mb-1">Destinatarios:</p>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Destinatarios:</p>
                             <div className="max-h-32 overflow-y-auto">
                               {conv.recipients.map((rec) => (
                                 <div
                                   key={rec.id}
-                                  className="flex items-center gap-2 text-xs text-gray-600 py-1"
+                                  className="flex items-center gap-2 text-xs text-muted-foreground py-1"
                                 >
                                   <span
                                     className={`w-2 h-2 rounded-full ${
@@ -696,7 +696,7 @@ export default function AssemblyDetailPage() {
                                     }`}
                                   ></span>
                                   <span>{rec.ownerName}</span>
-                                  <span className="text-gray-400">({rec.unitIdentifier})</span>
+                                  <span className="text-muted-foreground">({rec.unitIdentifier})</span>
                                 </div>
                               ))}
                             </div>
@@ -708,11 +708,11 @@ export default function AssemblyDetailPage() {
                 )}
 
                 {/* New Convocation Form */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Nueva Convocatoria</h3>
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Nueva Convocatoria</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Número de Convocatoria
                       </label>
                       <input
@@ -723,7 +723,7 @@ export default function AssemblyDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Canal</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Canal</label>
                       <select
                         value={convocationChannel}
                         onChange={(e) => setConvocationChannel(e.target.value)}
@@ -735,7 +735,7 @@ export default function AssemblyDetailPage() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Asunto</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Asunto</label>
                       <input
                         type="text"
                         value={convocationSubject}
@@ -745,7 +745,7 @@ export default function AssemblyDetailPage() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Notas Adicionales
                       </label>
                       <textarea
@@ -773,27 +773,27 @@ export default function AssemblyDetailPage() {
             {/* ════════════════════════════════════════════════════════════ */}
             {activeTab === "asistencia" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Control de Asistencia</h2>
+                <h2 className="text-lg font-semibold text-foreground">Control de Asistencia</h2>
 
                 {/* Quorum Indicator */}
                 {quorumStatus && (
-                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Estado del Quórum</h3>
+                  <div className="bg-muted/50 rounded-lg p-6 border border-border">
+                    <h3 className="text-sm font-semibold text-foreground mb-4">Estado del Quórum</h3>
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-muted-foreground">
                           Quórum: {quorumPercentage.toFixed(1)}% ({quorumStatus.presentCoefficients} coeficientes de{" "}
                           {quorumStatus.totalCoefficients} totales)
                         </span>
                         <span
                           className={`text-sm font-semibold ${
-                            quorumMet ? "text-emerald-600" : "text-red-600"
+                            quorumMet ? "text-emerald-600" : "text-rose-600 dark:text-rose-400"
                           }`}
                         >
                           {quorumMet ? "Quórum Logrado" : "Quórum No Logrado"}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div className="w-full bg-muted rounded-full h-3">
                         <div
                           className={`h-3 rounded-full transition-all ${
                             quorumMet ? "bg-emerald-600" : "bg-red-500"
@@ -804,10 +804,10 @@ export default function AssemblyDetailPage() {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                       <div>
-                        <p className="text-gray-500">1ra Convocatoria</p>
+                        <p className="text-muted-foreground">1ra Convocatoria</p>
                         <p
                           className={`font-semibold ${
-                            quorumStatus.firstCallQuorumMet ? "text-emerald-600" : "text-red-600"
+                            quorumStatus.firstCallQuorumMet ? "text-emerald-600" : "text-rose-600 dark:text-rose-400"
                           }`}
                         >
                           {quorumStatus.quorumThresholdFirstCall}%
@@ -815,10 +815,10 @@ export default function AssemblyDetailPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-500">2da Convocatoria</p>
+                        <p className="text-muted-foreground">2da Convocatoria</p>
                         <p
                           className={`font-semibold ${
-                            quorumStatus.secondCallQuorumMet ? "text-emerald-600" : "text-red-600"
+                            quorumStatus.secondCallQuorumMet ? "text-emerald-600" : "text-rose-600 dark:text-rose-400"
                           }`}
                         >
                           {quorumStatus.quorumThresholdSecondCall}%
@@ -826,14 +826,14 @@ export default function AssemblyDetailPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Propietarios Presentes</p>
-                        <p className="font-semibold text-gray-900">
+                        <p className="text-muted-foreground">Propietarios Presentes</p>
+                        <p className="font-semibold text-foreground">
                           {quorumStatus.presentOwners} / {quorumStatus.totalOwners}
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Ausentes</p>
-                        <p className="font-semibold text-gray-900">{quorumStatus.absentOwners}</p>
+                        <p className="text-muted-foreground">Ausentes</p>
+                        <p className="font-semibold text-foreground">{quorumStatus.absentOwners}</p>
                       </div>
                     </div>
                   </div>
@@ -842,50 +842,50 @@ export default function AssemblyDetailPage() {
                 {/* Attendance List */}
                 {assembly.attendances && assembly.attendances.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">
                       Lista de Asistencia ({assembly.attendances.length})
                     </h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase">
+                          <tr className="border-b border-border">
+                            <th className="text-left py-2 text-xs font-medium text-muted-foreground uppercase">
                               Unidad
                             </th>
-                            <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase">
+                            <th className="text-left py-2 text-xs font-medium text-muted-foreground uppercase">
                               Propietario
                             </th>
-                            <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase">
+                            <th className="text-left py-2 text-xs font-medium text-muted-foreground uppercase">
                               Coeficiente
                             </th>
-                            <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase">
+                            <th className="text-left py-2 text-xs font-medium text-muted-foreground uppercase">
                               Estado
                             </th>
-                            <th className="text-left py-2 text-xs font-medium text-gray-500 uppercase">
+                            <th className="text-left py-2 text-xs font-medium text-muted-foreground uppercase">
                               Hora Llegada
                             </th>
                           </tr>
                         </thead>
                         <tbody>
                           {assembly.attendances.map((att) => (
-                            <tr key={att.id} className="border-b border-gray-100">
-                              <td className="py-2 text-gray-900">{att.unitIdentifier}</td>
-                              <td className="py-2 text-gray-900">{att.ownerName}</td>
-                              <td className="py-2 text-gray-900">{att.coefficient}</td>
+                            <tr key={att.id} className="border-b border-border">
+                              <td className="py-2 text-foreground">{att.unitIdentifier}</td>
+                              <td className="py-2 text-foreground">{att.ownerName}</td>
+                              <td className="py-2 text-foreground">{att.coefficient}</td>
                               <td className="py-2">
                                 <span
                                   className={`px-2 py-0.5 rounded text-xs font-medium ${
                                     att.status === "Present"
                                       ? "bg-emerald-100 text-emerald-700"
                                       : att.status === "Absent"
-                                        ? "bg-red-100 text-red-700"
+                                        ? "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
                                         : "bg-yellow-100 text-yellow-700"
                                   }`}
                                 >
                                   {ATTENDANCE_STATUS_LABELS[att.status] || att.status}
                                 </span>
                               </td>
-                              <td className="py-2 text-gray-600">
+                              <td className="py-2 text-muted-foreground">
                                 {formatDateTime(att.arrivalTime)}
                               </td>
                             </tr>
@@ -897,11 +897,11 @@ export default function AssemblyDetailPage() {
                 )}
 
                 {/* Register Attendance Form */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Registrar Asistencia</h3>
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Registrar Asistencia</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Unidad</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Unidad</label>
                       <select
                         value={selectedUnitId}
                         onChange={(e) => {
@@ -922,7 +922,7 @@ export default function AssemblyDetailPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Asiste Personalmente
                       </label>
                       <select
@@ -937,7 +937,7 @@ export default function AssemblyDetailPage() {
                     {!attendsPersonally && (
                       <>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Nombre del Representante
                           </label>
                           <input
@@ -949,7 +949,7 @@ export default function AssemblyDetailPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Documento del Representante
                           </label>
                           <input
@@ -963,7 +963,7 @@ export default function AssemblyDetailPage() {
                       </>
                     )}
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Notas</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Notas</label>
                       <input
                         type="text"
                         value={attendanceNotes}
@@ -989,7 +989,7 @@ export default function AssemblyDetailPage() {
             {/* ════════════════════════════════════════════════════════════ */}
             {activeTab === "orden-del-dia" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Orden del Día</h2>
+                <h2 className="text-lg font-semibold text-foreground">Orden del Día</h2>
 
                 {/* Agenda Items List */}
                 {assembly.agendaItems && assembly.agendaItems.length > 0 && (
@@ -997,7 +997,7 @@ export default function AssemblyDetailPage() {
                     {assembly.agendaItems.map((item) => (
                       <div
                         key={item.id}
-                        className="border border-gray-200 rounded-lg p-4"
+                        className="border border-border rounded-lg p-4"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -1006,7 +1006,7 @@ export default function AssemblyDetailPage() {
                                 Punto {item.sequenceNumber}
                               </span>
                               {item.isInformationOnly && (
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
                                   Informativo
                                 </span>
                               )}
@@ -1015,20 +1015,20 @@ export default function AssemblyDetailPage() {
                                   className={`text-xs px-2 py-0.5 rounded ${
                                     item.isApproved
                                       ? "bg-emerald-100 text-emerald-700"
-                                      : "bg-red-100 text-red-700"
+                                      : "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400"
                                   }`}
                                 >
                                   {item.isApproved ? "Aprobado" : "Rechazado"}
                                 </span>
                               )}
                             </div>
-                            <h3 className="text-sm font-semibold text-gray-900 mt-2">
+                            <h3 className="text-sm font-semibold text-foreground mt-2">
                               {item.title}
                             </h3>
                             {item.description && (
-                              <p className="text-xs text-gray-500 mt-1">{item.description}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
                             )}
-                            <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                            <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
                               {item.presenterName && <span>Presenta: {item.presenterName}</span>}
                               <span>Mayoría: {MAJORITY_LABELS[item.majorityRequired] || item.majorityRequired}</span>
                               <span>Votación: {VOTING_MODE_LABELS[item.votingMode] || item.votingMode}</span>
@@ -1046,22 +1046,22 @@ export default function AssemblyDetailPage() {
 
                         {/* Vote Results */}
                         {item.voteRegistered && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
+                          <div className="mt-3 pt-3 border-t border-border">
                             <div className="grid grid-cols-3 gap-4 text-xs">
                               <div>
-                                <p className="text-gray-500">A Favor</p>
+                                <p className="text-muted-foreground">A Favor</p>
                                 <p className="font-semibold text-emerald-600">
                                   {item.votesInFavorCoefficients} coef. ({item.votesInFavorCount} votos)
                                 </p>
                               </div>
                               <div>
-                                <p className="text-gray-500">En Contra</p>
-                                <p className="font-semibold text-red-600">
+                                <p className="text-muted-foreground">En Contra</p>
+                                <p className="font-semibold text-rose-600 dark:text-rose-400">
                                   {item.votesAgainstCoefficients} coef. ({item.votesAgainstCount} votos)
                                 </p>
                               </div>
                               <div>
-                                <p className="text-gray-500">Abstenciones</p>
+                                <p className="text-muted-foreground">Abstenciones</p>
                                 <p className="font-semibold text-yellow-600">
                                   {item.abstentionCoefficients} coef. ({item.abstentionCount} votos)
                                 </p>
@@ -1076,11 +1076,11 @@ export default function AssemblyDetailPage() {
 
                 {/* Vote Registration Form */}
                 {voteItemId && (
-                  <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Registrar Voto</h3>
+                  <div className="border-t border-border pt-6">
+                    <h3 className="text-sm font-semibold text-foreground mb-4">Registrar Voto</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                           Votos a Favor (Coeficiente)
                         </label>
                         <input
@@ -1092,7 +1092,7 @@ export default function AssemblyDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                           Votos en Contra (Coeficiente)
                         </label>
                         <input
@@ -1104,7 +1104,7 @@ export default function AssemblyDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                           Abstenciones (Coeficiente)
                         </label>
                         <input
@@ -1116,7 +1116,7 @@ export default function AssemblyDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                           Cantidad Votos a Favor
                         </label>
                         <input
@@ -1127,7 +1127,7 @@ export default function AssemblyDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                           Cantidad Votos en Contra
                         </label>
                         <input
@@ -1138,7 +1138,7 @@ export default function AssemblyDetailPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                           Cantidad Abstenciones
                         </label>
                         <input
@@ -1149,7 +1149,7 @@ export default function AssemblyDetailPage() {
                         />
                       </div>
                       <div className="md:col-span-3">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                           Observaciones
                         </label>
                         <input
@@ -1171,7 +1171,7 @@ export default function AssemblyDetailPage() {
                       </button>
                       <button
                         onClick={() => setVoteItemId(null)}
-                        className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                        className="px-4 py-2 text-sm font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted/30"
                       >
                         Cancelar
                       </button>
@@ -1180,11 +1180,11 @@ export default function AssemblyDetailPage() {
                 )}
 
                 {/* New Agenda Item Form */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Nuevo Punto</h3>
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Nuevo Punto</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Título</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Título</label>
                       <input
                         type="text"
                         value={agendaTitle}
@@ -1194,7 +1194,7 @@ export default function AssemblyDetailPage() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Descripción
                       </label>
                       <textarea
@@ -1206,7 +1206,7 @@ export default function AssemblyDetailPage() {
                       ></textarea>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Presentador
                       </label>
                       <input
@@ -1218,7 +1218,7 @@ export default function AssemblyDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Mayoría Requerida
                       </label>
                       <select
@@ -1232,7 +1232,7 @@ export default function AssemblyDetailPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Modo de Votación
                       </label>
                       <select
@@ -1247,12 +1247,12 @@ export default function AssemblyDetailPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
+                      <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                         <input
                           type="checkbox"
                           checked={agendaIsInformationOnly}
                           onChange={(e) => setAgendaIsInformationOnly(e.target.checked)}
-                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                          className="rounded border-border text-emerald-600 focus:ring-emerald-500"
                         />
                         Solo Informativo (sin votación)
                       </label>
@@ -1274,7 +1274,7 @@ export default function AssemblyDetailPage() {
             {/* ════════════════════════════════════════════════════════════ */}
             {activeTab === "constancias" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Constancias</h2>
+                <h2 className="text-lg font-semibold text-foreground">Constancias</h2>
 
                 {/* Constancies List */}
                 {assembly.constancies && assembly.constancies.length > 0 && (
@@ -1282,11 +1282,11 @@ export default function AssemblyDetailPage() {
                     {assembly.constancies.map((constancy) => (
                       <div
                         key={constancy.id}
-                        className="border border-gray-200 rounded-lg p-4"
+                        className="border border-border rounded-lg p-4"
                       >
                         <div className="flex items-start justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-sm font-semibold text-foreground">
                               {constancy.ownerName}
                             </p>
                             {constancy.agendaItemTitle && (
@@ -1295,22 +1295,22 @@ export default function AssemblyDetailPage() {
                               </p>
                             )}
                           </div>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground">
                             {formatDateTime(constancy.createdAt)}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 mt-2">{constancy.text}</p>
+                        <p className="text-sm text-muted-foreground mt-2">{constancy.text}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
                 {/* New Constancy Form */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Nueva Constancia</h3>
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Nueva Constancia</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         ID del Propietario
                       </label>
                       <input
@@ -1322,7 +1322,7 @@ export default function AssemblyDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Nombre del Propietario
                       </label>
                       <input
@@ -1334,7 +1334,7 @@ export default function AssemblyDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Punto de Agenda (Opcional)
                       </label>
                       <select
@@ -1351,7 +1351,7 @@ export default function AssemblyDetailPage() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Texto</label>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Texto</label>
                       <textarea
                         value={constancyText}
                         onChange={(e) => setConstancyText(e.target.value)}
@@ -1377,13 +1377,13 @@ export default function AssemblyDetailPage() {
             {/* ════════════════════════════════════════════════════════════ */}
             {activeTab === "acta" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Acta de Asamblea</h2>
+                <h2 className="text-lg font-semibold text-foreground">Acta de Asamblea</h2>
 
                 {assembly.minutes ? (
                   <div>
                     {/* Minutes Status */}
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="text-xs font-medium text-gray-500">Estado:</span>
+                      <span className="text-xs font-medium text-muted-foreground">Estado:</span>
                       <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
                         {MINUTES_STATUS_LABELS[assembly.minutes.status] || assembly.minutes.status}
                       </span>
@@ -1392,35 +1392,35 @@ export default function AssemblyDetailPage() {
                     {/* Minutes Metadata */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-6">
                       <div>
-                        <p className="text-gray-500">Generada</p>
-                        <p className="font-semibold text-gray-900">
+                        <p className="text-muted-foreground">Generada</p>
+                        <p className="font-semibold text-foreground">
                           {formatDateTime(assembly.minutes.generatedAt)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Presidente</p>
-                        <p className="font-semibold text-gray-900">
+                        <p className="text-muted-foreground">Presidente</p>
+                        <p className="font-semibold text-foreground">
                           {assembly.minutes.presidentName || "—"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Secretario</p>
-                        <p className="font-semibold text-gray-900">
+                        <p className="text-muted-foreground">Secretario</p>
+                        <p className="font-semibold text-foreground">
                           {assembly.minutes.secretaryName || "—"}
                         </p>
                       </div>
                       {assembly.minutes.approvedAt && (
                         <div>
-                          <p className="text-gray-500">Aprobada</p>
-                          <p className="font-semibold text-gray-900">
+                          <p className="text-muted-foreground">Aprobada</p>
+                          <p className="font-semibold text-foreground">
                             {formatDateTime(assembly.minutes.approvedAt)}
                           </p>
                         </div>
                       )}
                       {assembly.minutes.publishedAt && (
                         <div>
-                          <p className="text-gray-500">Publicada</p>
-                          <p className="font-semibold text-gray-900">
+                          <p className="text-muted-foreground">Publicada</p>
+                          <p className="font-semibold text-foreground">
                             {formatDateTime(assembly.minutes.publishedAt)}
                           </p>
                         </div>
@@ -1428,9 +1428,9 @@ export default function AssemblyDetailPage() {
                     </div>
 
                     {/* Minutes Full Text */}
-                    <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-4">Texto Completo del Acta</h3>
-                      <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    <div className="bg-muted/50 rounded-lg p-6 border border-border">
+                      <h3 className="text-sm font-semibold text-foreground mb-4">Texto Completo del Acta</h3>
+                      <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                         {assembly.minutes.fullText}
                       </div>
                     </div>
@@ -1459,18 +1459,18 @@ export default function AssemblyDetailPage() {
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm text-gray-500 mb-6">
+                    <p className="text-sm text-muted-foreground mb-6">
                       No se ha generado el acta para esta asamblea.
                     </p>
 
                     {/* Generate Minutes Form */}
-                    <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                    <div className="bg-muted/50 rounded-lg p-6 border border-border">
+                      <h3 className="text-sm font-semibold text-foreground mb-4">
                         Generar Acta
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Nombre del Presidente
                           </label>
                           <input
@@ -1482,7 +1482,7 @@ export default function AssemblyDetailPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Nombre del Secretario
                           </label>
                           <input
@@ -1494,7 +1494,7 @@ export default function AssemblyDetailPage() {
                           />
                         </div>
                         <div className="md:col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                          <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Miembros de Comisión (separados por coma)
                           </label>
                           <input
@@ -1524,7 +1524,7 @@ export default function AssemblyDetailPage() {
             {/* ════════════════════════════════════════════════════════════ */}
             {activeTab === "propagacion" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold text-gray-900">Propagación de Decisiones</h2>
+                <h2 className="text-lg font-semibold text-foreground">Propagación de Decisiones</h2>
 
                 {assembly.agendaItems && assembly.agendaItems.length > 0 && (
                   <div className="space-y-4">
@@ -1533,17 +1533,17 @@ export default function AssemblyDetailPage() {
                       .map((item) => (
                         <div
                           key={item.id}
-                          className="border border-gray-200 rounded-lg p-4"
+                          className="border border-border rounded-lg p-4"
                         >
                           <div className="flex items-start justify-between">
                             <div>
-                              <h3 className="text-sm font-semibold text-gray-900">
+                              <h3 className="text-sm font-semibold text-foreground">
                                 Punto {item.sequenceNumber}: {item.title}
                               </h3>
                               <p className="text-xs text-emerald-600 mt-1">Aprobado</p>
                             </div>
                           </div>
-                          <div className="mt-3 flex gap-4 text-xs text-gray-500">
+                          <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
                             <span>
                               A Favor: {item.votesInFavorCoefficients} coef. ({item.votesInFavorCount})
                             </span>
@@ -1562,7 +1562,7 @@ export default function AssemblyDetailPage() {
                 {assembly.agendaItems &&
                   assembly.agendaItems.filter((item) => item.voteRegistered && item.isApproved)
                     .length === 0 && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       No hay decisiones aprobadas para propagar.
                     </p>
                   )}

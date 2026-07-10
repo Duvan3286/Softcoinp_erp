@@ -33,10 +33,10 @@ export default function AssemblyPropagationsPage() {
   const getStatusBadge = (status: string) => {
     const base = "px-2 py-1 rounded-full text-xs font-medium";
     if (status === "Propagated") {
-      return base + " bg-green-100 text-green-800";
+      return base + " bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400";
     }
     if (status === "Failed") {
-      return base + " bg-red-100 text-red-800";
+      return base + " bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400";
     }
     return base + " bg-yellow-100 text-yellow-800";
   };
@@ -62,7 +62,7 @@ export default function AssemblyPropagationsPage() {
     return (
       <main className="p-8">
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500">Cargando decisiones...</p>
+          <p className="text-muted-foreground">Cargando decisiones...</p>
         </div>
       </main>
     );
@@ -72,49 +72,49 @@ export default function AssemblyPropagationsPage() {
     <main className="p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Propagación de Decisiones</h1>
-            <p className="text-sm text-gray-500 mt-1">{assemblyTitle}</p>
+            <h1 className="text-2xl font-bold text-foreground">Propagación de Decisiones</h1>
+            <p className="text-sm text-muted-foreground mt-1">{assemblyTitle}</p>
           </div>
           <button
             onClick={() => router.push(`/assembly/${id}`)}
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Volver a la Asamblea
           </button>
         </div>
 
         {propagations.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <p className="text-gray-500">No hay decisiones registradas para propagar.</p>
+          <div className="bg-card rounded-lg shadow p-8 text-center">
+            <p className="text-muted-foreground">No hay decisiones registradas para propagar.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-card rounded-lg shadow overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Punto</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Módulo Destino</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Error</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Punto</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Módulo Destino</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Descripción</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Estado</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Error</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-border">
                 {propagations.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{p.agendaItemTitle}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{getModuleLabel(p.targetModule)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate">{p.description}</td>
+                  <tr key={p.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 text-sm text-foreground">{p.agendaItemTitle}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{getModuleLabel(p.targetModule)}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground max-w-xs truncate">{p.description}</td>
                     <td className="px-4 py-3">
                       <span className={getStatusBadge(p.status)}>{getStatusLabel(p.status)}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
                       {p.propagatedAt
                         ? new Date(p.propagatedAt).toLocaleDateString("es-CO")
                         : new Date(p.createdAt).toLocaleDateString("es-CO")}
                     </td>
-                    <td className="px-4 py-3 text-sm text-red-600 max-w-xs truncate">
+                    <td className="px-4 py-3 text-sm text-rose-600 dark:text-rose-400 max-w-xs truncate">
                       {p.errorMessage || "—"}
                     </td>
                   </tr>

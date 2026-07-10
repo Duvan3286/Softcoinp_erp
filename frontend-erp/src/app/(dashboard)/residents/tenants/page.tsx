@@ -60,13 +60,13 @@ export default function TenantsListPage() {
 
   const leaseDaysLabel = (days?: number): { text: string; cls: string } => {
     if (days === undefined || days === null) {
-      return { text: "Sin fecha fin", cls: "bg-gray-100 text-gray-500" };
+      return { text: "Sin fecha fin", cls: "bg-muted text-muted-foreground" };
     }
     if (days < 0) {
-      return { text: `Vencido hace ${Math.abs(days)}d`, cls: "bg-red-100 text-red-700" };
+      return { text: `Vencido hace ${Math.abs(days)}d`, cls: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400" };
     }
     if (days <= 30) {
-      return { text: `${days}d restantes`, cls: "bg-amber-100 text-amber-700" };
+      return { text: `${days}d restantes`, cls: "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400" };
     }
     return { text: `${days}d restantes`, cls: "bg-emerald-100 text-emerald-700" };
   };
@@ -76,8 +76,8 @@ export default function TenantsListPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Arrendatarios</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Arrendatarios</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Personas que habitan las unidades bajo contrato de arrendamiento.
           </p>
         </div>
@@ -92,56 +92,56 @@ export default function TenantsListPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center">
               <Users className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-black text-gray-900">{activeCount}</p>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Activos</p>
+              <p className="text-2xl font-black text-foreground">{activeCount}</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Activos</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-              <Users className="w-5 h-5 text-gray-400" />
+            <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+              <Users className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-2xl font-black text-gray-900">{inactiveCount}</p>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Inactivos</p>
+              <p className="text-2xl font-black text-foreground">{inactiveCount}</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Inactivos</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 col-span-2 sm:col-span-1">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-4 col-span-2 sm:col-span-1">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Home className="w-5 h-5 text-blue-600" />
+            <div className="w-9 h-9 bg-blue-100 dark:bg-blue-950/30 rounded-lg flex items-center justify-center">
+              <Home className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-2xl font-black text-gray-900">{tenants.length}</p>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total</p>
+              <p className="text-2xl font-black text-foreground">{tenants.length}</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Total</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col sm:flex-row gap-3">
+      <div className="bg-card rounded-xl shadow-sm border border-border p-4 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Buscar por nombre, documento, correo o unidad..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+            className="w-full pl-9 pr-9 py-2.5 bg-muted/50 border border-border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
             >
               <X className="w-4 h-4" />
             </button>
@@ -151,26 +151,26 @@ export default function TenantsListPage() {
           <div
             onClick={() => setIncludeInactive(!includeInactive)}
             className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${
-              includeInactive ? "bg-emerald-500" : "bg-gray-200"
+              includeInactive ? "bg-emerald-500" : "bg-muted"
             }`}
           >
             <div
-              className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+              className={`w-4 h-4 bg-card rounded-full shadow transition-transform ${
                 includeInactive ? "translate-x-4" : "translate-x-0"
               }`}
             />
           </div>
-          <span className="text-sm font-semibold text-gray-700">Incluir inactivos</span>
+          <span className="text-sm font-semibold text-muted-foreground">Incluir inactivos</span>
         </label>
       </div>
 
       {/* Error */}
       {apiError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm font-semibold text-red-700 flex items-center justify-between gap-4">
+        <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-xl px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-400 flex items-center justify-between gap-4">
           <span>{apiError}</span>
           <button
             onClick={loadTenants}
-            className="text-xs font-bold text-red-600 underline underline-offset-2 hover:text-red-800 shrink-0"
+            className="text-xs font-bold text-rose-600 dark:text-rose-400 underline underline-offset-2 hover:text-rose-700 dark:text-rose-400 shrink-0"
           >
             Reintentar
           </button>
@@ -178,18 +178,18 @@ export default function TenantsListPage() {
       )}
 
       {/* List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center">
-            <Users className="w-12 h-12 mx-auto text-gray-200 mb-3" />
-            <p className="text-base font-bold text-gray-500">
+            <Users className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-base font-bold text-muted-foreground">
               {search ? "Sin resultados" : "Sin arrendatarios registrados"}
             </p>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               {search
                 ? "Intenta con otros términos de búsqueda."
                 : "Registra el primer arrendatario con el botón de arriba."}
@@ -201,52 +201,52 @@ export default function TenantsListPage() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Arrendatario
                     </th>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Unidad
                     </th>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Contacto
                     </th>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Contrato
                     </th>
-                    <th className="text-left px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Estado
                     </th>
                     <th className="px-5 py-3.5" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-border">
                   {filtered.map((t) => {
                     const badge = leaseDaysLabel(t.daysUntilLeaseExpires);
                     return (
                       <tr
                         key={t.id}
-                        className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
                         onClick={() => router.push(`/residents/tenants/${t.id}`)}
                       >
                         <td className="px-5 py-4">
-                          <p className="text-sm font-bold text-gray-900">{t.fullName}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">
+                          <p className="text-sm font-bold text-foreground">{t.fullName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
                             {DOC_LABEL[t.documentType] ?? t.documentType} {t.documentNumber}
                           </p>
                         </td>
                         <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-bold">
                             <Home className="w-3.5 h-3.5" />
                             {t.unitIdentifier}
                           </span>
                         </td>
                         <td className="px-5 py-4">
-                          <p className="text-xs text-gray-700">{t.email}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{t.phone}</p>
+                          <p className="text-xs text-muted-foreground">{t.email}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{t.phone}</p>
                         </td>
                         <td className="px-5 py-4">
-                          <p className="text-xs text-gray-700">
+                          <p className="text-xs text-muted-foreground">
                             Desde{" "}
                             {new Date(t.leaseStartDate).toLocaleDateString("es-CO", {
                               day: "numeric",
@@ -267,7 +267,7 @@ export default function TenantsListPage() {
                             className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                               t.isActive
                                 ? "bg-emerald-100 text-emerald-700"
-                                : "bg-gray-100 text-gray-500"
+                                : "bg-muted text-muted-foreground"
                             }`}
                           >
                             {t.isActive ? "Activo" : "Inactivo"}
@@ -279,7 +279,7 @@ export default function TenantsListPage() {
                               e.stopPropagation();
                               router.push(`/residents/tenants/${t.id}`);
                             }}
-                            className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors"
                           >
                             Ver detalle →
                           </button>
@@ -292,13 +292,13 @@ export default function TenantsListPage() {
             </div>
 
             {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-gray-100">
+            <div className="md:hidden divide-y divide-border">
               {filtered.map((t) => {
                 const badge = leaseDaysLabel(t.daysUntilLeaseExpires);
                 return (
                   <div
                     key={t.id}
-                    className="p-4 flex items-start gap-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                    className="p-4 flex items-start gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
                     onClick={() => router.push(`/residents/tenants/${t.id}`)}
                   >
                     <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
@@ -306,14 +306,14 @@ export default function TenantsListPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-bold text-gray-900">{t.fullName}</p>
+                        <p className="text-sm font-bold text-foreground">{t.fullName}</p>
                         {!t.isActive && (
-                          <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">
+                          <span className="px-1.5 py-0.5 bg-muted text-muted-foreground text-xs font-bold rounded-full">
                             Inactivo
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {DOC_LABEL[t.documentType] ?? t.documentType} {t.documentNumber} · Unidad{" "}
                         {t.unitIdentifier}
                       </p>

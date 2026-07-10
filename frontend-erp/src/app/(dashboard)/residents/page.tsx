@@ -54,16 +54,16 @@ export default function ResidentsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
             Residentes y Propietarios
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Gestiona propietarios, arrendatarios y grupos de convivencia del conjunto.
           </p>
         </div>
         <Link
           href="/residents/new"
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-blue-200 transition-colors shrink-0"
+          className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-emerald-200 transition-colors shrink-0"
         >
           <Plus className="w-5 h-5" />
           Registrar Propietario
@@ -71,52 +71,52 @@ export default function ResidentsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-            <Users className="w-5 h-5 text-blue-600" />
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/20 rounded-xl flex items-center justify-center">
+            <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{naturalCount}</p>
-            <p className="text-xs text-gray-500 font-medium">Personas Naturales</p>
+            <p className="text-2xl font-bold text-foreground">{naturalCount}</p>
+            <p className="text-xs text-muted-foreground font-medium">Personas Naturales</p>
           </div>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-5 flex items-center gap-4">
-          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-indigo-600" />
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-950/20 rounded-xl flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{legalCount}</p>
-            <p className="text-xs text-gray-500 font-medium">Personas Jurídicas</p>
+            <p className="text-2xl font-bold text-foreground">{legalCount}</p>
+            <p className="text-xs text-muted-foreground font-medium">Personas Jurídicas</p>
           </div>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-5 flex items-center gap-4">
+        <div className="bg-card border border-border rounded-xl shadow-sm p-5 flex items-center gap-4">
           <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
             <Star className="w-5 h-5 text-emerald-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{totalUnits}</p>
-            <p className="text-xs text-gray-500 font-medium">Vinculaciones Activas</p>
+            <p className="text-2xl font-bold text-foreground">{totalUnits}</p>
+            <p className="text-xs text-muted-foreground font-medium">Vinculaciones Activas</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4">
+      <div className="bg-card p-4 rounded-xl shadow-sm border border-border flex flex-col sm:flex-row gap-4">
         <form onSubmit={handleSearch} className="relative flex-1 flex gap-2">
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+              <Search className="h-5 w-5 text-muted-foreground" />
             </div>
             <input
               type="text"
               placeholder="Buscar por nombre, documento o correo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm bg-gray-50 focus:bg-white transition-all outline-none"
+              className="block w-full pl-10 pr-3 py-2.5 border border-border rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm bg-muted/50 focus:bg-card transition-all outline-none"
             />
           </div>
           <button
             type="submit"
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shrink-0"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors shrink-0"
           >
             Buscar
           </button>
@@ -124,7 +124,7 @@ export default function ResidentsPage() {
             <button
               type="button"
               onClick={handleClearSearch}
-              className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl text-sm font-semibold transition-colors shrink-0"
+              className="px-4 py-2.5 bg-card border border-border text-muted-foreground hover:bg-muted/30 rounded-xl text-sm font-semibold transition-colors shrink-0"
             >
               Limpiar
             </button>
@@ -136,44 +136,44 @@ export default function ResidentsPage() {
             type="checkbox"
             checked={includeInactive}
             onChange={(e) => setIncludeInactive(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer"
+            className="w-4 h-4 rounded border-border text-emerald-600 dark:text-emerald-400 cursor-pointer"
           />
-          <span className="text-sm text-gray-600 font-medium">Incluir inactivos</span>
+          <span className="text-sm text-muted-foreground font-medium">Incluir inactivos</span>
         </label>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50/50">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Propietario
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Contacto
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Unidades
                 </th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
+            <tbody className="divide-y divide-border bg-card">
               {loading ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center">
-                    <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-blue-600 rounded-full" />
+                    <div className="animate-spin inline-block w-6 h-6 border-2 border-current border-t-transparent text-emerald-600 dark:text-emerald-400 rounded-full" />
                   </td>
                 </tr>
               ) : owners.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                    <Users className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                    <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
                     <p className="font-semibold">No se encontraron propietarios</p>
-                    <p className="text-sm mt-1 text-gray-400">
+                    <p className="text-sm mt-1 text-muted-foreground">
                       Prueba con otro término de búsqueda o registra un nuevo propietario.
                     </p>
                   </td>
@@ -187,13 +187,13 @@ export default function ResidentsPage() {
                   return (
                     <tr
                       key={owner.id}
-                      className={`hover:bg-gray-50/50 transition-colors ${isInactive ? "opacity-60" : ""}`}
+                      className={`hover:bg-muted/30 transition-colors ${isInactive ? "opacity-60" : ""}`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                              isLegal ? "bg-indigo-100 text-indigo-600" : "bg-blue-100 text-blue-600"
+                              isLegal ? "bg-indigo-100 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400" : "bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
                             }`}
                           >
                             {isLegal ? (
@@ -204,16 +204,16 @@ export default function ResidentsPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-bold text-gray-900">
+                              <p className="text-sm font-bold text-foreground">
                                 {owner.fullNameOrCompanyName}
                               </p>
                               {isInactive && (
-                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs font-semibold">
+                                <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs font-semibold">
                                   Inactivo
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs text-muted-foreground mt-0.5">
                               {docShort} {owner.documentNumber} ·{" "}
                               {isLegal ? "Jurídica" : "Natural"}
                             </p>
@@ -221,15 +221,15 @@ export default function ResidentsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="text-sm text-gray-900">{owner.email}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{owner.mainPhone}</p>
+                        <p className="text-sm text-foreground">{owner.email}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{owner.mainPhone}</p>
                       </td>
                       <td className="px-6 py-4">
                         {owner.units.length > 0 ? (
                           <div className="flex flex-wrap gap-1.5">
                             {owner.units.slice(0, 3).map((u) => (
                               <Link key={u.assignmentId} href={`/units/${u.unitId}`}>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-blue-100 hover:text-blue-700 transition-colors">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-muted-foreground rounded-lg text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
                                   {u.unitIdentifier}
                                   {u.isSpokesperson && (
                                     <Star className="w-3 h-3 text-amber-500" />
@@ -238,19 +238,19 @@ export default function ResidentsPage() {
                               </Link>
                             ))}
                             {owner.units.length > 3 && (
-                              <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded-lg text-xs font-semibold border border-gray-200">
+                              <span className="px-2 py-0.5 bg-muted/50 text-muted-foreground rounded-lg text-xs font-semibold border border-border">
                                 +{owner.units.length - 3}
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400">Sin unidades</span>
+                          <span className="text-xs text-muted-foreground">Sin unidades</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <Link
                           href={`/residents/${owner.id}`}
-                          className="text-blue-600 hover:text-blue-900 text-sm font-semibold px-3 py-1.5 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                          className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300 text-sm font-semibold px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                         >
                           Ver Detalle
                         </Link>
@@ -264,8 +264,8 @@ export default function ResidentsPage() {
         </div>
 
         {!loading && owners.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-100 bg-gray-50/30">
-            <p className="text-xs text-gray-500">
+          <div className="px-6 py-3 border-t border-border bg-muted/30">
+            <p className="text-xs text-muted-foreground">
               {owners.length} propietario{owners.length !== 1 ? "s" : ""} encontrado
               {owners.length !== 1 ? "s" : ""}
             </p>
