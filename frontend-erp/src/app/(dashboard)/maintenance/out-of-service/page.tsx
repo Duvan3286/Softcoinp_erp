@@ -68,9 +68,14 @@ export default function OutOfServicePage() {
                   <div>
                     <h3 className="font-bold text-foreground">{a.name}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{categoryLabels[a.category] || a.category} — {a.location}</p>
-                    {a.isEssential && (
-                      <span className="inline-block mt-2 badge-danger">Bien Esencial</span>
-                    )}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {a.isEssential && (
+                        <span className="badge-danger">Bien Esencial — Alerta enviada al Consejo</span>
+                      )}
+                      {a.hasReservationBlock && (
+                        <span className="badge-warning">Reservas bloqueadas</span>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-rose-600">{a.daysOutOfService}</p>

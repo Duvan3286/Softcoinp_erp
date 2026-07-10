@@ -1407,6 +1407,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.ReferenceProviderId)
                   .OnDelete(DeleteBehavior.SetNull);
 
+            entity.HasOne(e => e.ReservableSpace)
+                  .WithMany()
+                  .HasForeignKey(e => e.ReservableSpaceId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.Category });
             entity.HasIndex(e => new { e.TenantId, e.Name });
@@ -1454,11 +1459,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.PreferredProviderId)
                   .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(e => e.ExpenseItem)
-                  .WithMany()
-                  .HasForeignKey(e => e.ExpenseItemId)
-                  .OnDelete(DeleteBehavior.SetNull);
-
             entity.HasIndex(e => new { e.TenantId, e.AssetId });
             entity.HasIndex(e => new { e.TenantId, e.NextExecutionDate });
         });
@@ -1482,19 +1482,26 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
 
+            entity.Property(e => e.BudgetItemId).HasMaxLength(36);
+
             entity.HasOne(e => e.Asset)
                   .WithMany(a => a.WorkOrders)
                   .HasForeignKey(e => e.AssetId)
                   .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MaintenancePlan)
+                  .WithMany()
+                  .HasForeignKey(e => e.MaintenancePlanId)
+                  .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(e => e.AssignedProvider)
                   .WithMany()
                   .HasForeignKey(e => e.AssignedProviderId)
                   .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(e => e.ExpenseItem)
+            entity.HasOne(e => e.BudgetItem)
                   .WithMany()
-                  .HasForeignKey(e => e.ExpenseItemId)
+                  .HasForeignKey(e => e.BudgetItemId)
                   .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => new { e.TenantId, e.Status });
@@ -1537,6 +1544,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Status).HasMaxLength(30).IsRequired();
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+
+            entity.HasOne(e => e.InsuranceContract)
+                  .WithMany()
+                  .HasForeignKey(e => e.InsuranceContractId)
+                  .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.IncidentType });

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Softcoinp.ERP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Softcoinp.ERP.Infrastructure.Persistence;
 namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260710221950_FixWorkOrderBudgetItemColumn")]
+    partial class FixWorkOrderBudgetItemColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1689,9 +1692,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ReferenceProviderId")
                         .HasColumnType("char(36)");
 
-                    b.Property<Guid?>("ReservableSpaceId")
-                        .HasColumnType("char(36)");
-
                     b.Property<string>("SerialNumber")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1721,8 +1721,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ReferenceProviderId");
-
-                    b.HasIndex("ReservableSpaceId");
 
                     b.HasIndex("TenantId", "Category");
 
@@ -2897,9 +2895,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
-                    b.Property<Guid?>("InsuranceContractId")
-                        .HasColumnType("char(36)");
-
                     b.Property<string>("InsurancePolicyNumber")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2940,8 +2935,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(450)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("InsuranceContractId");
 
                     b.HasIndex("TenantId", "IncidentType");
 
@@ -6178,9 +6171,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ExecutionStartDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<Guid?>("MaintenancePlanId")
-                        .HasColumnType("char(36)");
-
                     b.Property<string>("OrderType")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -6239,8 +6229,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.HasIndex("AssignedProviderId");
 
                     b.HasIndex("BudgetItemId");
-
-                    b.HasIndex("MaintenancePlanId");
 
                     b.HasIndex("TenantId", "AssetId");
 
@@ -6598,14 +6586,7 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ReferenceProviderId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Softcoinp.ERP.Domain.Entities.ReservableSpace", "ReservableSpace")
-                        .WithMany()
-                        .HasForeignKey("ReservableSpaceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("ReferenceProvider");
-
-                    b.Navigation("ReservableSpace");
                 });
 
             modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.Communication", b =>
@@ -6842,16 +6823,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.Navigation("RecurringConfig");
 
                     b.Navigation("ReportType");
-                });
-
-            modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.Incident", b =>
-                {
-                    b.HasOne("Softcoinp.ERP.Domain.Entities.Contract", "InsuranceContract")
-                        .WithMany()
-                        .HasForeignKey("InsuranceContractId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("InsuranceContract");
                 });
 
             modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.IncidentWorkOrder", b =>
@@ -7435,18 +7406,11 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                         .HasForeignKey("BudgetItemId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Softcoinp.ERP.Domain.Entities.MaintenancePlan", "MaintenancePlan")
-                        .WithMany()
-                        .HasForeignKey("MaintenancePlanId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Asset");
 
                     b.Navigation("AssignedProvider");
 
                     b.Navigation("BudgetItem");
-
-                    b.Navigation("MaintenancePlan");
                 });
 
             modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.WorkOrderEvidence", b =>

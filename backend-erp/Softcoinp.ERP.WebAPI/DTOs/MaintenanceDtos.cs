@@ -18,6 +18,7 @@ public class CreateCommonAssetRequestDto
     public decimal? AcquisitionValue { get; set; }
     public int? EstimatedUsefulLifeMonths { get; set; }
     public Guid? ReferenceProviderId { get; set; }
+    public Guid? ReservableSpaceId { get; set; }
     public string? Manufacturer { get; set; }
     public bool HasWarranty { get; set; }
     public DateTime? WarrantyEndDate { get; set; }
@@ -37,6 +38,7 @@ public class UpdateCommonAssetRequestDto
     public decimal? AcquisitionValue { get; set; }
     public int? EstimatedUsefulLifeMonths { get; set; }
     public Guid? ReferenceProviderId { get; set; }
+    public Guid? ReservableSpaceId { get; set; }
     public string? Manufacturer { get; set; }
     public bool? HasWarranty { get; set; }
     public DateTime? WarrantyEndDate { get; set; }
@@ -76,6 +78,8 @@ public class CommonAssetDetailDto
     public int EstimatedUsefulLifeMonths { get; set; }
     public Guid? ReferenceProviderId { get; set; }
     public string ReferenceProviderName { get; set; } = string.Empty;
+    public Guid? ReservableSpaceId { get; set; }
+    public string ReservableSpaceName { get; set; } = string.Empty;
     public string Manufacturer { get; set; } = string.Empty;
     public bool HasWarranty { get; set; }
     public DateTime? WarrantyEndDate { get; set; }
@@ -161,7 +165,7 @@ public class CreateWorkOrderRequestDto
     public Guid? AssignedProviderId { get; set; }
     public DateTime? ScheduledDate { get; set; }
     public decimal? EstimatedCost { get; set; }
-    public Guid? ExpenseItemId { get; set; }
+    public Guid? BudgetItemId { get; set; }
 }
 
 public class UpdateWorkOrderRequestDto
@@ -174,7 +178,8 @@ public class UpdateWorkOrderRequestDto
     public DateTime? ExecutionEndDate { get; set; }
     public decimal? EstimatedCost { get; set; }
     public decimal? ActualCost { get; set; }
-    public Guid? ExpenseItemId { get; set; }
+    public bool ConfirmCostDeviation { get; set; }
+    public Guid? BudgetItemId { get; set; }
     public string? Status { get; set; }
     public string? Outcome { get; set; }
     public string? OutcomeNotes { get; set; }
@@ -219,8 +224,8 @@ public class WorkOrderDetailDto
     public DateTime? ExecutionEndDate { get; set; }
     public decimal EstimatedCost { get; set; }
     public decimal ActualCost { get; set; }
-    public Guid? ExpenseItemId { get; set; }
-    public string ExpenseItemName { get; set; } = string.Empty;
+    public Guid? BudgetItemId { get; set; }
+    public string BudgetItemName { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? Outcome { get; set; }
     public string OutcomeNotes { get; set; } = string.Empty;
@@ -264,6 +269,7 @@ public class CreateIncidentRequestDto
     public string IncidentType { get; set; } = string.Empty;
     public DateTime OccurredAt { get; set; }
     public decimal? TotalDamageValue { get; set; }
+    public Guid? InsuranceContractId { get; set; }
     public string? InsurancePolicyNumber { get; set; }
     public string? InsuranceCompany { get; set; }
     public List<Guid>? WorkOrderIds { get; set; }
@@ -276,6 +282,7 @@ public class UpdateIncidentRequestDto
     public string? IncidentType { get; set; }
     public DateTime? OccurredAt { get; set; }
     public decimal? TotalDamageValue { get; set; }
+    public Guid? InsuranceContractId { get; set; }
     public string? InsurancePolicyNumber { get; set; }
     public string? InsuranceCompany { get; set; }
     public string? Status { get; set; }
@@ -303,6 +310,8 @@ public class IncidentDetailDto
     public string IncidentType { get; set; } = string.Empty;
     public DateTime OccurredAt { get; set; }
     public decimal TotalDamageValue { get; set; }
+    public Guid? InsuranceContractId { get; set; }
+    public string InsuranceContractNumber { get; set; } = string.Empty;
     public string InsurancePolicyNumber { get; set; } = string.Empty;
     public string InsuranceCompany { get; set; } = string.Empty;
     public string PolicyFilePath { get; set; } = string.Empty;
@@ -359,6 +368,7 @@ public class OutOfServiceAssetDto
     public string Category { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
     public bool IsEssential { get; set; }
+    public bool HasReservationBlock { get; set; }
     public DateTime StatusChangedAt { get; set; }
     public int DaysOutOfService { get; set; }
     public string Reason { get; set; } = string.Empty;

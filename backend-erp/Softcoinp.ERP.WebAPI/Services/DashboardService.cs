@@ -508,6 +508,52 @@ ORDER BY u.Identifier";
             });
         }
 
+        var outOfServiceAssets = await _context.CommonAssets
+            .Where(a => a.TenantId == tenantId && a.Status == AssetStatus.OutOfService)
+            .ToListAsync();
+
+        if (outOfServiceAssets.Count > 0)
+        {
+            var essentialOutOfServiceCount = outOfServiceAssets.Count(a => a.IsEssential);
+            var assetAlertUrgency = AlertUrgency.Medium;
+            if (essentialOutOfServiceCount > 0)
+            {
+                assetAlertUrgency = AlertUrgency.Critical;
+            }
+
+            alerts.Add(new AlertDto
+            {
+                Id = Guid.NewGuid().ToString(),
+                RuleType = AlertRuleType.AssetOutOfService.ToString(),
+                Urgency = assetAlertUrgency,
+                Title = "Bienes fuera de servicio",
+                Description = $"Hay {outOfServiceAssets.Count} bien(es) fuera de servicio, {essentialOutOfServiceCount} esencial(es).",
+                ModuleLink = "/maintenance/out-of-service",
+                CreatedAt = now
+            });
+        }
+
+        var unassignedDueSoon = await _context.WorkOrders
+            .Where(w => w.TenantId == tenantId
+                && w.Status == WorkOrderStatus.PendingAssignment
+                && w.ScheduledDate != null
+                && w.ScheduledDate <= now.AddDays(3))
+            .CountAsync();
+
+        if (unassignedDueSoon > 0)
+        {
+            alerts.Add(new AlertDto
+            {
+                Id = Guid.NewGuid().ToString(),
+                RuleType = AlertRuleType.WorkOrderUnassigned.ToString(),
+                Urgency = AlertUrgency.High,
+                Title = "Órdenes de trabajo sin asignar",
+                Description = $"Hay {unassignedDueSoon} orden(es) sin asignar próximas a su fecha de ejecución.",
+                ModuleLink = "/maintenance/work-orders",
+                CreatedAt = now
+            });
+        }
+
         return alerts.OrderByDescending(a => a.Urgency).ThenBy(a => a.CreatedAt).ToList();
     }
 

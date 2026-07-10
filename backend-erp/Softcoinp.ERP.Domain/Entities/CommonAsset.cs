@@ -20,6 +20,8 @@ public class CommonAsset : BaseEntity
     public int EstimatedUsefulLifeMonths { get; set; }
     public Guid? ReferenceProviderId { get; set; }
     public Provider? ReferenceProvider { get; set; }
+    public Guid? ReservableSpaceId { get; set; }
+    public ReservableSpace? ReservableSpace { get; set; }
     public string Manufacturer { get; set; } = string.Empty;
     public bool HasWarranty { get; set; }
     public DateTime? WarrantyEndDate { get; set; }

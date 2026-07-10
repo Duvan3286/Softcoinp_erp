@@ -20,10 +20,8 @@ public class MaintenanceController : BaseController
         _maintenanceService = maintenanceService;
     }
 
-    // ── Bienes Comunes ──────────────────────────────────────────
-
     [HttpGet("assets")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<List<CommonAssetListDto>>> GetAssets(
         [FromQuery] string? category = null,
         [FromQuery] string? status = null,
@@ -36,7 +34,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("assets/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<CommonAssetDetailDto>> GetAsset(Guid id)
     {
         var tenantId = GetTenantId();
@@ -55,6 +53,7 @@ public class MaintenanceController : BaseController
             var asset = await _maintenanceService.CreateAssetAsync(tenantId, userId, request);
             return CreatedAtAction(nameof(GetAsset), new { id = asset.Id }, asset);
         }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
 
@@ -74,7 +73,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpDelete("assets/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> DeleteAsset(Guid id)
     {
         var tenantId = GetTenantId();
@@ -87,8 +86,6 @@ public class MaintenanceController : BaseController
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
-    // ── Planes de Mantenimiento ─────────────────────────────────
-
     [HttpPost("plans")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<MaintenancePlanSummaryDto>> CreatePlan([FromBody] CreateMaintenancePlanRequestDto request)
@@ -100,6 +97,7 @@ public class MaintenanceController : BaseController
             var plan = await _maintenanceService.CreateMaintenancePlanAsync(tenantId, userId, request);
             return Ok(plan);
         }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
 
@@ -131,10 +129,8 @@ public class MaintenanceController : BaseController
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
     }
 
-    // ── Órdenes de Trabajo ──────────────────────────────────────
-
     [HttpGet("work-orders")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<List<WorkOrderListDto>>> GetWorkOrders(
         [FromQuery] string? orderType = null,
         [FromQuery] string? status = null,
@@ -148,7 +144,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("work-orders/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<WorkOrderDetailDto>> GetWorkOrder(Guid id)
     {
         var tenantId = GetTenantId();
@@ -188,7 +184,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpDelete("work-orders/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> DeleteWorkOrder(Guid id)
     {
         var tenantId = GetTenantId();
@@ -201,10 +197,8 @@ public class MaintenanceController : BaseController
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
-    // ── Siniestros ──────────────────────────────────────────────
-
     [HttpGet("incidents")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<List<IncidentListDto>>> GetIncidents([FromQuery] string? status = null)
     {
         var tenantId = GetTenantId();
@@ -213,7 +207,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("incidents/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<IncidentDetailDto>> GetIncident(Guid id)
     {
         var tenantId = GetTenantId();
@@ -232,7 +226,9 @@ public class MaintenanceController : BaseController
             var incident = await _maintenanceService.CreateIncidentAsync(tenantId, userId, request);
             return CreatedAtAction(nameof(GetIncident), new { id = incident.Id }, incident);
         }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
     [HttpPut("incidents/{id:guid}")]
@@ -250,10 +246,8 @@ public class MaintenanceController : BaseController
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
 
-    // ── Reportes e Indicadores ──────────────────────────────────
-
     [HttpGet("reports/scheduled")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<MaintenanceReportDto>> GetScheduledReport(
         [FromQuery] int daysAhead = 30)
     {
@@ -263,7 +257,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("indicators")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<MaintenanceIndicatorsDto>> GetIndicators()
     {
         var tenantId = GetTenantId();
@@ -272,7 +266,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("out-of-service")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council")]
     public async Task<ActionResult<List<OutOfServiceAssetDto>>> GetOutOfServiceAssets()
     {
         var tenantId = GetTenantId();

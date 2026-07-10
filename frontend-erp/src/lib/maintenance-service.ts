@@ -73,6 +73,8 @@ export interface CommonAssetDetail {
   estimatedUsefulLifeMonths: number;
   referenceProviderId: string | null;
   referenceProviderName: string;
+  reservableSpaceId: string | null;
+  reservableSpaceName: string;
   manufacturer: string;
   hasWarranty: boolean;
   warrantyEndDate: string | null;
@@ -99,6 +101,7 @@ export interface CreateCommonAssetRequest {
   acquisitionValue?: number;
   estimatedUsefulLifeMonths?: number;
   referenceProviderId?: string;
+  reservableSpaceId?: string;
   manufacturer?: string;
   hasWarranty: boolean;
   warrantyEndDate?: string;
@@ -117,6 +120,7 @@ export interface UpdateCommonAssetRequest {
   acquisitionValue?: number;
   estimatedUsefulLifeMonths?: number;
   referenceProviderId?: string;
+  reservableSpaceId?: string;
   manufacturer?: string;
   hasWarranty?: boolean;
   warrantyEndDate?: string;
@@ -169,8 +173,8 @@ export interface WorkOrderDetail {
   executionEndDate: string | null;
   estimatedCost: number;
   actualCost: number;
-  expenseItemId: string | null;
-  expenseItemName: string;
+  budgetItemId: string | null;
+  budgetItemName: string;
   status: string;
   outcome: string | null;
   outcomeNotes: string;
@@ -191,7 +195,7 @@ export interface CreateWorkOrderRequest {
   assignedProviderId?: string;
   scheduledDate?: string;
   estimatedCost?: number;
-  expenseItemId?: string;
+  budgetItemId?: string;
 }
 
 export interface UpdateWorkOrderRequest {
@@ -203,7 +207,8 @@ export interface UpdateWorkOrderRequest {
   executionEndDate?: string;
   estimatedCost?: number;
   actualCost?: number;
-  expenseItemId?: string;
+  confirmCostDeviation?: boolean;
+  budgetItemId?: string;
   status?: string;
   outcome?: string;
   outcomeNotes?: string;
@@ -229,6 +234,8 @@ export interface IncidentDetail {
   incidentType: string;
   occurredAt: string;
   totalDamageValue: number;
+  insuranceContractId: string | null;
+  insuranceContractNumber: string;
   insurancePolicyNumber: string;
   insuranceCompany: string;
   policyFilePath: string;
@@ -245,6 +252,7 @@ export interface CreateIncidentRequest {
   incidentType: string;
   occurredAt: string;
   totalDamageValue?: number;
+  insuranceContractId?: string;
   insurancePolicyNumber?: string;
   insuranceCompany?: string;
   workOrderIds?: string[];
@@ -286,6 +294,7 @@ export interface OutOfServiceAsset {
   category: string;
   location: string;
   isEssential: boolean;
+  hasReservationBlock: boolean;
   statusChangedAt: string;
   daysOutOfService: number;
   reason: string;

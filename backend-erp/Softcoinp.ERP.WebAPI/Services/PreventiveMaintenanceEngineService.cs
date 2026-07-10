@@ -16,7 +16,6 @@ public class PreventiveMaintenanceEngineService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PreventiveMaintenanceEngineService> _logger;
-    private const int DefaultAdvanceDays = 7;
 
     public PreventiveMaintenanceEngineService(IServiceScopeFactory scopeFactory, ILogger<PreventiveMaintenanceEngineService> logger)
     {
@@ -35,7 +34,6 @@ public class PreventiveMaintenanceEngineService : BackgroundService
                     await GeneratePreventiveWorkOrdersAsync(context);
                     await DetectUnassignedOrdersAsync(context);
                     await DetectOutOfServiceEssentialAssetsAsync(context);
-                    await CleanupOldHistoryAsync(context);
                 });
 
                 await Task.Delay(TimeSpan.FromHours(6), stoppingToken);
@@ -51,7 +49,7 @@ public class PreventiveMaintenanceEngineService : BackgroundService
     private async Task GeneratePreventiveWorkOrdersAsync(ApplicationDbContext context)
     {
         var now = DateTime.UtcNow;
-        var advanceDate = now.AddDays(DefaultAdvanceDays);
+        var advanceDate = now.AddDays(7);
 
         var plansDue = await context.MaintenancePlans
             .Where(p => p.IsActive &&
@@ -66,7 +64,7 @@ public class PreventiveMaintenanceEngineService : BackgroundService
             if (plan.Asset == null) continue;
 
             var existingOrder = await context.WorkOrders
-                .AnyAsync(w => w.AssetId == plan.AssetId &&
+                .AnyAsync(w => w.MaintenancePlanId == plan.Id &&
                     w.OrderType == WorkOrderType.Preventive &&
                     w.Status != WorkOrderStatus.Cancelled &&
                     w.ScheduledDate != null &&
@@ -80,6 +78,7 @@ public class PreventiveMaintenanceEngineService : BackgroundService
                 TenantId = plan.TenantId,
                 OrderType = WorkOrderType.Preventive,
                 AssetId = plan.AssetId,
+                MaintenancePlanId = plan.Id,
                 Description = $"Mantenimiento preventivo programado: {plan.Description}",
                 Priority = plan.Asset.IsEssential ? WorkOrderPriority.High : WorkOrderPriority.Medium,
                 Origin = WorkOrderOrigin.AutomaticScheduling,
@@ -117,7 +116,7 @@ public class PreventiveMaintenanceEngineService : BackgroundService
         foreach (var order in unassignedPastDue)
         {
             _logger.LogWarning(
-                "ALERTA CRÍTICA: Orden de trabajo {OrderId} para bien {AssetName} pasó su fecha de ejecución ({Date}) sin asignar",
+                "ALERTA CRITICA: Orden de trabajo {OrderId} para bien {AssetName} paso su fecha de ejecucion ({Date}) sin asignar",
                 order.Id, order.Asset?.Name ?? "N/A", order.ScheduledDate);
         }
     }
@@ -131,22 +130,8 @@ public class PreventiveMaintenanceEngineService : BackgroundService
         foreach (var asset in outOfServiceEssential)
         {
             _logger.LogWarning(
-                "ALERTA: Bien esencial {AssetName} está fuera de servicio. Requiere atención del consejo de administración.",
+                "ALERTA CONSEJO: Bien esencial {AssetName} esta fuera de servicio. Se requiere atencion del consejo de administracion.",
                 asset.Name);
-        }
-    }
-
-    private async Task CleanupOldHistoryAsync(ApplicationDbContext context)
-    {
-        var twoYearsAgo = DateTime.UtcNow.AddYears(-2);
-        var oldHistories = await context.AssetStatusHistories
-            .Where(h => h.ChangedAt < twoYearsAgo)
-            .ToListAsync();
-
-        if (oldHistories.Count > 100)
-        {
-            context.AssetStatusHistories.RemoveRange(oldHistories.Take(oldHistories.Count - 100));
-            await context.SaveChangesAsync();
         }
     }
 }

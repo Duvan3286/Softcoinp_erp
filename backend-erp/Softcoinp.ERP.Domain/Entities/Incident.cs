@@ -13,6 +13,8 @@ public class Incident
     public IncidentType IncidentType { get; set; }
     public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
     public decimal TotalDamageValue { get; set; }
+    public Guid? InsuranceContractId { get; set; }
+    public Contract? InsuranceContract { get; set; }
     public string InsurancePolicyNumber { get; set; } = string.Empty;
     public string InsuranceCompany { get; set; } = string.Empty;
     public string PolicyFilePath { get; set; } = string.Empty;

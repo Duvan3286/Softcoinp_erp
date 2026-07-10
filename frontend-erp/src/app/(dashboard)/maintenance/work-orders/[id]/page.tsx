@@ -46,6 +46,8 @@ export default function WorkOrderDetailPage() {
   const [actualCost, setActualCost] = useState('');
   const [outcome, setOutcome] = useState('');
   const [outcomeNotes, setOutcomeNotes] = useState('');
+  const [costDeviationWarning, setCostDeviationWarning] = useState('');
+  const [costDeviationConfirmed, setCostDeviationConfirmed] = useState(false);
 
   const fetchOrder = async () => {
     setLoading(true);
@@ -71,24 +73,47 @@ export default function WorkOrderDetailPage() {
   }, [id]);
 
   const handleUpdate = async () => {
-    setUpdating(true);
     setError('');
+    setCostDeviationWarning('');
+
+    if (order && actualCost && order.estimatedCost > 0 && !costDeviationConfirmed) {
+      const actualCostValue = parseFloat(actualCost);
+      const deviation = Math.abs(actualCostValue - order.estimatedCost) / order.estimatedCost;
+
+      if (deviation > 0.2) {
+        const deviationPercent = Math.round(deviation * 100);
+        setCostDeviationWarning(
+          `El costo real (${formatCurrency(actualCostValue)}) se desvía en ${deviationPercent}% del costo estimado (${formatCurrency(order.estimatedCost)}), superando el 20% permitido. Confirme para continuar.`
+        );
+        return;
+      }
+    }
+
+    setUpdating(true);
     try {
       const request: UpdateWorkOrderRequest = {
         assignedProviderId: assignProviderId || undefined,
         status: updateStatus || undefined,
         actualCost: actualCost ? parseFloat(actualCost) : undefined,
+        confirmCostDeviation: costDeviationConfirmed,
         outcome: outcome || undefined,
         outcomeNotes: outcomeNotes || undefined,
       };
       await maintenanceService.updateWorkOrder(id, request);
       setShowUpdateForm(false);
+      setCostDeviationConfirmed(false);
+      setCostDeviationWarning('');
       fetchOrder();
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Error al actualizar la orden.');
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handleConfirmCostDeviation = () => {
+    setCostDeviationConfirmed(true);
+    setCostDeviationWarning('');
   };
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -165,8 +190,11 @@ export default function WorkOrderDetailPage() {
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Costo Real</label>
                 <input type="number" placeholder="Costo real en COP" value={actualCost}
-                  onChange={(e) => setActualCost(e.target.value)} min="0"
+                  onChange={(e) => { setActualCost(e.target.value); setCostDeviationConfirmed(false); setCostDeviationWarning(''); }} min="0"
                   className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este valor es de referencia informativa. Se imputará al rubro presupuestal seleccionado y no genera ningún registro contable.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Resultado</label>
@@ -184,14 +212,24 @@ export default function WorkOrderDetailPage() {
                   className="w-full bg-slate-50 dark:bg-slate-900 border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none resize-none" />
               </div>
             </div>
+            {costDeviationWarning && (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 shrink-0" /> {costDeviationWarning}
+                </div>
+                <Button variant="secondary" className="mt-3" onClick={handleConfirmCostDeviation}>
+                  Confirmar y continuar de todas formas
+                </Button>
+              </div>
+            )}
             {error && (
               <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
               </div>
             )}
             <div className="flex gap-2 mt-4">
-              <Button variant="ghost" onClick={() => setShowUpdateForm(false)}>Cancelar</Button>
-              <Button onClick={handleUpdate} disabled={updating}>
+              <Button variant="ghost" onClick={() => { setShowUpdateForm(false); setCostDeviationWarning(''); setCostDeviationConfirmed(false); }}>Cancelar</Button>
+              <Button onClick={handleUpdate} disabled={updating || !!costDeviationWarning}>
                 {updating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckCircle className="w-4 h-4 mr-1" />}
                 Guardar Cambios
               </Button>
@@ -227,7 +265,7 @@ export default function WorkOrderDetailPage() {
                 <div><span className="text-muted-foreground">Fin Ejecución:</span><p className="font-medium">{formatDateTime(order.executionEndDate)}</p></div>
                 <div><span className="text-muted-foreground">Costo Estimado:</span><p className="font-medium">{formatCurrency(order.estimatedCost)}</p></div>
                 <div><span className="text-muted-foreground">Costo Real:</span><p className="font-medium">{formatCurrency(order.actualCost)}</p></div>
-                <div><span className="text-muted-foreground">Rubro Presupuestal:</span><p className="font-medium">{order.expenseItemName || 'Sin imputar'}</p></div>
+                <div><span className="text-muted-foreground">Rubro Presupuestal:</span><p className="font-medium">{order.budgetItemName || 'Sin imputar'}</p></div>
                 {order.outcome && (
                   <div><span className="text-muted-foreground">Resultado:</span><p className="font-medium">{outcomeLabels[order.outcome] || order.outcome}</p></div>
                 )}

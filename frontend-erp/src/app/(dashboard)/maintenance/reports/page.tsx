@@ -32,6 +32,13 @@ export default function MaintenanceReportsPage() {
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  let budgetDeficit = false;
+  let budgetDeficitTextColor = 'text-emerald-600';
+  if (report && report.totalEstimatedCost > report.budgetAvailable) {
+    budgetDeficit = true;
+    budgetDeficitTextColor = 'text-rose-600';
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -70,9 +77,12 @@ export default function MaintenanceReportsPage() {
               <p className="text-xs text-muted-foreground">Mantenimientos Programados</p>
             </CardContent></Card>
             <Card><CardContent className="p-4 text-center">
-              <DollarSign className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(report.totalEstimatedCost)}</p>
+              <DollarSign className={`w-6 h-6 mx-auto mb-2 ${budgetDeficitTextColor}`} />
+              <p className={`text-2xl font-bold ${budgetDeficitTextColor}`}>{formatCurrency(report.totalEstimatedCost)}</p>
               <p className="text-xs text-muted-foreground">Costo Estimado Total</p>
+              {budgetDeficit && (
+                <p className="text-xs font-semibold text-rose-600 mt-1">Supera el saldo disponible</p>
+              )}
             </CardContent></Card>
             <Card><CardContent className="p-4 text-center">
               <DollarSign className="w-6 h-6 text-blue-600 mx-auto mb-2" />

@@ -160,10 +160,12 @@ export const Sidebar = () => {
           >
             <NavItem text="Inventario Bienes" path="/maintenance" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Nuevo Bien" path="/maintenance/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Calendario" path="/maintenance/calendar" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Órdenes de Trabajo" path="/maintenance/work-orders" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Nueva Orden" path="/maintenance/work-orders/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Fuera de Servicio" path="/maintenance/out-of-service" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Siniestros" path="/maintenance/incidents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Nuevo Siniestro" path="/maintenance/incidents/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Reportes" path="/maintenance/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
