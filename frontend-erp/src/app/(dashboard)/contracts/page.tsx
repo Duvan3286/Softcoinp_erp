@@ -7,16 +7,14 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import supplierService, { ContractListItem } from '@/lib/supplier-service';
 
-type StatusFilter = '' | 'Draft' | 'Active' | 'Suspended' | 'Completed' | 'Terminated' | 'Cancelled';
+type StatusFilter = '' | 'Draft' | 'Active' | 'Expired' | 'Terminated';
 type TypeFilter = '' | 'ServiceAgreement' | 'Supply' | 'CivilWorks' | 'Lease';
 
 const statusLabels: Record<string, string> = {
   Draft: 'Borrador',
   Active: 'Activo',
-  Suspended: 'Suspendido',
-  Completed: 'Completado',
+  Expired: 'Vencido',
   Terminated: 'Terminado',
-  Cancelled: 'Cancelado',
 };
 
 const typeLabels: Record<string, string> = {
@@ -29,7 +27,6 @@ const typeLabels: Record<string, string> = {
 const approvalLabels: Record<string, string> = {
   Administrator: 'Administrador',
   Council: 'Consejo',
-  Assembly: 'Asamblea',
 };
 
 export default function ContractsPage() {
@@ -73,10 +70,8 @@ export default function ContractsPage() {
     const map: Record<string, string> = {
       Draft: 'badge-info',
       Active: 'badge-success',
-      Suspended: 'badge-warning',
-      Completed: 'badge-neutral',
+      Expired: 'badge-warning',
       Terminated: 'badge-neutral',
-      Cancelled: 'badge-danger',
     };
     return <span className={map[status] || 'badge-neutral'}>{statusLabels[status] || status}</span>;
   };

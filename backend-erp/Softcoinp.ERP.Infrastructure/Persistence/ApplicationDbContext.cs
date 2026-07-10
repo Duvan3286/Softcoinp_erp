@@ -97,12 +97,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
     // ── Módulo de Proveedores y Contratos ──────────────────────────────
     public DbSet<Contract> Contracts => Set<Contract>();
-    public DbSet<ContractPolicy> ContractPolicies => Set<ContractPolicy>();
     public DbSet<ContractAlert> ContractAlerts => Set<ContractAlert>();
     public DbSet<ProviderInvoice> ProviderInvoices => Set<ProviderInvoice>();
     public DbSet<ProviderPayment> ProviderPayments => Set<ProviderPayment>();
     public DbSet<ProviderEvaluation> ProviderEvaluations => Set<ProviderEvaluation>();
-    public DbSet<RetentionConfiguration> RetentionConfigurations => Set<RetentionConfiguration>();
     public DbSet<ApprovalThreshold> ApprovalThresholds => Set<ApprovalThreshold>();
 
     // ── Módulo de Mantenimiento y Zonas Comunes ────────────────────────
@@ -337,21 +335,14 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.DocumentType).IsRequired().HasMaxLength(20);
             entity.Property(e => e.DocumentNumber).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.VerificationDigit).HasMaxLength(2);
             entity.Property(e => e.BusinessName).IsRequired().HasMaxLength(300);
-            entity.Property(e => e.TradeName).HasMaxLength(300);
             entity.Property(e => e.ContactName).HasMaxLength(300);
             entity.Property(e => e.Email).HasMaxLength(256);
             entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.Address).HasMaxLength(500);
-            entity.Property(e => e.City).HasMaxLength(100);
-            entity.Property(e => e.EconomicActivity).HasMaxLength(200);
             entity.Property(e => e.ServiceType).HasMaxLength(100);
             entity.Property(e => e.RutFilePath).HasMaxLength(1000);
-            entity.Property(e => e.LegalRepDocumentType).HasMaxLength(20);
-            entity.Property(e => e.LegalRepDocumentNumber).HasMaxLength(50);
-            entity.Property(e => e.LegalRepName).HasMaxLength(300);
-            entity.Property(e => e.LegalRepEmail).HasMaxLength(256);
+            entity.Property(e => e.ChamberOfCommerceFilePath).HasMaxLength(1000);
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
 
             entity.HasIndex(e => new { e.TenantId, e.DocumentNumber }).IsUnique();
@@ -1254,9 +1245,9 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.MonthlyValue).HasPrecision(18, 2);
             entity.Property(e => e.ApprovalLevel).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.CouncilMeetingActNumber).HasMaxLength(100);
-            entity.Property(e => e.AssemblyMeetingActNumber).HasMaxLength(100);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.SignedContractFilePath).HasMaxLength(1000);
+            entity.Property(e => e.Observations).HasMaxLength(2000);
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
 
@@ -1269,28 +1260,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.ProviderId });
             entity.HasIndex(e => new { e.TenantId, e.EndDate });
-        });
-
-        modelBuilder.Entity<ContractPolicy>(entity =>
-        {
-            entity.ToTable("erp_contract_policies");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.PolicyNumber).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.InsuranceCompany).IsRequired().HasMaxLength(300);
-            entity.Property(e => e.PolicyType).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.InsuredAmount).HasPrecision(18, 2);
-            entity.Property(e => e.FilePath).HasMaxLength(1000);
-            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
-
-            entity.HasOne(e => e.Contract)
-                  .WithMany(c => c.Policies)
-                  .HasForeignKey(e => e.ContractId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(e => new { e.TenantId, e.ContractId });
-            entity.HasIndex(e => new { e.TenantId, e.EndDate, e.IsActive });
         });
 
         modelBuilder.Entity<ContractAlert>(entity =>
@@ -1319,14 +1288,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
             entity.Property(e => e.InvoiceNumber).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Subtotal).HasPrecision(18, 2);
-            entity.Property(e => e.IvaAmount).HasPrecision(18, 2);
-            entity.Property(e => e.RetentionFuelAmount).HasPrecision(18, 2);
-            entity.Property(e => e.RetentionIcaAmount).HasPrecision(18, 2);
-            entity.Property(e => e.NetAmount).HasPrecision(18, 2);
+            entity.Property(e => e.TotalAmount).HasPrecision(18, 2);
+            entity.Property(e => e.AmountPaid).HasPrecision(18, 2);
+            entity.Property(e => e.PaymentMethod).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.PaymentReferenceNumber).HasMaxLength(100);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(2000);
-            entity.Property(e => e.InvoiceFilePath).HasMaxLength(1000);
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
 
@@ -1355,9 +1321,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Amount).HasPrecision(18, 2);
             entity.Property(e => e.PaymentMethod).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.ReferenceNumber).HasMaxLength(100);
-            entity.Property(e => e.BankAccount).HasMaxLength(100);
-            entity.Property(e => e.Notes).HasMaxLength(1000);
-            entity.Property(e => e.ReceiptFilePath).HasMaxLength(1000);
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
 
@@ -1388,29 +1351,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.ProviderId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.Contract)
-                  .WithMany()
-                  .HasForeignKey(e => e.ContractId)
-                  .OnDelete(DeleteBehavior.SetNull);
-
             entity.HasIndex(e => new { e.TenantId, e.ProviderId });
             entity.HasIndex(e => new { e.TenantId, e.ProviderId, e.EvaluationPeriod });
-        });
-
-        modelBuilder.Entity<RetentionConfiguration>(entity =>
-        {
-            entity.ToTable("erp_retention_configurations");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.ServiceType).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.ServiceDescription).HasMaxLength(500);
-            entity.Property(e => e.RetentionFuelRate).HasPrecision(5, 4);
-            entity.Property(e => e.RetentionIcaRate).HasPrecision(5, 4);
-            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
-            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
-
-            entity.HasIndex(e => new { e.TenantId, e.ServiceType }).IsUnique();
         });
 
         modelBuilder.Entity<ApprovalThreshold>(entity =>

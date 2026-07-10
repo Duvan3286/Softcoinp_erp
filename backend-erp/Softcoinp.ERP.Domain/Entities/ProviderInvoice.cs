@@ -19,21 +19,19 @@ public class ProviderInvoice
 
     public DateTime DueDate { get; set; }
 
-    public decimal Subtotal { get; set; }
+    public decimal TotalAmount { get; set; }
 
-    public decimal IvaAmount { get; set; }
+    public decimal AmountPaid { get; set; }
 
-    public decimal RetentionFuelAmount { get; set; }
+    public DateTime? PaymentDate { get; set; }
 
-    public decimal RetentionIcaAmount { get; set; }
+    public PaymentMethod? PaymentMethod { get; set; }
 
-    public decimal NetAmount { get; set; }
+    public string PaymentReferenceNumber { get; set; } = string.Empty;
 
-    public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
+    public Guid? BudgetItemId { get; set; }
 
-    public string Description { get; set; } = string.Empty;
-
-    public string InvoiceFilePath { get; set; } = string.Empty;
+    public InvoiceStatus Status { get; set; } = InvoiceStatus.PendingPayment;
 
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

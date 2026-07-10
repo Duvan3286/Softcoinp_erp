@@ -18,12 +18,6 @@ public class ProviderPayment
 
     public string ReferenceNumber { get; set; } = string.Empty;
 
-    public string BankAccount { get; set; } = string.Empty;
-
-    public string Notes { get; set; } = string.Empty;
-
-    public string ReceiptFilePath { get; set; } = string.Empty;
-
     public PaymentStatus Status { get; set; } = PaymentStatus.Completed;
 
     public string CreatedByUserId { get; set; } = string.Empty;

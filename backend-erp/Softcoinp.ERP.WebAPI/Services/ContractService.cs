@@ -97,7 +97,6 @@ public class ContractService
     {
         var contract = await _context.Contracts
             .Include(c => c.Provider)
-            .Include(c => c.Policies)
             .Include(c => c.Alerts.Where(a => a.IsActive))
             .Include(c => c.Invoices)
                 .ThenInclude(i => i.Payments)
@@ -122,32 +121,18 @@ public class ContractService
             ObjectDescription = contract.ObjectDescription,
             TotalValue = contract.TotalValue,
             MonthlyValue = contract.MonthlyValue,
-            IsRecurrent = contract.IsRecurrent,
             StartDate = contract.StartDate,
             EndDate = contract.EndDate,
             HasAutoRenewal = contract.HasAutoRenewal,
             AutoRenewalNoticeDays = contract.AutoRenewalNoticeDays,
             ApprovalLevel = contract.ApprovalLevel.ToString(),
             CouncilMeetingActNumber = contract.CouncilMeetingActNumber,
-            AssemblyMeetingActNumber = contract.AssemblyMeetingActNumber,
             Status = contract.Status.ToString(),
             SignedContractFilePath = contract.SignedContractFilePath,
+            Observations = contract.Observations,
             CreatedAt = contract.CreatedAt,
             UpdatedAt = contract.UpdatedAt,
             DaysUntilExpiration = daysUntilExpiration,
-            Policies = contract.Policies.Select(p => new ContractPolicyDto
-            {
-                Id = p.Id,
-                PolicyNumber = p.PolicyNumber,
-                InsuranceCompany = p.InsuranceCompany,
-                PolicyType = p.PolicyType,
-                InsuredAmount = p.InsuredAmount,
-                StartDate = p.StartDate,
-                EndDate = p.EndDate,
-                FilePath = p.FilePath,
-                IsActive = p.IsActive,
-                DaysUntilExpiration = (int)(p.EndDate - DateTime.UtcNow).TotalDays
-            }).ToList(),
             Alerts = contract.Alerts.Select(a => new ContractAlertDto
             {
                 Id = a.Id,
@@ -156,8 +141,7 @@ public class ContractService
                 GeneratedAt = a.GeneratedAt,
                 IsActive = a.IsActive,
                 ResolvedAt = a.ResolvedAt,
-                ResolvedByUserId = a.ResolvedByUserId,
-                EscalatedToCouncil = a.EscalatedToCouncil
+                ResolvedByUserId = a.ResolvedByUserId
             }).ToList(),
             Invoices = contract.Invoices.Select(i => new ContractInvoiceDto
             {
@@ -165,15 +149,10 @@ public class ContractService
                 InvoiceNumber = i.InvoiceNumber,
                 InvoiceDate = i.InvoiceDate,
                 DueDate = i.DueDate,
-                Subtotal = i.Subtotal,
-                IvaAmount = i.IvaAmount,
-                RetentionFuelAmount = i.RetentionFuelAmount,
-                RetentionIcaAmount = i.RetentionIcaAmount,
-                NetAmount = i.NetAmount,
+                TotalAmount = i.TotalAmount,
+                AmountPaid = i.AmountPaid,
+                PendingAmount = i.TotalAmount - i.AmountPaid,
                 Status = i.Status.ToString(),
-                PendingAmount = i.NetAmount - i.Payments
-                    .Where(p => p.Status == PaymentStatus.Completed)
-                    .Sum(p => p.Amount),
                 Payments = i.Payments.Select(p => new ProviderPaymentDto
                 {
                     Id = p.Id,
@@ -194,10 +173,10 @@ public class ContractService
             throw new ArgumentException("Tipo de contrato inválido. Use: ServiceAgreement, Supply, CivilWorks o Lease.");
         }
 
-        var providerExists = await _context.Providers
-            .AnyAsync(p => p.Id == request.ProviderId && p.TenantId == tenantId);
+        var provider = await _context.Providers
+            .FirstOrDefaultAsync(p => p.Id == request.ProviderId && p.TenantId == tenantId);
 
-        if (!providerExists)
+        if (provider == null)
         {
             throw new KeyNotFoundException("El proveedor especificado no existe.");
         }
@@ -208,6 +187,19 @@ public class ContractService
         if (existingContract)
         {
             throw new InvalidOperationException("Ya existe un contrato con ese número.");
+        }
+
+        var avgEvaluation = await _context.ProviderEvaluations
+            .Where(e => e.ProviderId == request.ProviderId && e.TenantId == tenantId)
+            .OrderByDescending(e => e.CreatedAt)
+            .Take(2)
+            .Select(e => e.AverageScore)
+            .ToListAsync();
+
+        if (avgEvaluation.Count == 2 && avgEvaluation.Average() < 3.0m)
+        {
+            throw new InvalidOperationException(
+                "No se puede crear un nuevo contrato. La evaluación promedio del proveedor en los últimos dos períodos es inferior a 3.0.");
         }
 
         var approvalLevel = DetermineApprovalLevel(request.TotalValue, tenantId);
@@ -228,6 +220,7 @@ public class ContractService
             HasAutoRenewal = request.HasAutoRenewal,
             AutoRenewalNoticeDays = request.AutoRenewalNoticeDays,
             ApprovalLevel = approvalLevel,
+            Observations = request.Observations,
             Status = ContractStatus.Draft,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
@@ -239,7 +232,7 @@ public class ContractService
         return await GetContractByIdAsync(tenantId, contract.Id);
     }
 
-    public async Task<ContractDetailDto> UpdateContractAsync(string tenantId, string userId, Guid contractId, ChangeContractStatusRequestDto request)
+    public async Task<ContractDetailDto> UpdateContractStatusAsync(string tenantId, string userId, Guid contractId, ChangeContractStatusRequestDto request)
     {
         var contract = await _context.Contracts
             .FirstOrDefaultAsync(c => c.Id == contractId && c.TenantId == tenantId);
@@ -251,7 +244,7 @@ public class ContractService
 
         if (!Enum.TryParse<ContractStatus>(request.NewStatus, true, out var newStatus))
         {
-            throw new ArgumentException("Estado inválido. Use: Draft, Active, Suspended, Completed, Terminated o Cancelled.");
+            throw new ArgumentException("Estado inválido. Use: Draft, Active, Expired o Terminated.");
         }
 
         if (newStatus == ContractStatus.Active && contract.Status != ContractStatus.Draft)
@@ -261,21 +254,15 @@ public class ContractService
 
         if (newStatus == ContractStatus.Active)
         {
-            var hasApprovedAct = !string.IsNullOrEmpty(contract.CouncilMeetingActNumber) ||
-                                 !string.IsNullOrEmpty(contract.AssemblyMeetingActNumber);
-
-            if (contract.ApprovalLevel == ApprovalLevel.Council && !hasApprovedAct)
+            if (contract.ApprovalLevel == ApprovalLevel.Council && string.IsNullOrEmpty(contract.CouncilMeetingActNumber))
             {
-                throw new InvalidOperationException("Se requiere número de acta de consejo para activar este contrato.");
-            }
-
-            if (contract.ApprovalLevel == ApprovalLevel.Assembly && !hasApprovedAct)
-            {
-                throw new InvalidOperationException("Se requiere número de acta de asamblea para activar este contrato.");
+                throw new InvalidOperationException(
+                    "Este contrato requiere aprobación del consejo. Debe registrar el número de acta antes de activarlo.");
             }
         }
 
         contract.Status = newStatus;
+        contract.UpdatedByUserId = userId;
         contract.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -310,13 +297,15 @@ public class ContractService
         if (request.ObjectDescription != null) contract.ObjectDescription = request.ObjectDescription;
         if (request.TotalValue.HasValue) contract.TotalValue = request.TotalValue.Value;
         if (request.MonthlyValue.HasValue) contract.MonthlyValue = request.MonthlyValue.Value;
-        if (request.IsRecurrent.HasValue) contract.IsRecurrent = request.IsRecurrent.Value;
         if (request.StartDate.HasValue) contract.StartDate = request.StartDate.Value;
         if (request.EndDate.HasValue) contract.EndDate = request.EndDate.Value;
         if (request.HasAutoRenewal.HasValue) contract.HasAutoRenewal = request.HasAutoRenewal.Value;
         if (request.AutoRenewalNoticeDays.HasValue) contract.AutoRenewalNoticeDays = request.AutoRenewalNoticeDays.Value;
         if (request.SignedContractFilePath != null) contract.SignedContractFilePath = request.SignedContractFilePath;
+        if (request.CouncilMeetingActNumber != null) contract.CouncilMeetingActNumber = request.CouncilMeetingActNumber;
+        if (request.Observations != null) contract.Observations = request.Observations;
 
+        contract.UpdatedByUserId = userId;
         contract.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -339,53 +328,258 @@ public class ContractService
             throw new InvalidOperationException("Solo se pueden eliminar contratos en estado Borrador.");
         }
 
+        var hasInvoices = await _context.ProviderInvoices
+            .AnyAsync(i => i.ContractId == contractId);
+
+        if (hasInvoices)
+        {
+            throw new InvalidOperationException("No se puede eliminar el contrato porque tiene facturas asociadas.");
+        }
+
         _context.Contracts.Remove(contract);
         await _context.SaveChangesAsync();
     }
 
-    public async Task<ContractPolicyDto> AddContractPolicyAsync(string tenantId, string userId, Guid contractId, CreateContractPolicyRequestDto request)
+    public async Task<ProviderInvoice> CreateInvoiceAsync(string tenantId, string userId, CreateProviderInvoiceRequestDto request)
     {
-        var contract = await _context.Contracts
-            .FirstOrDefaultAsync(c => c.Id == contractId && c.TenantId == tenantId);
+        var provider = await _context.Providers
+            .AnyAsync(p => p.Id == request.ProviderId && p.TenantId == tenantId);
 
-        if (contract == null)
+        if (!provider)
         {
-            throw new KeyNotFoundException("Contrato no encontrado.");
+            throw new KeyNotFoundException("El proveedor especificado no existe.");
         }
 
-        var policy = new ContractPolicy
+        if (request.ContractId.HasValue)
+        {
+            var contract = await _context.Contracts
+                .FirstOrDefaultAsync(c => c.Id == request.ContractId && c.TenantId == tenantId);
+
+            if (contract == null)
+            {
+                throw new KeyNotFoundException("El contrato especificado no existe.");
+            }
+
+            if (request.TotalAmount > contract.TotalValue)
+            {
+                throw new InvalidOperationException(
+                    $"El valor total de la factura ({request.TotalAmount:C}) supera el valor total del contrato ({contract.TotalValue:C}). " +
+                    "Verifique el valor antes de continuar.");
+            }
+        }
+
+        if (request.BudgetItemId.HasValue)
+        {
+            var budgetItem = await _context.ExpenseItems
+                .Include(e => e.Budget)
+                .FirstOrDefaultAsync(e => e.Id == request.BudgetItemId);
+
+            if (budgetItem == null)
+            {
+                throw new KeyNotFoundException("El rubro presupuestal especificado no existe.");
+            }
+
+            var executedAmount = await _context.ExecutedExpenses
+                .Where(e => e.ExpenseItemId == request.BudgetItemId.Value)
+                .SumAsync(e => e.Amount);
+
+            var available = budgetItem.AnnualValue - executedAmount;
+
+            if (available <= 0)
+            {
+                throw new InvalidOperationException(
+                    "El rubro presupuestal seleccionado está al 100% de ejecución. No es posible registrar este gasto.");
+            }
+
+            if (request.TotalAmount > available)
+            {
+                throw new InvalidOperationException(
+                    $"El valor de la factura ({request.TotalAmount:C}) supera el saldo disponible del rubro presupuestal ({available:C}).");
+            }
+        }
+
+        var parsedMethod = !string.IsNullOrEmpty(request.PaymentMethod)
+            ? Enum.Parse<PaymentMethod>(request.PaymentMethod, true)
+            : (PaymentMethod?)null;
+
+        var invoiceStatus = request.AmountPaid <= 0
+            ? InvoiceStatus.PendingPayment
+            : request.AmountPaid >= request.TotalAmount
+                ? InvoiceStatus.FullyPaid
+                : InvoiceStatus.PartiallyPaid;
+
+        var invoice = new ProviderInvoice
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            ContractId = contractId,
-            PolicyNumber = request.PolicyNumber,
-            InsuranceCompany = request.InsuranceCompany,
-            PolicyType = request.PolicyType,
-            InsuredAmount = request.InsuredAmount,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
-            FilePath = request.FilePath,
-            IsActive = true,
+            ProviderId = request.ProviderId,
+            ContractId = request.ContractId,
+            InvoiceNumber = request.InvoiceNumber,
+            InvoiceDate = request.InvoiceDate,
+            DueDate = request.DueDate,
+            TotalAmount = request.TotalAmount,
+            AmountPaid = request.AmountPaid,
+            PaymentDate = request.PaymentDate,
+            PaymentMethod = parsedMethod,
+            PaymentReferenceNumber = request.PaymentReferenceNumber ?? string.Empty,
+            BudgetItemId = request.BudgetItemId,
+            Status = invoiceStatus,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.ContractPolicies.Add(policy);
+        _context.ProviderInvoices.Add(invoice);
+
+        if (request.AmountPaid > 0)
+        {
+            var payment = new ProviderPayment
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                InvoiceId = invoice.Id,
+                Amount = request.AmountPaid,
+                PaymentDate = request.PaymentDate ?? DateTime.UtcNow,
+                PaymentMethod = parsedMethod ?? PaymentMethod.Transfer,
+                ReferenceNumber = request.PaymentReferenceNumber ?? string.Empty,
+                Status = PaymentStatus.Completed,
+                CreatedByUserId = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.ProviderPayments.Add(payment);
+        }
+
+        if (request.BudgetItemId.HasValue)
+        {
+            var executedExpense = new ExecutedExpense
+            {
+                TenantId = tenantId,
+                ExpenseItemId = request.BudgetItemId.Value,
+                Description = $"Factura {request.InvoiceNumber} - Proveedor: {request.ProviderId}",
+                Amount = request.TotalAmount,
+                ExpenseDate = request.InvoiceDate,
+                ProviderId = request.ProviderId,
+                InvoiceReference = request.InvoiceNumber,
+                CreatedByUserId = userId
+            };
+
+            _context.ExecutedExpenses.Add(executedExpense);
+        }
+
         await _context.SaveChangesAsync();
 
-        return new ContractPolicyDto
+        return invoice;
+    }
+
+    public async Task<ProviderPayment> RegisterPaymentAsync(string tenantId, string userId, Guid invoiceId, CreateProviderPaymentRequestDto request)
+    {
+        var invoice = await _context.ProviderInvoices
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && i.TenantId == tenantId);
+
+        if (invoice == null)
         {
-            Id = policy.Id,
-            PolicyNumber = policy.PolicyNumber,
-            InsuranceCompany = policy.InsuranceCompany,
-            PolicyType = policy.PolicyType,
-            InsuredAmount = policy.InsuredAmount,
-            StartDate = policy.StartDate,
-            EndDate = policy.EndDate,
-            FilePath = policy.FilePath,
-            IsActive = policy.IsActive,
-            DaysUntilExpiration = (int)(policy.EndDate - DateTime.UtcNow).TotalDays
+            throw new KeyNotFoundException("Factura no encontrada.");
+        }
+
+        if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, true, out var paymentMethod))
+        {
+            throw new ArgumentException("Método de pago inválido. Use: Cash, Transfer o Check.");
+        }
+
+        var newAmountPaid = invoice.AmountPaid + request.Amount;
+        if (newAmountPaid > invoice.TotalAmount)
+        {
+            throw new InvalidOperationException(
+                $"El pago de {request.Amount:C} excede el saldo pendiente de {(invoice.TotalAmount - invoice.AmountPaid):C}.");
+        }
+
+        var payment = new ProviderPayment
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            InvoiceId = invoiceId,
+            Amount = request.Amount,
+            PaymentDate = request.PaymentDate,
+            PaymentMethod = paymentMethod,
+            ReferenceNumber = request.ReferenceNumber,
+            Status = PaymentStatus.Completed,
+            CreatedByUserId = userId,
+            CreatedAt = DateTime.UtcNow
         };
+
+        invoice.AmountPaid = newAmountPaid;
+        invoice.PaymentDate = request.PaymentDate;
+        invoice.PaymentMethod = paymentMethod;
+        invoice.PaymentReferenceNumber = request.ReferenceNumber;
+        invoice.Status = newAmountPaid >= invoice.TotalAmount ? InvoiceStatus.FullyPaid : InvoiceStatus.PartiallyPaid;
+        invoice.UpdatedAt = DateTime.UtcNow;
+
+        _context.ProviderPayments.Add(payment);
+        await _context.SaveChangesAsync();
+
+        return payment;
+    }
+
+    public async Task<List<PendingPaymentDto>> GetPendingPaymentsAsync(string tenantId)
+    {
+        var now = DateTime.UtcNow;
+
+        var pending = await _context.ProviderInvoices
+            .Include(i => i.Provider)
+            .Include(i => i.Contract)
+            .Where(i => i.TenantId == tenantId && i.Status != InvoiceStatus.FullyPaid)
+            .OrderBy(i => i.DueDate)
+            .Select(i => new PendingPaymentDto
+            {
+                InvoiceId = i.Id,
+                InvoiceNumber = i.InvoiceNumber,
+                ProviderName = i.Provider != null ? i.Provider.BusinessName : string.Empty,
+                ProviderDocumentNumber = i.Provider != null ? i.Provider.DocumentNumber : string.Empty,
+                ContractId = i.ContractId,
+                ContractNumber = i.Contract != null ? i.Contract.ContractNumber : string.Empty,
+                TotalAmount = i.TotalAmount,
+                AmountPaid = i.AmountPaid,
+                PendingAmount = i.TotalAmount - i.AmountPaid,
+                DueDate = i.DueDate,
+                DaysOverdue = i.DueDate < now ? (int)(now - i.DueDate).TotalDays : 0,
+                Status = i.Status.ToString()
+            })
+            .ToListAsync();
+
+        return pending;
+    }
+
+    public async Task<List<ContractExpirationReportDto>> GetExpiringContractsReportAsync(string tenantId, int daysAhead = 90)
+    {
+        var now = DateTime.UtcNow;
+        var limit = now.AddDays(daysAhead);
+
+        var contracts = await _context.Contracts
+            .Include(c => c.Provider)
+            .Where(c => c.TenantId == tenantId &&
+                c.Status == ContractStatus.Active &&
+                c.EndDate >= now &&
+                c.EndDate <= limit)
+            .OrderBy(c => c.EndDate)
+            .Select(c => new ContractExpirationReportDto
+            {
+                ContractId = c.Id,
+                ContractNumber = c.ContractNumber,
+                ContractType = c.ContractType.ToString(),
+                ProviderName = c.Provider != null ? c.Provider.BusinessName : string.Empty,
+                ProviderDocumentNumber = c.Provider != null ? c.Provider.DocumentNumber : string.Empty,
+                TotalValue = c.TotalValue,
+                StartDate = c.StartDate,
+                EndDate = c.EndDate,
+                DaysUntilExpiration = (int)(c.EndDate - now).TotalDays,
+                HasAutoRenewal = c.HasAutoRenewal,
+                AutoRenewalNoticeDays = c.AutoRenewalNoticeDays,
+                ApprovalLevel = c.ApprovalLevel.ToString(),
+                Status = c.Status.ToString()
+            })
+            .ToListAsync();
+
+        return contracts;
     }
 
     public async Task<List<ContractAlertDto>> GetActiveContractAlertsAsync(string tenantId)
@@ -401,8 +595,7 @@ public class ContractService
                 GeneratedAt = a.GeneratedAt,
                 IsActive = a.IsActive,
                 ResolvedAt = a.ResolvedAt,
-                ResolvedByUserId = a.ResolvedByUserId,
-                EscalatedToCouncil = a.EscalatedToCouncil
+                ResolvedByUserId = a.ResolvedByUserId
             })
             .ToListAsync();
     }
@@ -422,6 +615,97 @@ public class ContractService
         alert.ResolvedByUserId = userId;
 
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<ApprovalThresholdDto>> GetApprovalThresholdsAsync(string tenantId)
+    {
+        return await _context.ApprovalThresholds
+            .Where(a => a.TenantId == tenantId)
+            .OrderBy(a => a.MinValue)
+            .Select(a => new ApprovalThresholdDto
+            {
+                Id = a.Id,
+                ApprovalLevel = a.ApprovalLevel.ToString(),
+                MinValue = a.MinValue,
+                MaxValue = a.MaxValue,
+                Description = a.Description,
+                IsActive = a.IsActive
+            })
+            .ToListAsync();
+    }
+
+    public async Task<ApprovalThresholdDto> CreateApprovalThresholdAsync(string tenantId, string userId, CreateApprovalThresholdRequestDto request)
+    {
+        if (!Enum.TryParse<ApprovalLevel>(request.ApprovalLevel, true, out var approvalLevel))
+        {
+            throw new ArgumentException("Nivel de aprobación inválido. Use: Administrator o Council.");
+        }
+
+        if (request.MinValue > request.MaxValue)
+        {
+            throw new ArgumentException("El valor mínimo no puede ser mayor que el valor máximo.");
+        }
+
+        var threshold = new ApprovalThreshold
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            ApprovalLevel = approvalLevel,
+            MinValue = request.MinValue,
+            MaxValue = request.MaxValue,
+            Description = request.Description,
+            IsActive = true,
+            CreatedByUserId = userId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.ApprovalThresholds.Add(threshold);
+        await _context.SaveChangesAsync();
+
+        return new ApprovalThresholdDto
+        {
+            Id = threshold.Id,
+            ApprovalLevel = threshold.ApprovalLevel.ToString(),
+            MinValue = threshold.MinValue,
+            MaxValue = threshold.MaxValue,
+            Description = threshold.Description,
+            IsActive = threshold.IsActive
+        };
+    }
+
+    public async Task<ApprovalThresholdDto> UpdateApprovalThresholdAsync(string tenantId, string userId, Guid thresholdId, UpdateApprovalThresholdRequestDto request)
+    {
+        var threshold = await _context.ApprovalThresholds
+            .FirstOrDefaultAsync(a => a.Id == thresholdId && a.TenantId == tenantId);
+
+        if (threshold == null)
+        {
+            throw new KeyNotFoundException("Umbral de aprobación no encontrado.");
+        }
+
+        if (request.MinValue.HasValue) threshold.MinValue = request.MinValue.Value;
+        if (request.MaxValue.HasValue) threshold.MaxValue = request.MaxValue.Value;
+        if (request.Description != null) threshold.Description = request.Description;
+        if (request.IsActive.HasValue) threshold.IsActive = request.IsActive.Value;
+
+        if (threshold.MinValue > threshold.MaxValue)
+        {
+            throw new ArgumentException("El valor mínimo no puede ser mayor que el valor máximo.");
+        }
+
+        threshold.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new ApprovalThresholdDto
+        {
+            Id = threshold.Id,
+            ApprovalLevel = threshold.ApprovalLevel.ToString(),
+            MinValue = threshold.MinValue,
+            MaxValue = threshold.MaxValue,
+            Description = threshold.Description,
+            IsActive = threshold.IsActive
+        };
     }
 
     private ApprovalLevel DetermineApprovalLevel(decimal totalValue, string tenantId)

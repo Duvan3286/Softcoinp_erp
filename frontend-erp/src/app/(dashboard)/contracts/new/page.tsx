@@ -36,6 +36,7 @@ export default function NewContractPage() {
   const [endDate, setEndDate] = useState('');
   const [hasAutoRenewal, setHasAutoRenewal] = useState(false);
   const [autoRenewalNoticeDays, setAutoRenewalNoticeDays] = useState('30');
+  const [observations, setObservations] = useState('');
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -81,6 +82,7 @@ export default function NewContractPage() {
         endDate,
         hasAutoRenewal,
         autoRenewalNoticeDays: parseInt(autoRenewalNoticeDays) || 30,
+        observations: observations.trim() || undefined,
       };
       const result = await supplierService.createContract(request);
       setCreatedId(result.id);
@@ -107,7 +109,7 @@ export default function NewContractPage() {
               <Send className="w-8 h-8 text-emerald-600" />
             </div>
             <h2 className="text-xl font-bold text-foreground">Contrato Creado Exitosamente</h2>
-            <p className="text-sm text-muted-forest mt-2">El contrato ha sido registrado y está en estado Borrador.</p>
+            <p className="text-sm text-muted-foreground mt-2">El contrato ha sido registrado y está en estado Borrador.</p>
             <div className="mt-6 flex justify-center gap-3">
               <Button variant="secondary" onClick={() => router.push('/contracts')}>Volver a Contratos</Button>
               <Button onClick={() => router.push(`/contracts/${createdId}`)}>Ver Detalle</Button>
@@ -224,6 +226,13 @@ export default function NewContractPage() {
                       className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                   </div>
                 )}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Observaciones</label>
+                  <textarea placeholder="Observaciones adicionales..." value={observations}
+                    onChange={(e) => setObservations(e.target.value.slice(0, 1000))} rows={2}
+                    maxLength={1000}
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none resize-none" />
+                </div>
               </div>
             </div>
 

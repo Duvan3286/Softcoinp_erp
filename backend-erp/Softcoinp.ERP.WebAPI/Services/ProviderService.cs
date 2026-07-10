@@ -49,7 +49,6 @@ public class ProviderService
             var searchLower = search.ToLower();
             query = query.Where(p =>
                 p.BusinessName.ToLower().Contains(searchLower) ||
-                p.TradeName.ToLower().Contains(searchLower) ||
                 p.DocumentNumber.Contains(search) ||
                 p.ContactName.ToLower().Contains(searchLower));
         }
@@ -62,18 +61,17 @@ public class ProviderService
                 ProviderType = p.ProviderType.ToString(),
                 DocumentNumber = p.DocumentNumber,
                 BusinessName = p.BusinessName,
-                TradeName = p.TradeName,
                 ContactName = p.ContactName,
                 Email = p.Email,
                 Phone = p.Phone,
-                City = p.City,
                 ServiceType = p.ServiceType,
-                IsPreferred = p.IsPreferred,
                 Status = p.Status.ToString(),
                 ContractCount = p.Contracts.Count,
-                ActiveContractCount = p.Contracts.Count(c =>
-                    c.Status == ContractStatus.Active ||
-                    c.Status == ContractStatus.Draft),
+                ActiveContractCount = p.Contracts.Count(c => c.Status == ContractStatus.Active),
+                AverageEvaluationScore = p.Evaluations
+                    .OrderByDescending(e => e.CreatedAt)
+                    .Take(2)
+                    .Average(e => (decimal?)e.AverageScore) ?? 0m,
                 CreatedAt = p.CreatedAt
             })
             .ToListAsync();
@@ -91,22 +89,14 @@ public class ProviderService
                 ProviderType = p.ProviderType.ToString(),
                 DocumentType = p.DocumentType,
                 DocumentNumber = p.DocumentNumber,
-                VerificationDigit = p.VerificationDigit,
                 BusinessName = p.BusinessName,
-                TradeName = p.TradeName,
                 ContactName = p.ContactName,
                 Email = p.Email,
                 Phone = p.Phone,
                 Address = p.Address,
-                City = p.City,
-                EconomicActivity = p.EconomicActivity,
                 ServiceType = p.ServiceType,
                 RutFilePath = p.RutFilePath,
-                LegalRepDocumentType = p.LegalRepDocumentType,
-                LegalRepDocumentNumber = p.LegalRepDocumentNumber,
-                LegalRepName = p.LegalRepName,
-                LegalRepEmail = p.LegalRepEmail,
-                IsPreferred = p.IsPreferred,
+                ChamberOfCommerceFilePath = p.ChamberOfCommerceFilePath,
                 Status = p.Status.ToString(),
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt,
@@ -120,7 +110,23 @@ public class ProviderService
                         TotalValue = c.TotalValue,
                         StartDate = c.StartDate,
                         EndDate = c.EndDate,
-                        Status = c.Status.ToString()
+                        Status = c.Status.ToString(),
+                        DaysUntilExpiration = (int)(c.EndDate - DateTime.UtcNow).TotalDays
+                    })
+                    .ToList(),
+                Invoices = p.Invoices
+                    .OrderByDescending(i => i.CreatedAt)
+                    .Select(i => new ProviderInvoiceSummaryDto
+                    {
+                        Id = i.Id,
+                        InvoiceNumber = i.InvoiceNumber,
+                        ContractNumber = i.Contract != null ? i.Contract.ContractNumber : string.Empty,
+                        TotalAmount = i.TotalAmount,
+                        AmountPaid = i.AmountPaid,
+                        PendingAmount = i.TotalAmount - i.AmountPaid,
+                        DueDate = i.DueDate,
+                        Status = i.Status.ToString(),
+                        BudgetItemName = string.Empty
                     })
                     .ToList(),
                 Evaluations = p.Evaluations
@@ -168,22 +174,14 @@ public class ProviderService
             ProviderType = providerType,
             DocumentType = request.DocumentType,
             DocumentNumber = request.DocumentNumber,
-            VerificationDigit = request.VerificationDigit,
             BusinessName = request.BusinessName,
-            TradeName = request.TradeName,
             ContactName = request.ContactName,
             Email = request.Email,
             Phone = request.Phone,
             Address = request.Address,
-            City = request.City,
-            EconomicActivity = request.EconomicActivity,
             ServiceType = request.ServiceType,
             RutFilePath = request.RutFilePath,
-            LegalRepDocumentType = request.LegalRepDocumentType,
-            LegalRepDocumentNumber = request.LegalRepDocumentNumber,
-            LegalRepName = request.LegalRepName,
-            LegalRepEmail = request.LegalRepEmail,
-            IsPreferred = request.IsPreferred,
+            ChamberOfCommerceFilePath = request.ChamberOfCommerceFilePath,
             Status = ProviderStatus.Active,
             CreatedByUserId = userId,
             CreatedAt = DateTime.UtcNow
@@ -216,22 +214,14 @@ public class ProviderService
 
         if (request.DocumentType != null) provider.DocumentType = request.DocumentType;
         if (request.DocumentNumber != null) provider.DocumentNumber = request.DocumentNumber;
-        if (request.VerificationDigit != null) provider.VerificationDigit = request.VerificationDigit;
         if (request.BusinessName != null) provider.BusinessName = request.BusinessName;
-        if (request.TradeName != null) provider.TradeName = request.TradeName;
         if (request.ContactName != null) provider.ContactName = request.ContactName;
         if (request.Email != null) provider.Email = request.Email;
         if (request.Phone != null) provider.Phone = request.Phone;
         if (request.Address != null) provider.Address = request.Address;
-        if (request.City != null) provider.City = request.City;
-        if (request.EconomicActivity != null) provider.EconomicActivity = request.EconomicActivity;
         if (request.ServiceType != null) provider.ServiceType = request.ServiceType;
         if (request.RutFilePath != null) provider.RutFilePath = request.RutFilePath;
-        if (request.LegalRepDocumentType != null) provider.LegalRepDocumentType = request.LegalRepDocumentType;
-        if (request.LegalRepDocumentNumber != null) provider.LegalRepDocumentNumber = request.LegalRepDocumentNumber;
-        if (request.LegalRepName != null) provider.LegalRepName = request.LegalRepName;
-        if (request.LegalRepEmail != null) provider.LegalRepEmail = request.LegalRepEmail;
-        if (request.IsPreferred.HasValue) provider.IsPreferred = request.IsPreferred.Value;
+        if (request.ChamberOfCommerceFilePath != null) provider.ChamberOfCommerceFilePath = request.ChamberOfCommerceFilePath;
 
         if (request.Status != null)
         {
@@ -259,13 +249,20 @@ public class ProviderService
             throw new KeyNotFoundException("Proveedor no encontrado.");
         }
 
-        var hasActiveContracts = await _context.Contracts
-            .AnyAsync(c => c.ProviderId == providerId &&
-                (c.Status == ContractStatus.Active || c.Status == ContractStatus.Draft));
+        var hasContracts = await _context.Contracts
+            .AnyAsync(c => c.ProviderId == providerId);
 
-        if (hasActiveContracts)
+        if (hasContracts)
         {
-            throw new InvalidOperationException("No se puede eliminar el proveedor porque tiene contratos activos o en borrador.");
+            throw new InvalidOperationException("No se puede eliminar el proveedor porque tiene contratos asociados.");
+        }
+
+        var hasInvoices = await _context.ProviderInvoices
+            .AnyAsync(i => i.ProviderId == providerId);
+
+        if (hasInvoices)
+        {
+            throw new InvalidOperationException("No se puede eliminar el proveedor porque tiene facturas asociadas.");
         }
 
         provider.IsDeleted = true;
@@ -310,16 +307,16 @@ public class ProviderService
             throw new KeyNotFoundException("Proveedor no encontrado.");
         }
 
-        if (request.ServiceQualityScore < 1 || request.ServiceQualityScore > 5 ||
+        if (request.QualityScore < 1 || request.QualityScore > 5 ||
             request.ComplianceScore < 1 || request.ComplianceScore > 5 ||
-            request.PriceFairnessScore < 1 || request.PriceFairnessScore > 5 ||
-            request.AfterSalesScore < 1 || request.AfterSalesScore > 5)
+            request.PriceScore < 1 || request.PriceScore > 5 ||
+            request.AttentionScore < 1 || request.AttentionScore > 5)
         {
             throw new ArgumentException("Las calificaciones deben estar entre 1 y 5.");
         }
 
-        var averageScore = (decimal)(request.ServiceQualityScore + request.ComplianceScore +
-            request.PriceFairnessScore + request.AfterSalesScore) / 4m;
+        var averageScore = (decimal)(request.QualityScore + request.ComplianceScore +
+            request.PriceScore + request.AttentionScore) / 4m;
 
         EvaluationRecommendation recommendation;
         if (averageScore >= 4.0m)
@@ -340,12 +337,11 @@ public class ProviderService
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             ProviderId = providerId,
-            ContractId = request.ContractId,
             EvaluationPeriod = request.EvaluationPeriod,
-            ServiceQualityScore = request.ServiceQualityScore,
+            QualityScore = request.QualityScore,
             ComplianceScore = request.ComplianceScore,
-            PriceFairnessScore = request.PriceFairnessScore,
-            AfterSalesScore = request.AfterSalesScore,
+            PriceScore = request.PriceScore,
+            AttentionScore = request.AttentionScore,
             AverageScore = Math.Round(averageScore, 2),
             Comments = request.Comments,
             Recommendation = recommendation,
@@ -368,6 +364,23 @@ public class ProviderService
         };
     }
 
+    public async Task<decimal> GetAverageLastTwoEvaluationsAsync(string tenantId, Guid providerId)
+    {
+        var scores = await _context.ProviderEvaluations
+            .Where(e => e.ProviderId == providerId && e.TenantId == tenantId)
+            .OrderByDescending(e => e.CreatedAt)
+            .Take(2)
+            .Select(e => e.AverageScore)
+            .ToListAsync();
+
+        if (scores.Count == 0)
+        {
+            return 0m;
+        }
+
+        return scores.Average();
+    }
+
     public async Task<ProviderIndicatorsDto> GetIndicatorsAsync(string tenantId)
     {
         var providerStats = await _context.Providers
@@ -377,8 +390,7 @@ public class ProviderService
             {
                 Total = g.Count(),
                 Active = g.Count(p => p.Status == ProviderStatus.Active),
-                Inactive = g.Count(p => p.Status == ProviderStatus.Inactive),
-                Preferred = g.Count(p => p.IsPreferred && p.Status == ProviderStatus.Active)
+                Inactive = g.Count(p => p.Status == ProviderStatus.Inactive)
             })
             .FirstOrDefaultAsync();
 
@@ -400,36 +412,30 @@ public class ProviderService
             .GroupBy(i => 1)
             .Select(g => new
             {
-                Pending = g.Count(i => i.Status == InvoiceStatus.Pending),
-                PendingAmount = g.Where(i => i.Status == InvoiceStatus.Pending).Sum(i => i.NetAmount),
-                Overdue = g.Count(i => i.Status == InvoiceStatus.Overdue)
+                Pending = g.Count(i => i.Status != InvoiceStatus.FullyPaid),
+                PendingAmount = g.Where(i => i.Status != InvoiceStatus.FullyPaid)
+                    .Sum(i => i.TotalAmount - i.AmountPaid),
+                Overdue = g.Count(i => i.Status != InvoiceStatus.FullyPaid && i.DueDate < DateTime.UtcNow)
             })
             .FirstOrDefaultAsync();
 
         var activeAlerts = await _context.ContractAlerts
             .CountAsync(a => a.TenantId == tenantId && a.IsActive);
 
-        var expiringPolicies = await _context.ContractPolicies
-            .CountAsync(p => p.TenantId == tenantId &&
-                p.IsActive &&
-                p.EndDate <= DateTime.UtcNow.AddDays(30));
-
         return new ProviderIndicatorsDto
         {
             TotalProviders = providerStats?.Total ?? 0,
             ActiveProviders = providerStats?.Active ?? 0,
             InactiveProviders = providerStats?.Inactive ?? 0,
-            PreferredProviders = providerStats?.Preferred ?? 0,
             TotalContracts = contractStats?.Total ?? 0,
             ActiveContracts = contractStats?.Active ?? 0,
             ExpiringContracts = contractStats?.Expiring ?? 0,
             TotalContractValue = contractStats?.TotalValue ?? 0m,
             MonthlyContractValue = contractStats?.MonthlyValue ?? 0m,
-            PendingInvoices = invoiceStats?.Pending ?? 0,
-            PendingInvoiceAmount = invoiceStats?.PendingAmount ?? 0m,
+            PendingPaymentInvoices = invoiceStats?.Pending ?? 0,
+            PendingPaymentAmount = invoiceStats?.PendingAmount ?? 0m,
             OverdueInvoices = invoiceStats?.Overdue ?? 0,
-            ActiveAlerts = activeAlerts,
-            ExpiringPolicies = expiringPolicies
+            ActiveAlerts = activeAlerts
         };
     }
 }

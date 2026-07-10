@@ -4,8 +4,6 @@ public enum ContractStatus
 {
     Draft,
     Active,
-    Suspended,
-    Completed,
-    Terminated,
-    Cancelled
+    Expired,
+    Terminated
 }

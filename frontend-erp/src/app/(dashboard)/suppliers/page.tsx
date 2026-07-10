@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Eye, AlertTriangle, Users, Briefcase, Star, Search, Filter, Truck } from 'lucide-react';
+import { Loader2, Plus, Eye, AlertTriangle, Users, Briefcase, Star, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import supplierService, { ProviderListItem, ProviderIndicators } from '@/lib/supplier-service';
@@ -80,8 +80,8 @@ export default function SuppliersPage() {
   const summaryCards = indicators ? [
     { label: 'Total Proveedores', value: indicators.totalProviders, icon: Users, color: 'text-blue-600 bg-blue-50' },
     { label: 'Activos', value: indicators.activeProviders, icon: Briefcase, color: 'text-emerald-600 bg-emerald-50' },
-    { label: 'Preferidos', value: indicators.preferredProviders, icon: Star, color: 'text-amber-600 bg-amber-50' },
-    { label: 'Contratos Vigentes', value: indicators.activeContracts, icon: Truck, color: 'text-violet-600 bg-violet-50' },
+    { label: 'Contratos Vigentes', value: indicators.activeContracts, icon: Star, color: 'text-violet-600 bg-violet-50' },
+    { label: 'Facturas Pendientes', value: indicators.pendingPaymentInvoices, icon: AlertTriangle, color: 'text-amber-600 bg-amber-50' },
   ] : [];
 
   return (
@@ -89,7 +89,7 @@ export default function SuppliersPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Proveedores</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestión de proveedores y contratistas del conjuntos habitacional.</p>
+          <p className="text-sm text-muted-foreground mt-1">Directorio de proveedores y contratistas del conjunto.</p>
         </div>
         <Button onClick={() => router.push('/suppliers/new')}>
           <Plus className="w-4 h-4 mr-2" />
@@ -154,9 +154,9 @@ export default function SuppliersPage() {
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Documento</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Tipo</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Contacto</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Ciudad</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Servicio</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Contratos</th>
+                  <th className="px-5 py-3.5 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">Evaluación</th>
+                  <th className="px-5 py-3.5 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">Contratos</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -184,18 +184,22 @@ export default function SuppliersPage() {
                   providers.map((p) => (
                     <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-5 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-foreground">{p.businessName}</span>
-                          {p.isPreferred && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
-                        </div>
-                        {p.tradeName && <p className="text-xs text-muted-foreground mt-0.5">{p.tradeName}</p>}
+                        <span className="font-semibold text-sm text-foreground">{p.businessName}</span>
                       </td>
                       <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground">{p.documentNumber}</td>
                       <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground">{typeLabels[p.providerType] || p.providerType}</td>
                       <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground">{p.contactName}</td>
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground">{p.city}</td>
                       <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground">{p.serviceType}</td>
-                      <td className="px-5 py-4 whitespace-nowrap">
+                      <td className="px-5 py-4 whitespace-nowrap text-center">
+                        {p.averageEvaluationScore > 0 ? (
+                          <span className={`text-sm font-bold ${p.averageEvaluationScore >= 4 ? 'text-emerald-600' : p.averageEvaluationScore >= 3 ? 'text-amber-600' : 'text-rose-600'}`}>
+                            {p.averageEvaluationScore.toFixed(1)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap text-center">
                         <span className="text-sm font-semibold text-foreground">{p.activeContractCount}</span>
                         <span className="text-xs text-muted-foreground"> / {p.contractCount}</span>
                       </td>

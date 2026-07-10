@@ -34,18 +34,16 @@ public class Contract
 
     public string CouncilMeetingActNumber { get; set; } = string.Empty;
 
-    public string AssemblyMeetingActNumber { get; set; } = string.Empty;
-
     public ContractStatus Status { get; set; } = ContractStatus.Draft;
 
     public string SignedContractFilePath { get; set; } = string.Empty;
+
+    public string Observations { get; set; } = string.Empty;
 
     public string CreatedByUserId { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? UpdatedByUserId { get; set; }
     public DateTime? UpdatedAt { get; set; }
-
-    public ICollection<ContractPolicy> Policies { get; set; } = new List<ContractPolicy>();
 
     public ICollection<ProviderInvoice> Invoices { get; set; } = new List<ProviderInvoice>();
 

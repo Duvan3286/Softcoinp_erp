@@ -38,8 +38,16 @@ public class ProviderController : BaseController
     public async Task<ActionResult<ProviderDetailDto>> GetProvider(Guid id)
     {
         var tenantId = GetTenantId();
-        var provider = await _providerService.GetProviderByIdAsync(tenantId, id);
-        return Ok(provider);
+
+        try
+        {
+            var provider = await _providerService.GetProviderByIdAsync(tenantId, id);
+            return Ok(provider);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
     }
 
     [HttpPost]

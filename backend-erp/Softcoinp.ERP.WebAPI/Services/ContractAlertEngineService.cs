@@ -32,8 +32,8 @@ public class ContractAlertEngineService : BackgroundService
                 await TenantBackgroundRunner.ForEachTenantAsync(_scopeFactory, async (context, sp) =>
                 {
                     await GenerateContractExpirationAlertsAsync(context);
-                    await GeneratePolicyExpirationAlertsAsync(context);
                     await GenerateAutoRenewalAlertsAsync(context);
+                    await UpdateExpiredContractStatusAsync(context);
                     await CleanupResolvedAlertsAsync(context);
                 });
 
@@ -93,47 +93,7 @@ public class ContractAlertEngineService : BackgroundService
                     AlertType = alertType,
                     Message = message,
                     GeneratedAt = now,
-                    IsActive = true,
-                    EscalatedToCouncil = daysUntilExpiration <= 15
-                };
-
-                context.ContractAlerts.Add(alert);
-            }
-        }
-
-        await context.SaveChangesAsync();
-    }
-
-    private async Task GeneratePolicyExpirationAlertsAsync(ApplicationDbContext context)
-    {
-        var now = DateTime.UtcNow;
-        var expiringPolicies = await context.ContractPolicies
-            .Where(p => p.IsActive &&
-                p.EndDate > now &&
-                p.EndDate <= now.AddDays(30))
-            .ToListAsync();
-
-        foreach (var policy in expiringPolicies)
-        {
-            var existingAlert = await context.ContractAlerts
-                .AnyAsync(a => a.ContractId == policy.ContractId &&
-                    a.AlertType == ContractAlertType.PolicyExpiring &&
-                    a.Message.Contains(policy.PolicyNumber) &&
-                    a.IsActive);
-
-            if (!existingAlert)
-            {
-                var daysUntilExpiration = (int)(policy.EndDate - now).TotalDays;
-                var alert = new ContractAlert
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = policy.TenantId,
-                    ContractId = policy.ContractId,
-                    AlertType = ContractAlertType.PolicyExpiring,
-                    Message = $"La póliza {policy.PolicyNumber} ({policy.InsuranceCompany}) vence en {daysUntilExpiration} días ({policy.EndDate:dd/MM/yyyy}).",
-                    GeneratedAt = now,
-                    IsActive = true,
-                    EscalatedToCouncil = false
+                    IsActive = true
                 };
 
                 context.ContractAlerts.Add(alert);
@@ -155,6 +115,8 @@ public class ContractAlertEngineService : BackgroundService
 
         foreach (var contract in contractsForRenewal)
         {
+            var daysToRenewal = (int)(contract.EndDate - now).TotalDays;
+
             var existingAlert = await context.ContractAlerts
                 .AnyAsync(a => a.ContractId == contract.Id &&
                     a.AlertType == ContractAlertType.AutoRenewalWarning &&
@@ -168,10 +130,10 @@ public class ContractAlertEngineService : BackgroundService
                     TenantId = contract.TenantId,
                     ContractId = contract.Id,
                     AlertType = ContractAlertType.AutoRenewalWarning,
-                    Message = $"El contrato {contract.ContractNumber} se renovará automáticamente el {contract.EndDate:dd/MM/yyyy}. Revise las condiciones antes de la renovación.",
+                    Message = $"El contrato {contract.ContractNumber} se renovará automáticamente en {daysToRenewal} días ({contract.EndDate:dd/MM/yyyy}). " +
+                              $"Si no desea renovarlo, notifique la no renovación dentro de los próximos {contract.AutoRenewalNoticeDays} días.",
                     GeneratedAt = now,
-                    IsActive = true,
-                    EscalatedToCouncil = false
+                    IsActive = true
                 };
 
                 context.ContractAlerts.Add(alert);
@@ -179,6 +141,33 @@ public class ContractAlertEngineService : BackgroundService
         }
 
         await context.SaveChangesAsync();
+    }
+
+    private async Task UpdateExpiredContractStatusAsync(ApplicationDbContext context)
+    {
+        var now = DateTime.UtcNow;
+        var expiredContracts = await context.Contracts
+            .Where(c => c.Status == ContractStatus.Active && c.EndDate <= now)
+            .ToListAsync();
+
+        foreach (var contract in expiredContracts)
+        {
+            if (contract.HasAutoRenewal)
+            {
+                var newEndDate = contract.EndDate.AddYears(1);
+                contract.StartDate = contract.EndDate;
+                contract.EndDate = newEndDate;
+            }
+            else
+            {
+                contract.Status = ContractStatus.Expired;
+            }
+        }
+
+        if (expiredContracts.Any())
+        {
+            await context.SaveChangesAsync();
+        }
     }
 
     private async Task CleanupResolvedAlertsAsync(ApplicationDbContext context)

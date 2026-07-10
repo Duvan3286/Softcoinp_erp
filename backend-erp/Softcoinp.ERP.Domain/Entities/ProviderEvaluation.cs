@@ -10,18 +10,15 @@ public class ProviderEvaluation
     public Guid ProviderId { get; set; }
     public Provider? Provider { get; set; }
 
-    public Guid? ContractId { get; set; }
-    public Contract? Contract { get; set; }
-
     public string EvaluationPeriod { get; set; } = string.Empty;
 
-    public int ServiceQualityScore { get; set; }
+    public int QualityScore { get; set; }
 
     public int ComplianceScore { get; set; }
 
-    public int PriceFairnessScore { get; set; }
+    public int PriceScore { get; set; }
 
-    public int AfterSalesScore { get; set; }
+    public int AttentionScore { get; set; }
 
     public decimal AverageScore { get; set; }
 

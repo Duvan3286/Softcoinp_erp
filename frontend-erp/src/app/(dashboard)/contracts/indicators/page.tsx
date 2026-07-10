@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, AlertTriangle, DollarSign, FileText, Users, AlertOctagon, Clock, Shield, Star } from 'lucide-react';
+import { Loader2, ArrowLeft, AlertTriangle, DollarSign, FileText, Users, AlertOctagon, Clock, Star } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import supplierService, { ProviderIndicators } from '@/lib/supplier-service';
@@ -52,13 +52,12 @@ export default function ContractIndicatorsPage() {
   const kpis = [
     { label: 'Total Proveedores', value: indicators.totalProviders, icon: Users, color: 'text-blue-600 bg-blue-50' },
     { label: 'Proveedores Activos', value: indicators.activeProviders, icon: Users, color: 'text-emerald-600 bg-emerald-50' },
-    { label: 'Proveedores Preferidos', value: indicators.preferredProviders, icon: Star, color: 'text-amber-600 bg-amber-50' },
+    { label: 'Proveedores Inactivos', value: indicators.inactiveProviders, icon: Users, color: 'text-slate-600 bg-slate-50' },
     { label: 'Total Contratos', value: indicators.totalContracts, icon: FileText, color: 'text-violet-600 bg-violet-50' },
     { label: 'Contratos Activos', value: indicators.activeContracts, icon: FileText, color: 'text-emerald-600 bg-emerald-50' },
     { label: 'Contratos por Vencer', value: indicators.expiringContracts, icon: AlertOctagon, color: 'text-orange-600 bg-orange-50' },
-    { label: 'Facturas Pendientes', value: indicators.pendingInvoices, icon: Clock, color: 'text-amber-600 bg-amber-50' },
+    { label: 'Facturas Pendientes', value: indicators.pendingPaymentInvoices, icon: Clock, color: 'text-amber-600 bg-amber-50' },
     { label: 'Facturas Vencidas', value: indicators.overdueInvoices, icon: AlertTriangle, color: 'text-rose-600 bg-rose-50' },
-    { label: 'Pólizas por Vencer', value: indicators.expiringPolicies, icon: Shield, color: 'text-orange-600 bg-orange-50' },
     { label: 'Alertas Activas', value: indicators.activeAlerts, icon: AlertOctagon, color: 'text-rose-600 bg-rose-50' },
   ];
 
@@ -107,7 +106,7 @@ export default function ContractIndicatorsPage() {
             </div>
             <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
               <span className="text-sm text-muted-foreground">Monto Total Facturas Pendientes</span>
-              <span className="text-lg font-bold text-orange-600">{formatCurrency(indicators.pendingInvoiceAmount)}</span>
+              <span className="text-lg font-bold text-orange-600">{formatCurrency(indicators.pendingPaymentAmount)}</span>
             </div>
           </CardContent>
         </Card>
@@ -122,10 +121,6 @@ export default function ContractIndicatorsPage() {
             <div className="flex justify-between items-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
               <span className="text-sm text-orange-800 dark:text-orange-300">Contratos por Vencer (90 días)</span>
               <span className="text-lg font-bold text-orange-600">{indicators.expiringContracts}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-              <span className="text-sm text-orange-800 dark:text-orange-300">Pólizas por Vencer (30 días)</span>
-              <span className="text-lg font-bold text-orange-600">{indicators.expiringPolicies}</span>
             </div>
             <div className="flex justify-between items-center p-3 bg-rose-50 dark:bg-rose-950/20 rounded-lg">
               <span className="text-sm text-rose-800 dark:text-rose-300">Alertas Activas</span>

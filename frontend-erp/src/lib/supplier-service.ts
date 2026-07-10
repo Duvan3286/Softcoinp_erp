@@ -1,51 +1,35 @@
 import apiClient from './api-client';
 
 // ═══════════════════════════════════════════════════════════════════════
-// INTERFACES - Proveedores
+// INTERFACES - Providers
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface CreateProviderRequest {
   providerType: string;
   documentType: string;
   documentNumber: string;
-  verificationDigit?: string;
   businessName: string;
-  tradeName?: string;
   contactName?: string;
   email?: string;
   phone?: string;
   address?: string;
-  city?: string;
-  economicActivity?: string;
   serviceType?: string;
   rutFilePath?: string;
-  legalRepDocumentType?: string;
-  legalRepDocumentNumber?: string;
-  legalRepName?: string;
-  legalRepEmail?: string;
-  isPreferred?: boolean;
+  chamberOfCommerceFilePath?: string;
 }
 
 export interface UpdateProviderRequest {
   providerType?: string;
   documentType?: string;
   documentNumber?: string;
-  verificationDigit?: string;
   businessName?: string;
-  tradeName?: string;
   contactName?: string;
   email?: string;
   phone?: string;
   address?: string;
-  city?: string;
-  economicActivity?: string;
   serviceType?: string;
   rutFilePath?: string;
-  legalRepDocumentType?: string;
-  legalRepDocumentNumber?: string;
-  legalRepName?: string;
-  legalRepEmail?: string;
-  isPreferred?: boolean;
+  chamberOfCommerceFilePath?: string;
   status?: string;
 }
 
@@ -54,16 +38,14 @@ export interface ProviderListItem {
   providerType: string;
   documentNumber: string;
   businessName: string;
-  tradeName: string;
   contactName: string;
   email: string;
   phone: string;
-  city: string;
   serviceType: string;
-  isPreferred: boolean;
   status: string;
   contractCount: number;
   activeContractCount: number;
+  averageEvaluationScore: number;
   createdAt: string;
 }
 
@@ -75,6 +57,19 @@ export interface ProviderContractSummary {
   startDate: string;
   endDate: string;
   status: string;
+  daysUntilExpiration: number;
+}
+
+export interface ProviderInvoiceSummary {
+  id: string;
+  invoiceNumber: string;
+  contractNumber: string;
+  totalAmount: number;
+  amountPaid: number;
+  pendingAmount: number;
+  dueDate: string;
+  status: string;
+  budgetItemName: string;
 }
 
 export interface ProviderEvaluationSummary {
@@ -91,36 +86,28 @@ export interface ProviderDetail {
   providerType: string;
   documentType: string;
   documentNumber: string;
-  verificationDigit: string;
   businessName: string;
-  tradeName: string;
   contactName: string;
   email: string;
   phone: string;
   address: string;
-  city: string;
-  economicActivity: string;
   serviceType: string;
   rutFilePath: string;
-  legalRepDocumentType: string;
-  legalRepDocumentNumber: string;
-  legalRepName: string;
-  legalRepEmail: string;
-  isPreferred: boolean;
+  chamberOfCommerceFilePath: string;
   status: string;
   createdAt: string;
   updatedAt: string;
   contracts: ProviderContractSummary[];
+  invoices: ProviderInvoiceSummary[];
   evaluations: ProviderEvaluationSummary[];
 }
 
 export interface CreateEvaluationRequest {
-  contractId?: string;
   evaluationPeriod: string;
-  serviceQualityScore: number;
+  qualityScore: number;
   complianceScore: number;
-  priceFairnessScore: number;
-  afterSalesScore: number;
+  priceScore: number;
+  attentionScore: number;
   comments?: string;
 }
 
@@ -128,21 +115,19 @@ export interface ProviderIndicators {
   totalProviders: number;
   activeProviders: number;
   inactiveProviders: number;
-  preferredProviders: number;
   totalContracts: number;
   activeContracts: number;
   expiringContracts: number;
   totalContractValue: number;
   monthlyContractValue: number;
-  pendingInvoices: number;
-  pendingInvoiceAmount: number;
+  pendingPaymentInvoices: number;
+  pendingPaymentAmount: number;
   overdueInvoices: number;
   activeAlerts: number;
-  expiringPolicies: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// INTERFACES - Contratos
+// INTERFACES - Contracts
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface CreateContractRequest {
@@ -157,7 +142,7 @@ export interface CreateContractRequest {
   endDate: string;
   hasAutoRenewal: boolean;
   autoRenewalNoticeDays: number;
-  budgetAccountId?: string;
+  observations?: string;
 }
 
 export interface UpdateContractRequest {
@@ -170,13 +155,13 @@ export interface UpdateContractRequest {
   endDate?: string;
   hasAutoRenewal?: boolean;
   autoRenewalNoticeDays?: number;
-  budgetAccountId?: string;
   signedContractFilePath?: string;
+  councilMeetingActNumber?: string;
+  observations?: string;
 }
 
 export interface ChangeContractStatusRequest {
   newStatus: string;
-  justification: string;
 }
 
 export interface ContractListItem {
@@ -195,19 +180,6 @@ export interface ContractListItem {
   alertCount: number;
 }
 
-export interface ContractPolicyDto {
-  id: string;
-  policyNumber: string;
-  insuranceCompany: string;
-  policyType: string;
-  insuredAmount: number;
-  startDate: string;
-  endDate: string;
-  filePath: string;
-  isActive: boolean;
-  daysUntilExpiration: number;
-}
-
 export interface ContractAlertDto {
   id: string;
   alertType: string;
@@ -216,7 +188,6 @@ export interface ContractAlertDto {
   isActive: boolean;
   resolvedAt: string;
   resolvedByUserId: string;
-  escalatedToCouncil: boolean;
 }
 
 export interface ContractPaymentDto {
@@ -233,13 +204,10 @@ export interface ContractInvoiceDto {
   invoiceNumber: string;
   invoiceDate: string;
   dueDate: string;
-  subtotal: number;
-  ivaAmount: number;
-  retentionFuelAmount: number;
-  retentionIcaAmount: number;
-  netAmount: number;
-  status: string;
+  totalAmount: number;
+  amountPaid: number;
   pendingAmount: number;
+  status: string;
   payments: ContractPaymentDto[];
 }
 
@@ -253,42 +221,20 @@ export interface ContractDetail {
   objectDescription: string;
   totalValue: number;
   monthlyValue: number;
-  isRecurrent: boolean;
   startDate: string;
   endDate: string;
   hasAutoRenewal: boolean;
   autoRenewalNoticeDays: number;
   approvalLevel: string;
   councilMeetingActNumber: string;
-  assemblyMeetingActNumber: string;
-  budgetAccountId: string;
   status: string;
   signedContractFilePath: string;
+  observations: string;
   createdAt: string;
   updatedAt: string;
   daysUntilExpiration: number;
-  policies: ContractPolicyDto[];
   alerts: ContractAlertDto[];
   invoices: ContractInvoiceDto[];
-}
-
-export interface CreateContractPolicyRequest {
-  policyNumber: string;
-  insuranceCompany: string;
-  policyType: string;
-  insuredAmount: number;
-  startDate: string;
-  endDate: string;
-  filePath?: string;
-}
-
-export interface RetentionConfiguration {
-  id: string;
-  serviceType: string;
-  serviceDescription: string;
-  retentionFuelRate: number;
-  retentionIcaRate: number;
-  isActive: boolean;
 }
 
 export interface ApprovalThreshold {
@@ -300,14 +246,56 @@ export interface ApprovalThreshold {
   isActive: boolean;
 }
 
-export interface RetentionCalculation {
-  subtotal: number;
-  ivaAmount: number;
-  retentionFuelAmount: number;
-  retentionIcaAmount: number;
-  totalRetentions: number;
-  netAmount: number;
-  details: { serviceType: string; rate: number; baseAmount: number; retentionAmount: number }[];
+export interface CreateInvoiceRequest {
+  providerId: string;
+  contractId?: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalAmount: number;
+  amountPaid: number;
+  paymentDate?: string;
+  paymentMethod?: string;
+  paymentReferenceNumber?: string;
+  budgetItemId?: string;
+}
+
+export interface CreatePaymentRequest {
+  amount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  referenceNumber: string;
+}
+
+export interface PendingPaymentItem {
+  invoiceId: string;
+  invoiceNumber: string;
+  providerName: string;
+  providerDocumentNumber: string;
+  contractId: string;
+  contractNumber: string;
+  totalAmount: number;
+  amountPaid: number;
+  pendingAmount: number;
+  dueDate: string;
+  daysOverdue: number;
+  status: string;
+}
+
+export interface ContractExpirationReportItem {
+  contractId: string;
+  contractNumber: string;
+  contractType: string;
+  providerName: string;
+  providerDocumentNumber: string;
+  totalValue: number;
+  startDate: string;
+  endDate: string;
+  daysUntilExpiration: number;
+  hasAutoRenewal: boolean;
+  autoRenewalNoticeDays: number;
+  approvalLevel: string;
+  status: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -315,7 +303,7 @@ export interface RetentionCalculation {
 // ═══════════════════════════════════════════════════════════════════════
 
 const supplierService = {
-  // ── Proveedores ──────────────────────────────────────────────────
+  // ── Providers ────────────────────────────────────────────────────
   async getProviders(status?: string, providerType?: string, serviceType?: string, search?: string): Promise<ProviderListItem[]> {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
@@ -361,7 +349,7 @@ const supplierService = {
     return response.data;
   },
 
-  // ── Contratos ──────────────────────────────────────────────────────
+  // ── Contracts ─────────────────────────────────────────────────────
   async getContracts(status?: string, contractType?: string, providerId?: string, search?: string): Promise<ContractListItem[]> {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
@@ -397,11 +385,6 @@ const supplierService = {
     await apiClient.delete(`/contracts/${id}`);
   },
 
-  async addContractPolicy(contractId: string, request: CreateContractPolicyRequest): Promise<ContractPolicyDto> {
-    const response = await apiClient.post<ContractPolicyDto>(`/contracts/${contractId}/policies`, request);
-    return response.data;
-  },
-
   async getActiveAlerts(): Promise<ContractAlertDto[]> {
     const response = await apiClient.get<ContractAlertDto[]>('/contracts/alerts/active');
     return response.data;
@@ -411,19 +394,31 @@ const supplierService = {
     await apiClient.post(`/contracts/alerts/${alertId}/resolve`);
   },
 
-  // ── Configuración ──────────────────────────────────────────────────
-  async getRetentionConfigurations(): Promise<RetentionConfiguration[]> {
-    const response = await apiClient.get<RetentionConfiguration[]>('/contracts/retention-configurations');
+  // ── Invoices & Payments ──────────────────────────────────────────
+  async createInvoice(request: CreateInvoiceRequest): Promise<ContractInvoiceDto> {
+    const response = await apiClient.post<ContractInvoiceDto>('/contracts/invoices', request);
     return response.data;
   },
 
+  async registerPayment(invoiceId: string, request: CreatePaymentRequest): Promise<ContractPaymentDto> {
+    const response = await apiClient.post<ContractPaymentDto>(`/contracts/invoices/${invoiceId}/payments`, request);
+    return response.data;
+  },
+
+  async getPendingPayments(): Promise<PendingPaymentItem[]> {
+    const response = await apiClient.get<PendingPaymentItem[]>('/contracts/payments-pending');
+    return response.data;
+  },
+
+  async getExpiringContractsReport(daysAhead?: number): Promise<ContractExpirationReportItem[]> {
+    const params = daysAhead ? `?daysAhead=${daysAhead}` : '';
+    const response = await apiClient.get<ContractExpirationReportItem[]>(`/contracts/expiring-report${params}`);
+    return response.data;
+  },
+
+  // ── Approval Thresholds ─────────────────────────────────────────
   async getApprovalThresholds(): Promise<ApprovalThreshold[]> {
     const response = await apiClient.get<ApprovalThreshold[]>('/contracts/approval-thresholds');
-    return response.data;
-  },
-
-  async calculateRetentions(serviceType: string, subtotal: number): Promise<RetentionCalculation> {
-    const response = await apiClient.post<RetentionCalculation>('/contracts/calculate-retentions', { serviceType, subtotal });
     return response.data;
   },
 };

@@ -2,31 +2,29 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Loader2, ArrowLeft, AlertTriangle, FileText, Edit, Trash2, Plus, Shield, Clock, CheckCircle2, XCircle, AlertOctagon, Send } from 'lucide-react';
+import { Loader2, ArrowLeft, AlertTriangle, FileText, Edit, Trash2, CheckCircle2, XCircle, AlertOctagon, Send } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
-import supplierService, { ContractDetail, CreateContractPolicyRequest } from '@/lib/supplier-service';
+import supplierService, { ContractDetail } from '@/lib/supplier-service';
 
 const statusLabels: Record<string, string> = {
-  Draft: 'Borrador', Active: 'Activo', Suspended: 'Suspendido',
-  Completed: 'Completado', Terminated: 'Terminado', Cancelled: 'Cancelado',
+  Draft: 'Borrador', Active: 'Activo', Expired: 'Vencido', Terminated: 'Terminado',
 };
 const typeLabels: Record<string, string> = {
   ServiceAgreement: 'Contrato de Servicios', Supply: 'Suministro',
   CivilWorks: 'Obra Civil', Lease: 'Arrendamiento',
 };
 const approvalLabels: Record<string, string> = {
-  Administrator: 'Administrador', Council: 'Consejo', Assembly: 'Asamblea',
+  Administrator: 'Administrador', Council: 'Consejo',
 };
 const alertTypeLabels: Record<string, string> = {
   NinetyDaysToExpiration: 'Vence en 90 días',
   ThirtyDaysToExpiration: 'Vence en 30 días',
   FifteenDaysToExpiration: 'Vence en 15 días',
   AutoRenewalWarning: 'Renovación Automática',
-  PolicyExpiring: 'Póliza por Vencer',
 };
 const invoiceStatusLabels: Record<string, string> = {
-  Pending: 'Pendiente', Paid: 'Pagada', Overdue: 'Vencida', Cancelled: 'Cancelada',
+  PendingPayment: 'Pendiente', PartiallyPaid: 'Pago Parcial', FullyPaid: 'Pagada',
 };
 const paymentMethodLabels: Record<string, string> = {
   Cash: 'Efectivo', BankTransfer: 'Transferencia', Check: 'Cheque', CreditCard: 'Tarjeta de Crédito',
@@ -43,13 +41,6 @@ export default function ContractDetailPage() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [justification, setJustification] = useState('');
-  const [showPolicyForm, setShowPolicyForm] = useState(false);
-  const [policyNumber, setPolicyNumber] = useState('');
-  const [insuranceCompany, setInsuranceCompany] = useState('');
-  const [policyType, setPolicyType] = useState('');
-  const [insuredAmount, setInsuredAmount] = useState('');
-  const [policyStartDate, setPolicyStartDate] = useState('');
-  const [policyEndDate, setPolicyEndDate] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
 
   const fetchContract = async () => {
@@ -74,7 +65,7 @@ export default function ContractDetailPage() {
     if (!newStatus || !justification.trim()) return;
     setSubmittingAction(true);
     try {
-      await supplierService.changeContractStatus(id, { newStatus, justification: justification.trim() });
+      await supplierService.changeContractStatus(id, { newStatus });
       setShowStatusModal(false);
       setNewStatus('');
       setJustification('');
@@ -96,33 +87,6 @@ export default function ContractDetailPage() {
     }
   };
 
-  const handleAddPolicy = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmittingAction(true);
-    try {
-      await supplierService.addContractPolicy(id, {
-        policyNumber: policyNumber.trim(),
-        insuranceCompany: insuranceCompany.trim(),
-        policyType: policyType.trim(),
-        insuredAmount: parseFloat(insuredAmount) || 0,
-        startDate: policyStartDate,
-        endDate: policyEndDate,
-      });
-      setShowPolicyForm(false);
-      setPolicyNumber('');
-      setInsuranceCompany('');
-      setPolicyType('');
-      setInsuredAmount('');
-      setPolicyStartDate('');
-      setPolicyEndDate('');
-      fetchContract();
-    } catch (err: any) {
-      alert(err?.response?.data?.error || 'Error al agregar la póliza.');
-    } finally {
-      setSubmittingAction(false);
-    }
-  };
-
   const handleResolveAlert = async (alertId: string) => {
     try {
       await supplierService.resolveAlert(alertId);
@@ -134,8 +98,7 @@ export default function ContractDetailPage() {
 
   const statusColor = (status: string) => {
     const map: Record<string, string> = {
-      Draft: 'badge-info', Active: 'badge-success', Suspended: 'badge-warning',
-      Completed: 'badge-neutral', Terminated: 'badge-neutral', Cancelled: 'badge-danger',
+      Draft: 'badge-info', Active: 'badge-success', Expired: 'badge-warning', Terminated: 'badge-neutral',
     };
     return map[status] || 'badge-neutral';
   };
@@ -181,13 +144,8 @@ export default function ContractDetailPage() {
             </Button>
           )}
           {contract.status === 'Active' && (
-            <Button variant="secondary" onClick={() => { setNewStatus('Suspended'); setShowStatusModal(true); }}>
-              <XCircle className="w-4 h-4 mr-1" /> Suspender
-            </Button>
-          )}
-          {contract.status !== 'Terminated' && contract.status !== 'Cancelled' && contract.status !== 'Completed' && (
             <Button variant="secondary" onClick={() => { setNewStatus('Terminated'); setShowStatusModal(true); }}>
-              Terminar
+              <XCircle className="w-4 h-4 mr-1" /> Terminar
             </Button>
           )}
           {contract.status === 'Draft' && (
@@ -250,7 +208,6 @@ export default function ContractDetailPage() {
                 <div className="md:col-span-3"><span className="text-muted-foreground">Objeto:</span><p className="font-medium">{contract.objectDescription}</p></div>
                 <div><span className="text-muted-foreground">Valor Total:</span><p className="font-bold text-lg text-emerald-600">{formatCurrency(contract.totalValue)}</p></div>
                 <div><span className="text-muted-foreground">Valor Mensual:</span><p className="font-medium">{formatCurrency(contract.monthlyValue)}</p></div>
-                <div><span className="text-muted-foreground">Recurrente:</span><p className="font-medium">{contract.isRecurrent ? 'Sí' : 'No'}</p></div>
                 <div><span className="text-muted-foreground">Inicio:</span><p className="font-medium">{formatDate(contract.startDate)}</p></div>
                 <div><span className="text-muted-foreground">Fin:</span><p className="font-medium">{formatDate(contract.endDate)}</p></div>
                 <div>
@@ -260,86 +217,13 @@ export default function ContractDetailPage() {
                   </p>
                 </div>
                 <div><span className="text-muted-foreground">Aprobación:</span><p className="font-medium">{approvalLabels[contract.approvalLevel]}</p></div>
-                <div><span className="text-muted-foreground">Renovación Auto:</span><p className="font-medium">{contract.hasAutoRenewal ? `Sí (${contract.autoRenewalNoticeDays} días)` : 'No'}</p></div>
+                <div><span className="text-muted-foreground">Renovación Auto.:</span><p className="font-medium">{contract.hasAutoRenewal ? `Sí (${contract.autoRenewalNoticeDays} días)` : 'No'}</p></div>
                 {contract.councilMeetingActNumber && <div><span className="text-muted-foreground">Acta Consejo:</span><p className="font-medium">{contract.councilMeetingActNumber}</p></div>}
-                {contract.assemblyMeetingActNumber && <div><span className="text-muted-foreground">Acta Asamblea:</span><p className="font-medium">{contract.assemblyMeetingActNumber}</p></div>}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="py-3 px-6 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-foreground">Pólizas de Seguro</h3>
-              <Button variant="secondary" onClick={() => setShowPolicyForm(!showPolicyForm)}>
-                <Plus className="w-4 h-4 mr-1" /> Agregar Póliza
-              </Button>
-            </CardHeader>
-            <CardContent className="p-4">
-              {showPolicyForm && (
-                <form onSubmit={handleAddPolicy} className="space-y-3 mb-4 p-3 bg-muted/30 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nro. Póliza *</label>
-                      <input type="text" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} required
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Aseguradora *</label>
-                      <input type="text" value={insuranceCompany} onChange={(e) => setInsuranceCompany(e.target.value)} required
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Tipo Póliza *</label>
-                      <input type="text" value={policyType} onChange={(e) => setPolicyType(e.target.value)} required
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Valor Asegurado</label>
-                      <input type="number" value={insuredAmount} onChange={(e) => setInsuredAmount(e.target.value)} min="0"
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Fecha Inicio *</label>
-                      <input type="date" value={policyStartDate} onChange={(e) => setPolicyStartDate(e.target.value)} required
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Fecha Fin *</label>
-                      <input type="date" value={policyEndDate} onChange={(e) => setPolicyEndDate(e.target.value)} required
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="ghost" onClick={() => setShowPolicyForm(false)}>Cancelar</Button>
-                    <Button type="submit" disabled={submittingAction}>
-                      {submittingAction ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Shield className="w-4 h-4 mr-1" />}
-                      Guardar Póliza
-                    </Button>
-                  </div>
-                </form>
-              )}
-
-              {contract.policies.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-4">No hay pólizas registradas.</p>
-              ) : (
-                <div className="space-y-3">
-                  {contract.policies.map((p) => (
-                    <div key={p.id} className={`p-3 rounded-lg border ${p.isActive ? 'bg-white dark:bg-background border-border' : 'bg-muted/30 border-border/50'}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="font-mono font-bold text-sm">{p.policyNumber}</span>
-                          <p className="text-xs text-muted-foreground mt-0.5">{p.insuranceCompany} — {p.policyType}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold">{formatCurrency(p.insuredAmount)}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(p.startDate)} — {formatDate(p.endDate)}</p>
-                          {p.daysUntilExpiration > 0 && p.daysUntilExpiration <= 30 && (
-                            <p className="text-xs font-bold text-rose-600">{p.daysUntilExpiration} días</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              {contract.observations && (
+                <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Observaciones</span>
+                  <p className="text-sm mt-1 text-foreground">{contract.observations}</p>
                 </div>
               )}
             </CardContent>
@@ -355,10 +239,8 @@ export default function ContractDetailPage() {
                       <tr>
                         <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Nro. Factura</th>
                         <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Fecha</th>
-                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Subtotal</th>
-                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">IVA</th>
-                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Retenciones</th>
-                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Neto</th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Total</th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Pagado</th>
                         <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Pendiente</th>
                         <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Estado</th>
                       </tr>
@@ -368,20 +250,50 @@ export default function ContractDetailPage() {
                         <tr key={inv.id} className="hover:bg-muted/30">
                           <td className="px-5 py-3 font-mono font-bold text-sm">{inv.invoiceNumber}</td>
                           <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(inv.invoiceDate)}</td>
-                          <td className="px-5 py-3 text-sm text-right">{formatCurrency(inv.subtotal)}</td>
-                          <td className="px-5 py-3 text-sm text-right">{formatCurrency(inv.ivaAmount)}</td>
-                          <td className="px-5 py-3 text-sm text-right text-rose-600">
-                            {formatCurrency(inv.retentionFuelAmount + inv.retentionIcaAmount)}
-                          </td>
-                          <td className="px-5 py-3 text-sm text-right font-bold">{formatCurrency(inv.netAmount)}</td>
+                          <td className="px-5 py-3 text-sm text-right font-bold">{formatCurrency(inv.totalAmount)}</td>
+                          <td className="px-5 py-3 text-sm text-right text-emerald-600">{formatCurrency(inv.amountPaid)}</td>
                           <td className="px-5 py-3 text-sm text-right font-bold text-orange-600">{formatCurrency(inv.pendingAmount)}</td>
                           <td className="px-5 py-3">
-                            <span className={`badge-${inv.status === 'Paid' ? 'success' : inv.status === 'Overdue' ? 'danger' : 'warning'}`}>
+                            <span className={`badge-${inv.status === 'FullyPaid' ? 'success' : inv.status === 'PendingPayment' ? 'warning' : 'info'}`}>
                               {invoiceStatusLabels[inv.status] || inv.status}
                             </span>
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {contract.invoices.length > 0 && contract.invoices.some(inv => inv.payments.length > 0) && (
+            <Card>
+              <CardHeader className="py-3 px-6"><h3 className="text-sm font-bold text-foreground">Pagos Registrados</h3></CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Factura</th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Fecha</th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Monto</th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Método</th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Referencia</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {contract.invoices.map((inv) =>
+                        inv.payments.map((p) => (
+                          <tr key={p.id} className="hover:bg-muted/30">
+                            <td className="px-5 py-3 font-mono font-bold text-sm">{inv.invoiceNumber}</td>
+                            <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(p.paymentDate)}</td>
+                            <td className="px-5 py-3 text-sm text-right font-bold text-emerald-600">{formatCurrency(p.amount)}</td>
+                            <td className="px-5 py-3 text-sm text-muted-foreground">{paymentMethodLabels[p.paymentMethod] || p.paymentMethod}</td>
+                            <td className="px-5 py-3 font-mono text-sm text-muted-foreground">{p.referenceNumber}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -405,10 +317,6 @@ export default function ContractDetailPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Valor Mensual:</span>
                 <span className="font-medium">{formatCurrency(contract.monthlyValue)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Pólizas:</span>
-                <span className="font-medium">{contract.policies.length}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Facturas:</span>

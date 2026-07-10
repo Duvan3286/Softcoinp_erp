@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Loader2, ArrowLeft, AlertTriangle, Star, Phone, Mail, MapPin, FileText, Edit, Trash2, Plus, Send } from 'lucide-react';
+import { Loader2, ArrowLeft, AlertTriangle, Star, Phone, Mail, MapPin, FileText, Edit, Trash2, Plus, Send, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import supplierService, { ProviderDetail } from '@/lib/supplier-service';
@@ -20,6 +20,11 @@ const recommendationLabels: Record<string, string> = {
   DoNotRenew: 'No Renovar',
   EvaluateOtherOptions: 'Evaluar Otras Opciones',
 };
+const invoiceStatusLabels: Record<string, string> = {
+  PendingPayment: 'Pendiente',
+  PartiallyPaid: 'Parcial',
+  FullyPaid: 'Pagada',
+};
 
 export default function SupplierDetailPage() {
   const router = useRouter();
@@ -31,10 +36,10 @@ export default function SupplierDetailPage() {
   const [error, setError] = useState('');
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
   const [evaluationPeriod, setEvaluationPeriod] = useState('');
-  const [serviceQualityScore, setServiceQualityScore] = useState(3);
+  const [qualityScore, setQualityScore] = useState(3);
   const [complianceScore, setComplianceScore] = useState(3);
-  const [priceFairnessScore, setPriceFairnessScore] = useState(3);
-  const [afterSalesScore, setAfterSalesScore] = useState(3);
+  const [priceScore, setPriceScore] = useState(3);
+  const [attentionScore, setAttentionScore] = useState(3);
   const [evaluationComments, setEvaluationComments] = useState('');
   const [submittingEvaluation, setSubmittingEvaluation] = useState(false);
 
@@ -53,6 +58,7 @@ export default function SupplierDetailPage() {
 
   useEffect(() => { fetchProvider(); }, [id]);
 
+  const formatCurrency = (v: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
   const formatDate = (d: string) => new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const handleDelete = async () => {
@@ -72,19 +78,19 @@ export default function SupplierDetailPage() {
     try {
       await supplierService.createProviderEvaluation(id, {
         evaluationPeriod: evaluationPeriod.trim(),
-        serviceQualityScore,
+        qualityScore,
         complianceScore,
-        priceFairnessScore,
-        afterSalesScore,
+        priceScore,
+        attentionScore,
         comments: evaluationComments || undefined,
       });
       setShowEvaluationForm(false);
       setEvaluationPeriod('');
       setEvaluationComments('');
-      setServiceQualityScore(3);
+      setQualityScore(3);
       setComplianceScore(3);
-      setPriceFairnessScore(3);
-      setAfterSalesScore(3);
+      setPriceScore(3);
+      setAttentionScore(3);
       fetchProvider();
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Error al crear la evaluación.');
@@ -135,7 +141,6 @@ export default function SupplierDetailPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-foreground tracking-tight">{provider.businessName}</h1>
-            {provider.isPreferred && <Star className="w-5 h-5 text-amber-500 fill-amber-500" />}
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             {typeLabels[provider.providerType]} — {provider.documentNumber} — {provider.status === 'Active' ? 'Activo' : 'Inactivo'}
@@ -161,9 +166,7 @@ export default function SupplierDetailPage() {
                 <div><span className="text-muted-foreground">Tipo Documento:</span><p className="font-medium">{provider.documentType}</p></div>
                 <div><span className="text-muted-foreground">Nro. Documento:</span><p className="font-medium">{provider.documentNumber}</p></div>
                 <div><span className="text-muted-foreground">Razón Social:</span><p className="font-medium">{provider.businessName}</p></div>
-                <div><span className="text-muted-foreground">Nombre Comercial:</span><p className="font-medium">{provider.tradeName || '—'}</p></div>
                 <div><span className="text-muted-foreground">Tipo Servicio:</span><p className="font-medium">{provider.serviceType || '—'}</p></div>
-                <div><span className="text-muted-foreground">Actividad Económica:</span><p className="font-medium">{provider.economicActivity || '—'}</p></div>
                 <div><span className="text-muted-foreground">Creado:</span><p className="font-medium">{formatDate(provider.createdAt)}</p></div>
                 {provider.updatedAt && <div><span className="text-muted-foreground">Actualizado:</span><p className="font-medium">{formatDate(provider.updatedAt)}</p></div>}
               </div>
@@ -186,25 +189,9 @@ export default function SupplierDetailPage() {
                 {provider.address && (
                   <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><p className="font-medium">{provider.address}</p></div>
                 )}
-                {provider.city && (
-                  <div className="flex items-center gap-2"><span className="text-muted-foreground">Ciudad:</span><p className="font-medium">{provider.city}</p></div>
-                )}
               </div>
             </CardContent>
           </Card>
-
-          {provider.legalRepName && (
-            <Card>
-              <CardHeader className="py-3 px-6"><h3 className="text-sm font-bold text-foreground">Representante Legal</h3></CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-muted-foreground">Nombre:</span><p className="font-medium">{provider.legalRepName}</p></div>
-                  <div><span className="text-muted-foreground">Documento:</span><p className="font-medium">{provider.legalRepDocumentType} {provider.legalRepDocumentNumber}</p></div>
-                  {provider.legalRepEmail && <div><span className="text-muted-foreground">Email:</span><p className="font-medium">{provider.legalRepEmail}</p></div>}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <Card>
             <CardHeader className="py-3 px-6 flex items-center justify-between">
@@ -235,11 +222,11 @@ export default function SupplierDetailPage() {
                         <tr key={c.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-5 py-3 font-mono font-bold text-sm">{c.contractNumber}</td>
                           <td className="px-5 py-3 text-sm text-muted-foreground">{contractTypeLabels[c.contractType] || c.contractType}</td>
-                          <td className="px-5 py-3 text-sm text-right font-medium">{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(c.totalValue)}</td>
+                          <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(c.totalValue)}</td>
                           <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(c.startDate)}</td>
                           <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(c.endDate)}</td>
                           <td className="px-5 py-3">
-                            <span className={`badge-${c.status === 'Active' ? 'success' : c.status === 'Draft' ? 'info' : 'neutral'}`}>{c.status}</span>
+                            <span className={`badge-${c.status === 'Active' ? 'success' : c.status === 'Draft' ? 'info' : c.status === 'Expired' ? 'warning' : 'neutral'}`}>{c.status}</span>
                           </td>
                           <td className="px-5 py-3 text-right">
                             <button onClick={() => router.push(`/contracts/${c.id}`)} className="text-emerald-600 hover:text-emerald-800 text-sm font-semibold">Ver</button>
@@ -252,6 +239,46 @@ export default function SupplierDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {provider.invoices.length > 0 && (
+            <Card>
+              <CardHeader className="py-3 px-6"><h3 className="text-sm font-bold text-foreground">Facturas</h3></CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Nro.</th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Contrato</th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Total</th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Pagado</th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Pendiente</th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Vence</th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {provider.invoices.map((inv) => (
+                        <tr key={inv.id} className="hover:bg-muted/30">
+                          <td className="px-5 py-3 font-mono font-bold text-sm">{inv.invoiceNumber}</td>
+                          <td className="px-5 py-3 text-sm text-muted-foreground">{inv.contractNumber || '—'}</td>
+                          <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(inv.totalAmount)}</td>
+                          <td className="px-5 py-3 text-sm text-right">{formatCurrency(inv.amountPaid)}</td>
+                          <td className="px-5 py-3 text-sm text-right font-bold text-orange-600">{formatCurrency(inv.pendingAmount)}</td>
+                          <td className="px-5 py-3 text-sm text-muted-foreground">{formatDate(inv.dueDate)}</td>
+                          <td className="px-5 py-3">
+                            <span className={`badge-${inv.status === 'FullyPaid' ? 'success' : inv.status === 'PartiallyPaid' ? 'warning' : 'info'}`}>
+                              {invoiceStatusLabels[inv.status] || inv.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -270,10 +297,10 @@ export default function SupplierDetailPage() {
                     <input type="text" placeholder="2026-Q1" value={evaluationPeriod} onChange={(e) => setEvaluationPeriod(e.target.value)} required
                       className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
                   </div>
-                  <ScoreSelect label="Calidad del Servicio" value={serviceQualityScore} onChange={setServiceQualityScore} />
+                  <ScoreSelect label="Calidad del Servicio" value={qualityScore} onChange={setQualityScore} />
                   <ScoreSelect label="Cumplimiento" value={complianceScore} onChange={setComplianceScore} />
-                  <ScoreSelect label="Fairness del Precio" value={priceFairnessScore} onChange={setPriceFairnessScore} />
-                  <ScoreSelect label="Post-Venta" value={afterSalesScore} onChange={setAfterSalesScore} />
+                  <ScoreSelect label="Precio" value={priceScore} onChange={setPriceScore} />
+                  <ScoreSelect label="Atención" value={attentionScore} onChange={setAttentionScore} />
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Comentarios</label>
                     <textarea value={evaluationComments} onChange={(e) => setEvaluationComments(e.target.value)} rows={3}

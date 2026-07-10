@@ -101,7 +101,7 @@ builder.Services.AddScoped<PQRRadicationService>();
 builder.Services.AddScoped<ClaimResolutionService>();
 builder.Services.AddScoped<ProviderService>();
 builder.Services.AddScoped<ContractService>();
-builder.Services.AddScoped<RetentionService>();
+
 builder.Services.AddScoped<MaintenanceService>();
 builder.Services.AddScoped<AssemblyQuorumEngine>();
 builder.Services.AddScoped<AssemblyVotingEngine>();

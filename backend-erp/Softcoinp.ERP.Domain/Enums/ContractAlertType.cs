@@ -5,6 +5,5 @@ public enum ContractAlertType
     NinetyDaysToExpiration,
     ThirtyDaysToExpiration,
     FifteenDaysToExpiration,
-    AutoRenewalWarning,
-    PolicyExpiring
+    AutoRenewalWarning
 }
