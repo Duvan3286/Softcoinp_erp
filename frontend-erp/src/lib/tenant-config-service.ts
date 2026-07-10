@@ -18,8 +18,6 @@ export interface TenantConfiguration {
   
   billingCycleDay: number;
   gracePeriodDays: number;
-  latePaymentInterestRate: number;
-  maxLegalInterestRate: number;
   fiscalYearStartMonth: number;
   fiscalYearStartDay: number;
   annualBudget: number;

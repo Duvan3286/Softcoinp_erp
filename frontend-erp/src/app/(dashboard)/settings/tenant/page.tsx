@@ -105,8 +105,6 @@ export default function TenantConfigPage() {
     legalRepresentativeDv: '',
     billingCycleDay: 1,
     gracePeriodDays: 10,
-    latePaymentInterestRate: 0,
-    maxLegalInterestRate: 0,
     fiscalYearStartMonth: 1,
     fiscalYearStartDay: 1,
     annualBudget: 0,
@@ -196,10 +194,6 @@ export default function TenantConfigPage() {
     // Client side validations
     if (config.billingCycleDay < 1 || config.billingCycleDay > 28) {
       setError('El día de corte debe estar entre 1 y 28.');
-      return;
-    }
-    if (config.latePaymentInterestRate > config.maxLegalInterestRate) {
-      setError(`La tasa de interés de mora (${config.latePaymentInterestRate}%) no puede superar el límite legal ingresado (${config.maxLegalInterestRate}%).`);
       return;
     }
     if (config.hasContingencyFund && config.contingencyFundPercentage < 1) {
@@ -295,12 +289,11 @@ export default function TenantConfigPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-foreground uppercase tracking-tight">Configuración del Conjunto</h1>
-          <p className="text-sm text-slate-500 font-medium">Gestiona la identidad legal y parámetros operativos de la copropiedad.</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Configuración del Conjunto</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gestiona la identidad legal y parámetros operativos de la copropiedad.</p>
         </div>
         {canEdit && (
           <Button onClick={handleSave} disabled={isSaving || !config} className="bg-emerald-600 hover:bg-emerald-700">
@@ -311,29 +304,29 @@ export default function TenantConfigPage() {
       </div>
 
       {error && (
-        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 mb-6 text-sm text-rose-700 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5" />
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm flex items-center gap-3 dark:bg-rose-950/20 dark:border-rose-900 dark:text-rose-400">
+          <AlertCircle className="w-5 h-5 shrink-0" />
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-6 text-sm text-emerald-700 flex items-center gap-3">
-          <Settings className="w-5 h-5" />
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm flex items-center gap-3 dark:bg-emerald-950/20 dark:border-emerald-900 dark:text-emerald-400">
+          <Settings className="w-5 h-5 shrink-0" />
           {success}
         </div>
       )}
 
       {!canEdit && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 text-sm text-blue-700">
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400">
           <strong>Modo Solo Lectura:</strong> No tienes permisos para modificar la configuración.
         </div>
       )}
 
       <div className="bg-card rounded-xl shadow-sm border border-border flex flex-col md:flex-row overflow-hidden">
-        
+
         {/* Tabs sidebar */}
-        <div className="w-full md:w-64 bg-slate-50/50 dark:bg-slate-900/50 border-b md:border-b-0 md:border-r border-border flex flex-col p-4 gap-2">
+        <div className="w-full md:w-64 bg-muted/50 border-b md:border-b-0 md:border-r border-border flex flex-col p-4 gap-2">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -341,7 +334,7 @@ export default function TenantConfigPage() {
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all ${
                 activeTab === tab.id 
                   ? 'bg-emerald-100/50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                  : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               {tab.icon}
@@ -362,70 +355,70 @@ export default function TenantConfigPage() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre Oficial</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Nombre Oficial</label>
                       <input disabled={!canEdit} value={config.officialName} onChange={e => handleChange('officialName', e.target.value)} required maxLength={200}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">NIT (Sin DV)</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">NIT (Sin DV)</label>
                         <input type="text" inputMode="numeric" disabled={!canEdit} value={config.nit} onChange={e => handleNitChange(e.target.value)} required maxLength={10}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                       <div className="w-16">
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">DV</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">DV</label>
                         <input disabled value={config.verificationDigit} required readOnly
-                          className="w-full bg-slate-100 dark:bg-slate-800 border-b border-slate-300 text-slate-500 text-sm font-bold py-2 outline-none text-center cursor-not-allowed" />
+                          className="w-full bg-muted border-b border-border text-muted-foreground text-sm font-bold py-2 outline-none text-center cursor-not-allowed" />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Dirección</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Dirección</label>
                       <input disabled={!canEdit} value={config.address} onChange={e => handleChange('address', e.target.value)} required maxLength={200}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Municipio</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Municipio</label>
                         <input disabled={!canEdit} value={config.municipality} onChange={e => handleChange('municipality', e.target.value)} required maxLength={100}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Depto.</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Depto.</label>
                         <input disabled={!canEdit} value={config.department} onChange={e => handleChange('department', e.target.value)} required maxLength={100}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono Admin</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Teléfono Admin</label>
                       <input type="tel" disabled={!canEdit} value={config.phone} onChange={e => handlePhoneChange(e.target.value)} required maxLength={20}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Oficial</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Correo Oficial</label>
                       <input type="email" disabled={!canEdit} value={config.email} onChange={e => handleChange('email', e.target.value)} required maxLength={256}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Matrícula Inmobiliaria</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Matrícula Inmobiliaria</label>
                       <input disabled={!canEdit} value={config.realEstateRegistration} onChange={e => handleChange('realEstateRegistration', e.target.value)} required maxLength={50}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fecha Constitución</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Fecha Constitución</label>
                       <input type="date" disabled={!canEdit} value={config.constitutionDate.split('T')[0]} onChange={e => handleChange('constitutionDate', e.target.value)} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rep. Legal (Nombre)</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Rep. Legal (Nombre)</label>
                       <input disabled={!canEdit} value={config.legalRepresentativeName} onChange={e => handleChange('legalRepresentativeName', e.target.value)} required maxLength={200}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tipo de Documento</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo de Documento</label>
                       <select disabled={!canEdit} value={config.legalRepresentativeDocumentType} onChange={e => handleLegalDocTypeChange(e.target.value)} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50">
                         <option value="CC">Cédula de Ciudadanía (CC)</option>
@@ -438,7 +431,7 @@ export default function TenantConfigPage() {
                     </div>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                           {config.legalRepresentativeDocumentType === 'NIT' ? 'NIT Rep. Legal' : 'Número de Documento'}
                         </label>
                         <input type="text" inputMode={['CC', 'NIT'].includes(config.legalRepresentativeDocumentType) ? 'numeric' : 'text'}
@@ -448,9 +441,9 @@ export default function TenantConfigPage() {
                       </div>
                       {config.legalRepresentativeDocumentType === 'NIT' && (
                         <div className="w-16">
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">DV</label>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">DV</label>
                           <input disabled value={config.legalRepresentativeDv} readOnly
-                            className="w-full bg-slate-100 dark:bg-slate-800 border-b border-slate-300 text-slate-500 text-sm font-bold py-2 outline-none text-center cursor-not-allowed" />
+                            className="w-full bg-muted border-b border-border text-muted-foreground text-sm font-bold py-2 outline-none text-center cursor-not-allowed" />
                         </div>
                       )}
                     </div>
@@ -460,9 +453,9 @@ export default function TenantConfigPage() {
                     <h2 className="text-sm font-bold text-foreground mb-4">Logotipo del Conjunto</h2>
                     <div className="flex items-center gap-6">
                       {config.logoUrl ? (
-                        <img src={config.logoUrl} alt="Logo" className="w-24 h-24 object-contain bg-slate-100 rounded-lg p-2" />
+                        <img src={config.logoUrl} alt="Logo" className="w-24 h-24 object-contain bg-muted rounded-lg p-2" />
                       ) : (
-                        <div className="w-24 h-24 bg-slate-100 flex items-center justify-center rounded-lg text-slate-400">
+                        <div className="w-24 h-24 bg-muted flex items-center justify-center rounded-lg text-muted-foreground">
                           Sin Logo
                         </div>
                       )}
@@ -470,10 +463,10 @@ export default function TenantConfigPage() {
                       {canEdit && (
                         <div>
                           <input type="file" id="logoUpload" className="hidden" accept=".png,.svg" onChange={handleLogoUpload} />
-                          <label htmlFor="logoUpload" className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded text-sm font-semibold flex items-center gap-2 transition-colors">
+                          <label htmlFor="logoUpload" className="cursor-pointer bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded text-sm font-semibold flex items-center gap-2 transition-colors">
                             <UploadCloud className="w-4 h-4" /> Subir Logo (PNG/SVG)
                           </label>
-                          <p className="text-xs text-slate-400 mt-2">Máximo 2MB.</p>
+                          <p className="text-xs text-muted-foreground mt-2">Máximo 2MB.</p>
                         </div>
                       )}
                     </div>
@@ -488,47 +481,36 @@ export default function TenantConfigPage() {
                     <BadgeDollarSign className="w-5 h-5 text-emerald-600" /> Parámetros Financieros
                   </h2>
                   <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 text-xs text-amber-700 font-medium">
-                    Nota: Los cambios realizados aquí se registrarán en la Auditoría. Las tasas no aplican retroactivamente a deudas ya liquidadas.
+                    Nota: Los cambios realizados aquí se registrarán en la Auditoría.
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Día de Corte (1-28)</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Día de Corte (1-28)</label>
                       <input type="number" min={1} max={28} disabled={!canEdit} value={config.billingCycleDay} onChange={e => handleChange('billingCycleDay', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Días de gracia para pago sin mora</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días de gracia para pago sin mora</label>
                       <input type="number" min={0} disabled={!canEdit} value={config.gracePeriodDays} onChange={e => handleChange('gracePeriodDays', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tasa Máx Legal Vigente (%)</label>
-                      <input type="number" step="0.01" disabled={!canEdit} value={config.maxLegalInterestRate} onChange={e => handleChange('maxLegalInterestRate', Number(e.target.value))} required
-                        className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Tasa Mora Aplicada (%)</label>
-                      <input type="number" step="0.01" disabled={!canEdit} value={config.latePaymentInterestRate} onChange={e => handleChange('latePaymentInterestRate', Number(e.target.value))} required
-                        className="w-full bg-emerald-50 border-b-2 border-emerald-600 text-emerald-900 text-sm font-bold py-2 px-2 outline-none disabled:opacity-50" />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Inicio Año Fiscal (Mes)</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Inicio Año Fiscal (Mes)</label>
                         <input type="number" min={1} max={12} disabled={!canEdit} value={config.fiscalYearStartMonth} onChange={e => handleChange('fiscalYearStartMonth', Number(e.target.value))} required
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Inicio (Día)</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Inicio (Día)</label>
                         <input type="number" min={1} max={31} disabled={!canEdit} value={config.fiscalYearStartDay} onChange={e => handleChange('fiscalYearStartDay', Number(e.target.value))} required
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                     </div>
                     
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Presupuesto Anual Aprobado (COP)</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Presupuesto Anual Aprobado (COP)</label>
                       <input type="number" step="0.01" disabled={!canEdit} value={config.annualBudget} onChange={e => handleChange('annualBudget', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
@@ -543,18 +525,18 @@ export default function TenantConfigPage() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Unidades (Casas/Aptos)</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Total Unidades (Casas/Aptos)</label>
                       <input type="number" disabled={!canEdit} value={config.totalUnits} onChange={e => handleChange('totalUnits', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Torres/Bloques</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Total Torres/Bloques</label>
                       <input type="number" disabled={!canEdit} value={config.totalTowers} onChange={e => handleChange('totalTowers', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Política de Redondeo Financiero</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Política de Redondeo Financiero</label>
                       <select disabled={!canEdit} value={config.roundingPolicy} onChange={e => handleChange('roundingPolicy', Number(e.target.value))}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50">
                         <option value={0}>Al peso más cercano</option>
@@ -563,18 +545,18 @@ export default function TenantConfigPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Máx Cuotas Extra Activas</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Máx Cuotas Extra Activas</label>
                       <input type="number" disabled={!canEdit} value={config.maxActiveExtraordinaryQuotas} onChange={e => handleChange('maxActiveExtraordinaryQuotas', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
-                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-border">
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/50 p-4 rounded-lg border border-border">
                       <div className="flex items-center gap-3 h-full">
                         <input type="checkbox" id="hasFund" disabled={!canEdit} checked={config.hasContingencyFund} onChange={e => handleChange('hasContingencyFund', e.target.checked)} className="w-5 h-5 text-emerald-600" />
                         <label htmlFor="hasFund" className="text-sm font-bold text-foreground">El conjunto recauda Fondo de Imprevistos</label>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Porcentaje Imprevistos (%)</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Porcentaje Imprevistos (%)</label>
                         <input type="number" step="0.01" disabled={!canEdit || !config.hasContingencyFund} value={config.contingencyFundPercentage} onChange={e => handleChange('contingencyFundPercentage', Number(e.target.value))} required={config.hasContingencyFund}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                         {config.hasContingencyFund && config.contingencyFundPercentage < 1 && (
@@ -593,15 +575,15 @@ export default function TenantConfigPage() {
                   
                   <div className="grid grid-cols-1 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Correo Remitente Oficial</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Correo Remitente Oficial</label>
                       <input type="email" disabled={!canEdit} value={config.senderEmail} onChange={e => handleChange('senderEmail', e.target.value)} required maxLength={256}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Plantilla de Pie de Firma</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Plantilla de Pie de Firma</label>
                       <textarea disabled={!canEdit} value={config.signatureFooterTemplate} onChange={e => handleChange('signatureFooterTemplate', e.target.value)} rows={4} maxLength={1000}
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none disabled:opacity-50" />
+                        className="w-full bg-muted border border-border focus:border-emerald-600 rounded-md text-sm p-3 outline-none disabled:opacity-50" />
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -611,7 +593,7 @@ export default function TenantConfigPage() {
 
                     {config.autoSendLatePaymentNotifications && (
                        <div>
-                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Frecuencia de Notificación (Días)</label>
+                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Frecuencia de Notificación (Días)</label>
                          <input type="number" min={1} max={365} disabled={!canEdit} value={config.latePaymentNotificationFrequencyDays} onChange={e => handleChange('latePaymentNotificationFrequencyDays', Number(e.target.value))} required
                            className="w-64 bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                        </div>
@@ -626,14 +608,14 @@ export default function TenantConfigPage() {
                   
                   <div>
                     <h2 className="text-lg font-bold text-foreground border-b border-border pb-2 mb-4 flex items-center gap-2">
-                       <History className="w-5 h-5 text-slate-500" /> Historial de Cambios Financieros
+                       <History className="w-5 h-5 text-muted-foreground" /> Historial de Cambios Financieros
                     </h2>
                     {auditLogs.length === 0 ? (
-                      <p className="text-sm text-slate-500">No hay registros de auditoría.</p>
+                      <p className="text-sm text-muted-foreground">No hay registros de auditoría.</p>
                     ) : (
                       <div className="overflow-x-auto border border-border rounded-lg">
                         <table className="w-full text-left text-sm whitespace-nowrap">
-                          <thead className="bg-slate-50 dark:bg-slate-900 border-b border-border text-xs uppercase tracking-wider text-slate-500">
+                          <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                             <tr>
                               <th className="px-4 py-3">Fecha</th>
                               <th className="px-4 py-3">Usuario ID</th>
@@ -644,7 +626,7 @@ export default function TenantConfigPage() {
                           </thead>
                           <tbody className="divide-y divide-border">
                             {auditLogs.map(log => (
-                              <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                              <tr key={log.id} className="hover:bg-muted/30">
                                 <td className="px-4 py-3">{new Date(log.timestamp).toLocaleString()}</td>
                                 <td className="px-4 py-3 font-mono text-xs">{log.changedByUserId.substring(0,8)}...</td>
                                 <td className="px-4 py-3 font-semibold">{log.parameterName}</td>
@@ -660,14 +642,14 @@ export default function TenantConfigPage() {
 
                   <div>
                     <h2 className="text-lg font-bold text-foreground border-b border-border pb-2 mb-4 flex items-center gap-2">
-                       <Users className="w-5 h-5 text-slate-500" /> Histórico de Representantes Legales
+                       <Users className="w-5 h-5 text-muted-foreground" /> Histórico de Representantes Legales
                     </h2>
                     {reps.length === 0 ? (
-                      <p className="text-sm text-slate-500">No hay históricos.</p>
+                      <p className="text-sm text-muted-foreground">No hay históricos.</p>
                     ) : (
                       <div className="overflow-x-auto border border-border rounded-lg">
                         <table className="w-full text-left text-sm whitespace-nowrap">
-                          <thead className="bg-slate-50 dark:bg-slate-900 border-b border-border text-xs uppercase tracking-wider text-slate-500">
+                          <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                             <tr>
                               <th className="px-4 py-3">Nombre Completo</th>
                               <th className="px-4 py-3">Identificación</th>
@@ -677,11 +659,11 @@ export default function TenantConfigPage() {
                           </thead>
                           <tbody className="divide-y divide-border">
                             {reps.map(rep => (
-                              <tr key={rep.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                              <tr key={rep.id} className="hover:bg-muted/30">
                                 <td className="px-4 py-3 font-semibold">{rep.fullName}</td>
                                 <td className="px-4 py-3">{rep.identificationDocument}</td>
                                 <td className="px-4 py-3 text-emerald-600">{new Date(rep.startDate).toLocaleDateString()}</td>
-                                <td className="px-4 py-3 text-slate-500">{rep.endDate ? new Date(rep.endDate).toLocaleDateString() : 'Actual'}</td>
+                                <td className="px-4 py-3 text-muted-foreground">{rep.endDate ? new Date(rep.endDate).toLocaleDateString() : 'Actual'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -703,7 +685,7 @@ export default function TenantConfigPage() {
                   {/* Tabla de Documentos */}
                   <div className="overflow-x-auto border border-border rounded-lg">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                      <thead className="bg-slate-50 dark:bg-slate-900 border-b border-border text-xs uppercase tracking-wider text-slate-500">
+                      <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                         <tr>
                           <th className="px-4 py-3">Título</th>
                           <th className="px-4 py-3">Fecha</th>
@@ -713,14 +695,14 @@ export default function TenantConfigPage() {
                       </thead>
                       <tbody className="divide-y divide-border">
                         {docs.length === 0 ? (
-                          <tr><td colSpan={4} className="px-4 py-6 text-center text-slate-500">No hay documentos cargados.</td></tr>
+                          <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">No hay documentos cargados.</td></tr>
                         ) : (
                           docs.map(doc => (
-                            <tr key={doc.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                            <tr key={doc.id} className="hover:bg-muted/30">
                               <td className="px-4 py-3 font-semibold text-emerald-700">{doc.title}</td>
-                              <td className="px-4 py-3 text-slate-500">{new Date(doc.uploadedAt).toLocaleDateString()}</td>
+                              <td className="px-4 py-3 text-muted-foreground">{new Date(doc.uploadedAt).toLocaleDateString()}</td>
                               <td className="px-4 py-3">
-                                <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-bold uppercase">
+                                <span className="bg-muted text-muted-foreground px-2 py-1 rounded text-[10px] font-bold uppercase">
                                   {doc.minimumRoleRequired === 0 ? 'SuperAdmin' : doc.minimumRoleRequired === 1 ? 'Admin' : doc.minimumRoleRequired === 2 ? 'Consejo' : doc.minimumRoleRequired === 4 ? 'Auditor' : 'Todos'}
                                 </span>
                               </td>
@@ -742,12 +724,12 @@ export default function TenantConfigPage() {
 
                   {/* Formulario de Carga */}
                   {canEdit && (
-                    <div className="bg-slate-50 dark:bg-slate-900/30 p-6 rounded-lg border border-dashed border-slate-300 mt-6">
+                    <div className="bg-muted/30 p-6 rounded-lg border border-dashed border-border mt-6">
                       <h3 className="text-sm font-bold text-foreground mb-4">Subir Nuevo Documento (PDF)</h3>
                       <div className="mt-4">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 items-end">
                           <div className="md:col-span-3 flex flex-col gap-2">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Perfil / Rol</label>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase">Perfil / Rol</label>
                             <select 
                               value={uploadRole} 
                               onChange={(e) => {
@@ -755,7 +737,7 @@ export default function TenantConfigPage() {
                                 setUploadRole(newRole);
                                 setUploadSelection(documentOptions[newRole][0].value);
                               }}
-                              className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
+                              className="bg-input border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
                             >
                               <option value={1}>Administración</option>
                               <option value={2}>Consejo (Council)</option>
@@ -764,11 +746,11 @@ export default function TenantConfigPage() {
                           </div>
 
                           <div className="md:col-span-4 flex flex-col gap-2">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Tipo de Documento</label>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase">Tipo de Documento</label>
                             <select 
                               value={uploadSelection}
                               onChange={(e) => setUploadSelection(e.target.value)}
-                              className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
+                              className="bg-input border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
                             >
                               {documentOptions[uploadRole].map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -778,19 +760,19 @@ export default function TenantConfigPage() {
 
                           {uploadSelection === 'OTRO' && (
                             <div className="md:col-span-5 flex flex-col gap-2">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase">Título del Documento</label>
-                              <input type="text" value={uploadCustomTitle} onChange={e => setUploadCustomTitle(e.target.value)} placeholder="Escriba un título..." className="bg-white dark:bg-slate-800 border border-border p-2 text-sm rounded outline-none focus:border-emerald-600" />
+                              <label className="text-[10px] font-bold text-muted-foreground uppercase">Título del Documento</label>
+                              <input type="text" value={uploadCustomTitle} onChange={e => setUploadCustomTitle(e.target.value)} placeholder="Escriba un título..." className="bg-input border border-border p-2 text-sm rounded outline-none focus:border-emerald-600" />
                             </div>
                           )}
 
                           <div className={`flex flex-col gap-2 ${uploadSelection === 'OTRO' ? 'md:col-span-12' : 'md:col-span-5'}`}>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Archivo (PDF)</label>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase">Archivo (PDF)</label>
                             <input 
                               id="doc-file-input"
                               type="file" 
                               accept=".pdf" 
                               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                              className="w-full text-sm text-slate-600 dark:text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer" 
+                              className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer" 
                             />
                           </div>
                         </div>

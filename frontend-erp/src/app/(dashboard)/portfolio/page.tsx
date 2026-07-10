@@ -1,14 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Loader2, DollarSign, CheckCircle, XCircle, BarChart3, Users, Search, ChevronDown, ChevronUp, AlertTriangle, Clock, CreditCard } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Loader2, DollarSign, CheckCircle, XCircle, BarChart3, Users, Search, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import feesPortfolioService, { PortfolioSummary, PortfolioCollectionStages, CollectionStage } from '@/lib/fees-portfolio-service';
+import feesPortfolioService, { PortfolioSummary, PortfolioCollectionStages } from '@/lib/fees-portfolio-service';
 
 export default function PortfolioPage() {
-  const router = useRouter();
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [stages, setStages] = useState<PortfolioCollectionStages | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,10 +43,9 @@ export default function PortfolioPage() {
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val);
 
   const stageConfig: Record<string, { label: string; key: keyof PortfolioCollectionStages; color: string }> = {
-    preventive: { label: 'Preventivo', key: 'preventive', color: 'bg-amber-50 border-amber-200' },
-    preJudicial: { label: 'Prejurídico', key: 'preJudicial', color: 'bg-orange-50 border-orange-200' },
-    judicial: { label: 'Jurídico', key: 'judicial', color: 'bg-rose-50 border-rose-200' },
-    agreement: { label: 'Acuerdo de Pago', key: 'agreement', color: 'bg-emerald-50 border-emerald-200' },
+    oneMonth: { label: '1 mes sin pagar', key: 'oneMonth', color: 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900' },
+    twoMonths: { label: '2 meses sin pagar', key: 'twoMonths', color: 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-900' },
+    threeOrMoreMonths: { label: '3 o más meses sin pagar', key: 'threeOrMoreMonths', color: 'bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900' },
   };
 
   const allStageUnits = stages
@@ -89,7 +85,7 @@ export default function PortfolioPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Cartera</h1>
-        <p className="text-sm text-muted-foreground mt-1">Resumen general de cartera y etapas de cobro.</p>
+        <p className="text-sm text-muted-foreground mt-1">Resumen general de cartera y unidades por meses sin pagar.</p>
       </div>
 
       {summary && (
@@ -201,13 +197,13 @@ export default function PortfolioPage() {
                 placeholder="Buscar por unidad..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all max-w-xs"
+                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all max-w-xs"
               />
             </div>
             <select
               value={stageFilter}
               onChange={(e) => setStageFilter(e.target.value)}
-              className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all max-w-[200px]"
+              className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all max-w-[200px]"
             >
               <option value="">Todas las etapas</option>
               {Object.entries(stageConfig).map(([key, cfg]) => (
@@ -216,7 +212,7 @@ export default function PortfolioPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Object.entries(stageConfig).map(([stageKey, cfg]) => {
               const stage = stages[cfg.key];
               return (
@@ -250,7 +246,7 @@ export default function PortfolioPage() {
                               <tr>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Unidad</th>
                                 <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Deuda Total</th>
-                                <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Días Mora</th>
+                                <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Meses Mora</th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Último Pago</th>
                               </tr>
                             </thead>
@@ -259,9 +255,9 @@ export default function PortfolioPage() {
                                 <tr key={u.unitId} className="hover:bg-muted/30 transition-colors">
                                   <td className="px-4 py-3 whitespace-nowrap font-semibold text-foreground">{u.unitIdentifier}</td>
                                   <td className="px-4 py-3 whitespace-nowrap text-right font-mono">{formatCurrency(u.totalDebt)}</td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-rose-600">{u.lateDays}</td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-right font-mono text-rose-600">{u.monthsOverdue}</td>
                                   <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                                    {u.lastPaymentDate ? new Date(u.lastPaymentDate).toLocaleDateString('es-CO') : '—'}
+                                    {u.lastPaymentDate && u.lastPaymentDate !== 'N/A' ? new Date(u.lastPaymentDate).toLocaleDateString('es-CO') : '—'}
                                   </td>
                                 </tr>
                               ))}
@@ -275,6 +271,10 @@ export default function PortfolioPage() {
               );
             })}
           </div>
+
+          {search && (
+            <p className="text-xs text-muted-foreground px-1">{filteredUnits.length} resultado{filteredUnits.length !== 1 ? 's' : ''} para &quot;{search}&quot;</p>
+          )}
         </>
       )}
     </div>

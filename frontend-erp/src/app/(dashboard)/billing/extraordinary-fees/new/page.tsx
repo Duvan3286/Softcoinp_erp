@@ -76,7 +76,7 @@ export default function NewExtraordinaryFeePage() {
                   placeholder="Ej. Cuota Extraordinaria Parque Infantil"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                   required
                 />
               </div>
@@ -89,7 +89,7 @@ export default function NewExtraordinaryFeePage() {
                   placeholder="0.00"
                   value={totalAmount || ''}
                   onChange={(e) => setTotalAmount(Number(e.target.value))}
-                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                   required
                 />
               </div>
@@ -98,7 +98,7 @@ export default function NewExtraordinaryFeePage() {
                 <select
                   value={distributionType}
                   onChange={(e) => setDistributionType(e.target.value)}
-                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                 >
                   {distOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -111,7 +111,7 @@ export default function NewExtraordinaryFeePage() {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                   required
                 />
               </div>
@@ -121,7 +121,7 @@ export default function NewExtraordinaryFeePage() {
                   type="month"
                   value={startPeriod}
                   onChange={(e) => setStartPeriod(e.target.value)}
-                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                   required
                 />
               </div>
@@ -132,7 +132,7 @@ export default function NewExtraordinaryFeePage() {
                   min="1"
                   value={numberOfInstallments}
                   onChange={(e) => setNumberOfInstallments(Math.max(1, Number(e.target.value)))}
-                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                   required
                 />
               </div>
@@ -143,7 +143,7 @@ export default function NewExtraordinaryFeePage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all resize-none"
+                  className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all resize-none"
                 />
               </div>
             </div>

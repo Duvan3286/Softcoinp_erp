@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, DollarSign, Calendar, CheckCircle, XCircle, ArrowLeft, Play, Calculator, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Loader2, DollarSign, Calendar, ArrowLeft, AlertTriangle, FileEdit } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import feesPortfolioService, { BillingPeriodDetail } from '@/lib/fees-portfolio-service';
 
@@ -16,8 +15,6 @@ export default function BillingPeriodDetailPage() {
   const [detail, setDetail] = useState<BillingPeriodDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
     if (id) fetchDetail();
@@ -36,50 +33,20 @@ export default function BillingPeriodDetailPage() {
     }
   };
 
-  const handleProcess = async () => {
-    setProcessing(true);
-    setError('');
-    try {
-      await feesPortfolioService.processBilling(id);
-      fetchDetail();
-    } catch (err: any) {
-      setError(err?.response?.data || 'Error al procesar la liquidación.');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleCalculateInterest = async () => {
-    setCalculating(true);
-    setError('');
-    try {
-      await feesPortfolioService.calculateLateInterest(id);
-      fetchDetail();
-    } catch (err: any) {
-      setError(err?.response?.data || 'Error al calcular intereses.');
-    } finally {
-      setCalculating(false);
-    }
-  };
-
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
-      Draft: 'badge-warning',
-      Executed: 'badge-info',
-      Processed: 'badge-success',
-      Closed: 'badge-neutral',
-      Paid: 'badge-success',
       Pending: 'badge-warning',
-      Overdue: 'badge-danger',
+      Executed: 'badge-info',
+      Closed: 'badge-neutral',
+      PartiallyPaid: 'badge-warning',
+      FullyPaid: 'badge-success',
     };
     const labels: Record<string, string> = {
-      Draft: 'Borrador',
-      Executed: 'Ejecutada',
-      Processed: 'Procesada',
-      Closed: 'Cerrada',
-      Paid: 'Pagado',
       Pending: 'Pendiente',
-      Overdue: 'Vencido',
+      Executed: 'Ejecutada',
+      Closed: 'Cerrada',
+      PartiallyPaid: 'Pago Parcial',
+      FullyPaid: 'Pagada',
     };
     return <span className={map[status] || 'badge-neutral'}>{labels[status] || status}</span>;
   };
@@ -112,9 +79,6 @@ export default function BillingPeriodDetailPage() {
 
   if (!detail) return null;
 
-  const canProcess = detail.status === 'Executed';
-  const canCalculate = detail.status === 'Processed';
-
   return (
     <div className="space-y-6">
       <button onClick={() => router.push('/billing')} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -129,25 +93,9 @@ export default function BillingPeriodDetailPage() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Período {detail.period}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{statusBadge(detail.status)}</p>
-        </div>
-        <div className="flex gap-2">
-          {canProcess && (
-            <Button onClick={handleProcess} disabled={processing}>
-              {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-              Procesar Liquidación
-            </Button>
-          )}
-          {canCalculate && (
-            <Button variant="secondary" onClick={handleCalculateInterest} disabled={calculating}>
-              {calculating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Calculator className="w-4 h-4 mr-2" />}
-              Calcular Intereses
-            </Button>
-          )}
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Período {detail.period}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{statusBadge(detail.status)}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -244,6 +192,50 @@ export default function BillingPeriodDetailPage() {
                       <td className="px-6 py-4 whitespace-nowrap">{statusBadge(uf.status)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm">{formatCurrency(uf.paidAmount)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm font-bold text-rose-600">{formatCurrency(uf.balanceAmount)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <FileEdit className="w-4 h-4 text-muted-foreground" />
+            <h3 className="font-bold text-foreground">Ajustes de Liquidación</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">Correcciones documentadas sobre esta liquidación ya ejecutada.</p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Unidad</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Justificación</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Fecha</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {detail.adjustments.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                      No se han registrado ajustes para este período.
+                    </td>
+                  </tr>
+                ) : (
+                  detail.adjustments.map((adjustment) => (
+                    <tr key={adjustment.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap font-semibold text-foreground">{adjustment.unitIdentifier}</td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-right font-mono text-sm font-bold ${adjustment.amount >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {formatCurrency(adjustment.amount)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground max-w-md">{adjustment.reason}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{new Date(adjustment.createdAt).toLocaleDateString('es-CO')}</td>
                     </tr>
                   ))
                 )}

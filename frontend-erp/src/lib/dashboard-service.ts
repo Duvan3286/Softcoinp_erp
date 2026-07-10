@@ -103,8 +103,6 @@ export interface CouncilApprovalDto {
 export interface ResidentDashboardDto {
   unitIdentifier: string;
   currentBalance: number;
-  lateInterestAccrued: number;
-  dailyInterestRate: number;
   daysOverdue: number;
   oldestDebtDate: string;
 }

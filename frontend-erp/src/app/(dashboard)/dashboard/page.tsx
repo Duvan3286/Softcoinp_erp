@@ -687,23 +687,11 @@ function ResidentDashboard({ data, user, logout }: { data: DashboardData; user: 
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-5">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Saldo Pendiente</p>
             <p className={`text-2xl font-black mt-1 ${balanceColor}`}>{formatCurrency(rd.currentBalance)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Intereses Acumulados</p>
-            <p className="text-2xl font-black mt-1 text-amber-600">{formatCurrency(rd.lateInterestAccrued)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tasa de Interés Diaria</p>
-            <p className="text-2xl font-black mt-1 text-foreground">{formatPercent(rd.dailyInterestRate)}</p>
           </CardContent>
         </Card>
         <Card>

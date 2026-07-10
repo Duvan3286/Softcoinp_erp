@@ -33,6 +33,7 @@ export default function DocumentsPage() {
   const [certificates, setCertificates] = useState<ClearanceCertificateSummary[]>([]);
   const [loadingCerts, setLoadingCerts] = useState(false);
   const [revokingId, setRevokingId] = useState('');
+  const [downloadingId, setDownloadingId] = useState('');
 
   useEffect(() => {
     const fetchUnits = async () => {
@@ -128,6 +129,26 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleDownloadPdf = async (certId: string, certNumber: string) => {
+    setError('');
+    setDownloadingId(certId);
+    try {
+      const blob = await feesPortfolioService.downloadCertificatePdf(certId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `paz-y-salvo-${certNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Error al descargar el PDF del paz y salvo.');
+    } finally {
+      setDownloadingId('');
+    }
+  };
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val);
 
@@ -201,7 +222,7 @@ export default function DocumentsPage() {
                   <select
                     value={stmtUnitId}
                     onChange={(e) => setStmtUnitId(e.target.value)}
-                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                     required
                   >
                     <option value="">Seleccione una unidad...</option>
@@ -216,7 +237,7 @@ export default function DocumentsPage() {
                     type="date"
                     value={stmtStartDate}
                     onChange={(e) => setStmtStartDate(e.target.value)}
-                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                   />
                 </div>
                 <div>
@@ -225,7 +246,7 @@ export default function DocumentsPage() {
                     type="date"
                     value={stmtEndDate}
                     onChange={(e) => setStmtEndDate(e.target.value)}
-                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                   />
                 </div>
                 <div className="flex items-end">
@@ -240,7 +261,7 @@ export default function DocumentsPage() {
 
           {statement && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
                   <CardContent className="p-4">
                     <p className="text-xs text-muted-foreground font-medium">Saldo Inicial</p>
@@ -257,12 +278,6 @@ export default function DocumentsPage() {
                   <CardContent className="p-4">
                     <p className="text-xs text-muted-foreground font-medium">Pagos</p>
                     <p className="text-lg font-bold text-emerald-600">{formatCurrency(statement.totalPayments)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-xs text-muted-foreground font-medium">Intereses</p>
-                    <p className="text-lg font-bold text-amber-600">{formatCurrency(statement.totalInterest)}</p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -341,7 +356,7 @@ export default function DocumentsPage() {
                   <select
                     value={certUnitId}
                     onChange={(e) => handleCertUnitChange(e.target.value)}
-                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                     required
                   >
                     <option value="">Seleccione una unidad...</option>
@@ -357,7 +372,7 @@ export default function DocumentsPage() {
                     min="1"
                     value={validityDays}
                     onChange={(e) => setValidityDays(Number(e.target.value))}
-                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                    className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                     required
                   />
                 </div>
@@ -394,6 +409,16 @@ export default function DocumentsPage() {
                     <p className="text-xs text-muted-foreground font-medium">Estado</p>
                     {certStatusBadge(certificate.status)}
                   </div>
+                </div>
+                <div className="mt-4">
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleDownloadPdf(certificate.id, certificate.certificateNumber)}
+                    disabled={downloadingId === certificate.id}
+                  >
+                    {downloadingId === certificate.id ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
+                    Descargar PDF
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -438,7 +463,15 @@ export default function DocumentsPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{new Date(c.issueDate).toLocaleDateString('es-CO')}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{new Date(c.expirationDate).toLocaleDateString('es-CO')}</td>
                             <td className="px-6 py-4 whitespace-nowrap">{certStatusBadge(c.status)}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
+                              <button
+                                onClick={() => handleDownloadPdf(c.id, c.certificateNumber)}
+                                disabled={downloadingId === c.id}
+                                className="text-emerald-600 hover:text-emerald-800 text-sm font-semibold px-3 py-1.5 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+                              >
+                                {downloadingId === c.id ? <Loader2 className="w-4 h-4 animate-spin inline mr-1" /> : <Download className="w-4 h-4 inline mr-1" />}
+                                PDF
+                              </button>
                               {c.status === 'Active' && (
                                 <button
                                   onClick={() => handleRevoke(c.id)}

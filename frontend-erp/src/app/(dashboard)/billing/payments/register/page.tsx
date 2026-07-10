@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, DollarSign, Eye, Save, AlertTriangle, CheckCircle, CreditCard } from 'lucide-react';
+import { Loader2, ArrowLeft, Eye, Save, AlertTriangle, CheckCircle, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import feesPortfolioService, { PaymentPreview, PaymentAllocationPreview, RegisterPaymentRequest } from '@/lib/fees-portfolio-service';
+import feesPortfolioService, { PaymentPreview, RegisterPaymentRequest } from '@/lib/fees-portfolio-service';
 import { UnitsService as unitsService, Unit } from '@/lib/units-service';
 
 export default function RegisterPaymentPage() {
@@ -17,7 +17,7 @@ export default function RegisterPaymentPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [preview, setPreview] = useState<PaymentPreview | null>(null);
-  const [result, setResult] = useState<{ paymentId: string; amount: number; advanceAmount: number } | null>(null);
+  const [result, setResult] = useState<{ id: string; amount: number; advanceAmount: number } | null>(null);
 
   const [unitId, setUnitId] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -49,7 +49,7 @@ export default function RegisterPaymentPage() {
     if (!paymentDate) { setError('La fecha de pago es requerida.'); return; }
     setPreviewing(true);
     try {
-      const data = await feesPortfolioService.previewPayment(unitId, amount, paymentDate);
+      const data = await feesPortfolioService.previewPayment(unitId, amount);
       setPreview(data);
     } catch (err: any) {
       setError(err?.response?.data || 'Error al obtener la vista previa del pago.');
@@ -91,8 +91,7 @@ export default function RegisterPaymentPage() {
 
   const sourceTypeLabel = (type: string) => {
     const map: Record<string, string> = {
-      Fee: 'Cuota',
-      LateInterest: 'Interés Moratorio',
+      UnitFee: 'Cuota Ordinaria',
       ExtraordinaryFee: 'Cuota Extraordinaria',
       IndividualCharge: 'Cobro Individual',
     };
@@ -103,7 +102,6 @@ export default function RegisterPaymentPage() {
     { value: 'Cash', label: 'Efectivo' },
     { value: 'Transfer', label: 'Transferencia' },
     { value: 'Check', label: 'Cheque' },
-    { value: 'Online', label: 'En Línea' },
   ];
 
   if (loadingUnits) {
@@ -148,7 +146,7 @@ export default function RegisterPaymentPage() {
               <select
                 value={unitId}
                 onChange={(e) => setUnitId(e.target.value)}
-                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                 required
               >
                 <option value="">Seleccione una unidad...</option>
@@ -163,7 +161,7 @@ export default function RegisterPaymentPage() {
                 type="date"
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                 required
               />
             </div>
@@ -176,16 +174,16 @@ export default function RegisterPaymentPage() {
                 placeholder="0.00"
                 value={amount || ''}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Método de Pago</label>
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Medio de Pago</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
               >
                 {paymentMethods.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
@@ -199,7 +197,7 @@ export default function RegisterPaymentPage() {
                 placeholder="Ej. Consignación No. 12345"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
-                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
+                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all"
               />
             </div>
             <div className="md:col-span-2">
@@ -209,7 +207,7 @@ export default function RegisterPaymentPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all resize-none"
+                className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all resize-none"
               />
             </div>
           </div>
@@ -254,7 +252,7 @@ export default function RegisterPaymentPage() {
                 <tfoot className="bg-muted/30">
                   <tr>
                     <td colSpan={2} className="px-6 py-4 text-right text-sm font-bold text-foreground">Total Asignado</td>
-                    <td className="px-6 py-4 text-right font-mono text-sm font-bold text-foreground">{formatCurrency(preview.totalPayment)}</td>
+                    <td className="px-6 py-4 text-right font-mono text-sm font-bold text-foreground">{formatCurrency(preview.totalAllocated)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -262,7 +260,7 @@ export default function RegisterPaymentPage() {
             {preview.advanceAmount > 0 && (
               <div className="p-4 bg-blue-50 border-t border-blue-200 text-blue-700 text-sm flex items-center gap-2">
                 <CreditCard className="w-4 h-4 shrink-0" />
-                <span>Abono a capital futuro: <strong>{formatCurrency(preview.advanceAmount)}</strong></span>
+                <span>Saldo a favor para la siguiente liquidación: <strong>{formatCurrency(preview.advanceAmount)}</strong></span>
               </div>
             )}
           </CardContent>
@@ -278,10 +276,10 @@ export default function RegisterPaymentPage() {
               </div>
               <div>
                 <p className="font-bold text-foreground">Pago Registrado</p>
-                <p className="text-sm text-muted-foreground">ID: {result.paymentId}</p>
+                <p className="text-sm text-muted-foreground">ID: {result.id}</p>
                 <p className="text-sm text-muted-foreground">Monto: {formatCurrency(result.amount)}</p>
                 {result.advanceAmount > 0 && (
-                  <p className="text-sm text-muted-foreground">Abono a capital futuro: {formatCurrency(result.advanceAmount)}</p>
+                  <p className="text-sm text-muted-foreground">Saldo a favor para la siguiente liquidación: {formatCurrency(result.advanceAmount)}</p>
                 )}
               </div>
             </div>

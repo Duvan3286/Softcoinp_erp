@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, DollarSign, Calendar, CheckCircle, XCircle, Plus, Search, FileText, Download, Eye, X, AlertTriangle, CreditCard, BarChart3 } from 'lucide-react';
+import { Loader2, DollarSign, Calendar, CheckCircle, XCircle, Plus, AlertTriangle, BarChart3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import feesPortfolioService, { BillingPeriodSummary, PortfolioSummary } from '@/lib/fees-portfolio-service';
+import feesPortfolioService, { BillingPeriodSummary, PortfolioSummary, BillingChecklist, BillingExclusionRequest } from '@/lib/fees-portfolio-service';
+import { UnitsService, Unit } from '@/lib/units-service';
 
 type Tab = 'periods' | 'summary';
 
@@ -21,6 +22,12 @@ export default function BillingPage() {
   const [period, setPeriod] = useState('');
   const [cutoffDate, setCutoffDate] = useState('');
   const [paymentDueDate, setPaymentDueDate] = useState('');
+  const [checklist, setChecklist] = useState<BillingChecklist | null>(null);
+  const [checkingChecklist, setCheckingChecklist] = useState(false);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [excludedUnits, setExcludedUnits] = useState<BillingExclusionRequest[]>([]);
+  const [exclusionUnitId, setExclusionUnitId] = useState('');
+  const [exclusionReason, setExclusionReason] = useState('');
 
   useEffect(() => {
     if (activeTab === 'periods') fetchPeriods();
@@ -53,12 +60,49 @@ export default function BillingPage() {
     }
   };
 
-  const handleOpenModal = () => {
+  const handleOpenModal = async () => {
     setPeriod(new Date().toISOString().slice(0, 7));
     setCutoffDate('');
     setPaymentDueDate('');
+    setChecklist(null);
+    setExcludedUnits([]);
+    setExclusionUnitId('');
+    setExclusionReason('');
     setError('');
     setShowModal(true);
+    try {
+      const activeUnits = await UnitsService.getUnits();
+      setUnits(activeUnits);
+    } catch {
+      setUnits([]);
+    }
+  };
+
+  const handleCheckPeriod = async (value: string) => {
+    setPeriod(value);
+    setChecklist(null);
+    if (value.length !== 7) return;
+    setCheckingChecklist(true);
+    try {
+      const result = await feesPortfolioService.getBillingChecklist(value);
+      setChecklist(result);
+    } catch {
+      setChecklist(null);
+    } finally {
+      setCheckingChecklist(false);
+    }
+  };
+
+  const handleAddExclusion = () => {
+    if (!exclusionUnitId || !exclusionReason.trim()) return;
+    if (excludedUnits.some((e) => e.unitId === exclusionUnitId)) return;
+    setExcludedUnits([...excludedUnits, { unitId: exclusionUnitId, reason: exclusionReason.trim() }]);
+    setExclusionUnitId('');
+    setExclusionReason('');
+  };
+
+  const handleRemoveExclusion = (unitId: string) => {
+    setExcludedUnits(excludedUnits.filter((e) => e.unitId !== unitId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,7 +110,7 @@ export default function BillingPage() {
     setError('');
     setSubmitting(true);
     try {
-      await feesPortfolioService.executeBilling({ period, cutoffDate, paymentDueDate });
+      await feesPortfolioService.executeBilling({ period, cutoffDate, paymentDueDate, excludedUnits });
       setShowModal(false);
       fetchPeriods();
     } catch (err: any) {
@@ -78,15 +122,13 @@ export default function BillingPage() {
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
-      Draft: 'badge-warning',
+      Pending: 'badge-warning',
       Executed: 'badge-info',
-      Processed: 'badge-success',
       Closed: 'badge-neutral',
     };
     const labels: Record<string, string> = {
-      Draft: 'Borrador',
+      Pending: 'Pendiente',
       Executed: 'Ejecutada',
-      Processed: 'Procesada',
       Closed: 'Cerrada',
     };
     return <span className={map[status] || 'badge-neutral'}>{labels[status] || status}</span>;
@@ -94,6 +136,19 @@ export default function BillingPage() {
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val);
+
+  const checkRow = (passed: boolean, label: string) => (
+    <div className="flex items-center gap-2 text-sm">
+      {passed ? (
+        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+      ) : (
+        <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+      )}
+      <span className={passed ? 'text-foreground' : 'text-rose-600'}>{label}</span>
+    </div>
+  );
+
+  const canExecute = checklist !== null && checklist.allChecksPass && cutoffDate !== '' && paymentDueDate !== '';
 
   return (
     <div className="space-y-6">
@@ -160,7 +215,6 @@ export default function BillingPage() {
                           <td className="px-6 py-4 whitespace-nowrap">{statusBadge(p.status)}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-right">
                             <button onClick={() => router.push(`/billing/periods/${p.id}`)} className="text-emerald-600 hover:text-emerald-800 text-sm font-semibold px-3 py-1.5 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors">
-                              <Eye className="w-4 h-4 inline mr-1" />
                               Ver
                             </button>
                           </td>
@@ -250,12 +304,12 @@ export default function BillingPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-          <div className="bg-card text-card-foreground w-full max-w-md rounded-xl border border-border shadow-lg animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-card text-card-foreground w-full max-w-lg rounded-xl border border-border shadow-lg animate-in zoom-in-95 duration-200 my-8">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h3 className="font-bold text-lg text-foreground">Nueva Liquidación</h3>
               <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
+                <XCircle className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -264,11 +318,29 @@ export default function BillingPage() {
                 <input
                   type="month"
                   value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
+                  onChange={(e) => handleCheckPeriod(e.target.value)}
                   className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground px-0 py-2 text-sm focus:outline-none transition-all"
                   required
                 />
               </div>
+
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Checklist previo</p>
+                {checkingChecklist ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                ) : checklist ? (
+                  <>
+                    {checkRow(checklist.hasActiveBudget, 'Presupuesto activo para el período')}
+                    {checkRow(checklist.coeficientSumIsHundred, `Coeficientes activos suman ${checklist.coeficientSum.toFixed(4)}%`)}
+                    {checkRow(checklist.noExistingBillingForPeriod, 'No existe liquidación previa para el período')}
+                    {checkRow(checklist.activeUnitsCount > 0, `${checklist.activeUnitsCount} unidades activas`)}
+                    <p className="text-xs text-muted-foreground pt-1">Total a distribuir: {formatCurrency(checklist.monthlyBudgetTotal)}</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Ingresa un período para verificar los requisitos.</p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Fecha de Corte</label>
                 <input
@@ -280,7 +352,7 @@ export default function BillingPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Fecha de Vencimiento</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Fecha Límite de Pago</label>
                 <input
                   type="date"
                   value={paymentDueDate}
@@ -289,6 +361,46 @@ export default function BillingPage() {
                   required
                 />
               </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest">Excluir unidades (opcional)</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select
+                    value={exclusionUnitId}
+                    onChange={(e) => setExclusionUnitId(e.target.value)}
+                    className="flex-1 bg-transparent border border-border rounded-lg pl-2 pr-7 py-2 text-sm focus:outline-none"
+                  >
+                    <option value="">Selecciona una unidad</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>{u.identifier}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Justificación"
+                    value={exclusionReason}
+                    onChange={(e) => setExclusionReason(e.target.value)}
+                    className="flex-1 bg-transparent border border-border rounded-lg px-2 py-2 text-sm focus:outline-none"
+                  />
+                  <Button type="button" variant="secondary" onClick={handleAddExclusion}>Agregar</Button>
+                </div>
+                {excludedUnits.length > 0 && (
+                  <ul className="space-y-1">
+                    {excludedUnits.map((exclusion) => {
+                      const unit = units.find((u) => u.id === exclusion.unitId);
+                      return (
+                        <li key={exclusion.unitId} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
+                          <span><strong>{unit?.identifier ?? exclusion.unitId}</strong>: {exclusion.reason}</span>
+                          <button type="button" onClick={() => handleRemoveExclusion(exclusion.unitId)} className="text-rose-600 hover:text-rose-800">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
               {error && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -297,7 +409,7 @@ export default function BillingPage() {
               )}
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="ghost" onClick={() => setShowModal(false)}>Cancelar</Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting || !canExecute}>
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
                   Ejecutar Liquidación
                 </Button>

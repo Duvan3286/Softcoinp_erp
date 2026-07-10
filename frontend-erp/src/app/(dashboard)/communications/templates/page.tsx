@@ -14,8 +14,6 @@ const eventTypeLabels: Record<string, string> = {
   DelinquencyNotice2: 'Aviso Mora 2',
   DelinquencyNotice3: 'Aviso Mora 3',
   PreLegalNotice: 'Aviso Prejurídico',
-  PaymentAgreementConfirmed: 'Acuerdo de Pago Confirmado',
-  PaymentAgreementDueSoon: 'Cuota de Acuerdo Próxima a Vencer',
   PeaceAndSafetyIssued: 'Paz y Salvo Expedido',
   PQRReceived: 'PQR Radicada',
   PQRStatusUpdated: 'Estado PQR Actualizado',

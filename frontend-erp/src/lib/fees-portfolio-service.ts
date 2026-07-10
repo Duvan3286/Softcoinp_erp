@@ -1,5 +1,10 @@
 import apiClient from './api-client';
 
+export interface BillingExclusionRequest {
+  unitId: string;
+  reason: string;
+}
+
 export interface BillingPeriodSummary {
   id: string;
   period: string;
@@ -27,6 +32,26 @@ export interface UnitFeeDto {
   balanceAmount: number;
 }
 
+export interface BillingAdjustment {
+  id: string;
+  unitId: string;
+  unitIdentifier: string;
+  billingPeriodId?: string;
+  unitFeeId?: string;
+  amount: number;
+  reason: string;
+  createdAt: string;
+  createdByUserId: string;
+}
+
+export interface CreateBillingAdjustmentRequest {
+  unitId: string;
+  billingPeriodId?: string;
+  unitFeeId?: string;
+  amount: number;
+  reason: string;
+}
+
 export interface BillingPeriodDetail {
   id: string;
   period: string;
@@ -39,12 +64,13 @@ export interface BillingPeriodDetail {
   roundingAdjustment: number;
   notes: string;
   unitFees: UnitFeeDto[];
+  adjustments: BillingAdjustment[];
 }
 
 export interface BillingChecklist {
   hasActiveBudget: boolean;
-  coefficientSumIsHundred: boolean;
-  coefficientSum: number;
+  coeficientSumIsHundred: boolean;
+  coeficientSum: number;
   noExistingBillingForPeriod: boolean;
   activeUnitsCount: number;
   monthlyBudgetTotal: number;
@@ -68,21 +94,6 @@ export interface AgingBucket {
   totalDebt: number;
 }
 
-export interface LateInterestPreview {
-  sourceType: string;
-  sourceId: string;
-  balanceAmount: number;
-  daysOverdue: number;
-  dailyRate: number;
-  calculatedInterest: number;
-}
-
-export interface LateInterestRateConfig {
-  monthlyRate: number;
-  maxLegalRate: number;
-  dailyRate: number;
-}
-
 export interface RegisterPaymentRequest {
   unitId: string;
   paymentDate: string;
@@ -94,8 +105,7 @@ export interface RegisterPaymentRequest {
 
 export interface PaymentPreview {
   totalPayment: number;
-  allocatedToInterest: number;
-  allocatedToCapital: number;
+  totalAllocated: number;
   advanceAmount: number;
   allocations: PaymentAllocationPreview[];
 }
@@ -147,7 +157,6 @@ export interface UnitDebtSummary {
   unitIdentifier: string;
   totalDebt: number;
   totalOverdue: number;
-  totalInterestAccrued: number;
   advanceBalance: number;
   items: DebtItem[];
 }
@@ -160,73 +169,6 @@ export interface DebtItem {
   amount: number;
   balance: number;
   isOverdue: boolean;
-}
-
-export interface CreatePaymentAgreementRequest {
-  unitId: string;
-  totalDebtIncluded: number;
-  numberOfInstallments: number;
-  interestForgivenessPercentage: number;
-  councilActNumber: string;
-  digitalAcceptance: string;
-  startDate: string;
-}
-
-export interface AgreementSimulation {
-  totalDebt: number;
-  interestForgivenessPercentage: number;
-  forgivenAmount: number;
-  netDebt: number;
-  numberOfInstallments: number;
-  installmentAmount: number;
-  installments: SimulatedInstallment[];
-}
-
-export interface SimulatedInstallment {
-  number: number;
-  dueDate: string;
-  amount: number;
-}
-
-export interface PaymentAgreementSummary {
-  id: string;
-  unitId: string;
-  unitIdentifier: string;
-  totalDebtIncluded: number;
-  installmentAmount: number;
-  numberOfInstallments: number;
-  interestForgivenessPercentage: number;
-  status: string;
-  startedAt: string;
-  defaultedAt?: string;
-  paidInstallments: number;
-  overdueInstallments: number;
-}
-
-export interface PaymentAgreementDetail {
-  id: string;
-  unitId: string;
-  unitIdentifier: string;
-  totalDebtIncluded: number;
-  installmentAmount: number;
-  numberOfInstallments: number;
-  interestForgivenessPercentage: number;
-  councilActNumber: string;
-  status: string;
-  startedAt: string;
-  defaultedAt?: string;
-  digitalAcceptance: string;
-  installments: AgreementInstallment[];
-}
-
-export interface AgreementInstallment {
-  id: string;
-  installmentNumber: number;
-  dueDate: string;
-  amount: number;
-  paidAmount: number;
-  status: string;
-  paidAt?: string;
 }
 
 export interface StatementRequest {
@@ -242,7 +184,6 @@ export interface UnitStatement {
   openingBalance: number;
   totalCharges: number;
   totalPayments: number;
-  totalInterest: number;
   closingBalance: number;
   lines: StatementLine[];
 }
@@ -360,17 +301,15 @@ export interface CreateIndividualChargeRequest {
 }
 
 export interface PortfolioCollectionStages {
-  preventive: CollectionStage;
-  preJudicial: CollectionStage;
-  judicial: CollectionStage;
-  agreement: CollectionStage;
+  oneMonth: CollectionStage;
+  twoMonths: CollectionStage;
+  threeOrMoreMonths: CollectionStage;
 }
 
 export interface CollectionStage {
   stage: string;
   unitCount: number;
   totalDebt: number;
-  totalOverdue: number;
   units: CollectionStageUnit[];
 }
 
@@ -378,8 +317,7 @@ export interface CollectionStageUnit {
   unitId: string;
   unitIdentifier: string;
   totalDebt: number;
-  overdueBalance: number;
-  lateDays: number;
+  monthsOverdue: number;
   lastPaymentDate: string;
 }
 
@@ -391,9 +329,7 @@ export interface UnitPortfolioDetail {
   outstandingBalance: number;
   overdueBalance: number;
   advanceBalance: number;
-  accruedInterest: number;
-  lateDays: number;
-  collectionStage: string;
+  monthsOverdue: number;
   debtItems: PortfolioDebtItem[];
   recentPayments: RecentPaymentItem[];
 }
@@ -418,46 +354,44 @@ export interface ExecuteBillingRequest {
   period: string;
   cutoffDate: string;
   paymentDueDate: string;
+  excludedUnits: BillingExclusionRequest[];
 }
 
 const feesPortfolioService = {
-  // Billing periods
-  async getBillingPeriods(): Promise<BillingPeriodSummary[]> {
-    const response = await apiClient.get<BillingPeriodSummary[]>('/billing/periods');
-    return response.data;
-  },
-
-  async getBillingPeriod(id: string): Promise<BillingPeriodDetail> {
-    const response = await apiClient.get<BillingPeriodDetail>(`/billing/periods/${id}`);
-    return response.data;
-  },
-
-  async getBillingChecklist(period: string, cutoffDate: string, paymentDueDate: string): Promise<BillingChecklist> {
-    const response = await apiClient.get<BillingChecklist>('/billing/periods/checklist', {
-      params: { period, cutoffDate, paymentDueDate }
+  async getBillingChecklist(period: string): Promise<BillingChecklist> {
+    const response = await apiClient.get<BillingChecklist>('/billing/checklist', {
+      params: { period }
     });
     return response.data;
   },
 
-  async executeBilling(request: ExecuteBillingRequest): Promise<{ id: string; period: string; status: string }> {
-    const response = await apiClient.post<{ id: string; period: string; status: string }>('/billing/periods', request);
+  async executeBilling(request: ExecuteBillingRequest): Promise<{ id: string; period: string; status: string; totalBilled: number; roundingAdjustment: number }> {
+    const response = await apiClient.post<{ id: string; period: string; status: string; totalBilled: number; roundingAdjustment: number }>('/billing/execute', request);
     return response.data;
   },
 
-  async processBilling(periodId: string): Promise<{ id: string; status: string; unitFeesCreated: number }> {
-    const response = await apiClient.post<{ id: string; status: string; unitFeesCreated: number }>(`/billing/periods/${periodId}/process`);
+  async getBillingPeriods(): Promise<BillingPeriodSummary[]> {
+    const response = await apiClient.get<BillingPeriodSummary[]>('/billing');
     return response.data;
   },
 
-  // Late interest
-  async calculateLateInterest(periodId: string): Promise<{ lateInterestRecordsCreated: number }> {
-    const response = await apiClient.post<{ lateInterestRecordsCreated: number }>(`/billing/periods/${periodId}/late-interest`);
+  async getBillingPeriod(id: string): Promise<BillingPeriodDetail> {
+    const response = await apiClient.get<BillingPeriodDetail>(`/billing/${id}`);
     return response.data;
   },
 
-  // Portfolio
+  async createAdjustment(request: CreateBillingAdjustmentRequest): Promise<BillingAdjustment> {
+    const response = await apiClient.post<BillingAdjustment>('/billing/adjustments', request);
+    return response.data;
+  },
+
+  async getUnitAdjustments(unitId: string): Promise<BillingAdjustment[]> {
+    const response = await apiClient.get<BillingAdjustment[]>(`/billing/units/${unitId}/adjustments`);
+    return response.data;
+  },
+
   async getPortfolioSummary(): Promise<PortfolioSummary> {
-    const response = await apiClient.get<PortfolioSummary>('/billing/portfolio/summary');
+    const response = await apiClient.get<PortfolioSummary>('/billing/portfolio-summary');
     return response.data;
   },
 
@@ -466,14 +400,8 @@ const feesPortfolioService = {
     return response.data;
   },
 
-  // Unit
-  async getUnitFees(unitId: string): Promise<UnitFeeDto[]> {
-    const response = await apiClient.get<UnitFeeDto[]>(`/billing/units/${unitId}/fees`);
-    return response.data;
-  },
-
   async getUnitBalance(unitId: string): Promise<UnitDebtSummary> {
-    const response = await apiClient.get<UnitDebtSummary>(`/billing/units/${unitId}/balance`);
+    const response = await apiClient.get<UnitDebtSummary>(`/billing/units/${unitId}/debt`);
     return response.data;
   },
 
@@ -482,14 +410,13 @@ const feesPortfolioService = {
     return response.data;
   },
 
-  // Payments
-  async previewPayment(unitId: string, amount: number, paymentDate: string): Promise<PaymentPreview> {
-    const response = await apiClient.post<PaymentPreview>('/billing/payments/preview', { unitId, amount, paymentDate });
+  async previewPayment(unitId: string, amount: number): Promise<PaymentPreview> {
+    const response = await apiClient.post<PaymentPreview>('/billing/payment/preview', { unitId, amount });
     return response.data;
   },
 
-  async registerPayment(request: RegisterPaymentRequest): Promise<{ paymentId: string; amount: number; advanceAmount: number }> {
-    const response = await apiClient.post<{ paymentId: string; amount: number; advanceAmount: number }>('/billing/payments/register', request);
+  async registerPayment(request: RegisterPaymentRequest): Promise<{ id: string; unitId: string; amount: number; advanceAmount: number; paymentDate: string }> {
+    const response = await apiClient.post<{ id: string; unitId: string; amount: number; advanceAmount: number; paymentDate: string }>('/billing/payment/register', request);
     return response.data;
   },
 
@@ -503,7 +430,6 @@ const feesPortfolioService = {
     return response.data;
   },
 
-  // Extraordinary fees
   async getExtraordinaryFees(): Promise<ExtraordinaryFeeDto[]> {
     const response = await apiClient.get<ExtraordinaryFeeDto[]>('/billing/extraordinary-fees');
     return response.data;
@@ -523,7 +449,6 @@ const feesPortfolioService = {
     await apiClient.put(`/billing/extraordinary-fees/${id}/status`, { status });
   },
 
-  // Individual charges
   async getIndividualCharges(status?: string): Promise<IndividualChargeDto[]> {
     const params = status ? `?status=${status}` : '';
     const response = await apiClient.get<IndividualChargeDto[]>(`/billing/individual-charges${params}`);
@@ -544,30 +469,6 @@ const feesPortfolioService = {
     await apiClient.put(`/billing/individual-charges/${id}/status`, { status, notes });
   },
 
-  // Agreements
-  async simulateAgreement(unitId: string, totalDebt: number, forgivenessPercentage: number, installments: number, startDate: string): Promise<AgreementSimulation> {
-    const response = await apiClient.post<AgreementSimulation>('/billing/agreements/simulate', {
-      unitId, totalDebt, forgivenessPercentage, installments, startDate
-    });
-    return response.data;
-  },
-
-  async getAgreements(): Promise<PaymentAgreementSummary[]> {
-    const response = await apiClient.get<PaymentAgreementSummary[]>('/billing/agreements');
-    return response.data;
-  },
-
-  async getAgreementDetail(id: string): Promise<PaymentAgreementDetail> {
-    const response = await apiClient.get<PaymentAgreementDetail>(`/billing/agreements/${id}`);
-    return response.data;
-  },
-
-  async createAgreement(request: CreatePaymentAgreementRequest): Promise<{ id: string; status: string; installmentAmount: number }> {
-    const response = await apiClient.post<{ id: string; status: string; installmentAmount: number }>('/billing/agreements', request);
-    return response.data;
-  },
-
-  // Statement & Certificates
   async getUnitStatement(request: StatementRequest): Promise<UnitStatement> {
     const response = await apiClient.post<UnitStatement>('/billing/statement', request);
     return response.data;
@@ -585,6 +486,13 @@ const feesPortfolioService = {
 
   async getCertificateDetail(id: string): Promise<ClearanceCertificate> {
     const response = await apiClient.get<ClearanceCertificate>(`/billing/clearance-certificates/${id}`);
+    return response.data;
+  },
+
+  async downloadCertificatePdf(id: string): Promise<Blob> {
+    const response = await apiClient.get(`/billing/clearance-certificates/${id}/pdf`, {
+      responseType: 'blob'
+    });
     return response.data;
   },
 
