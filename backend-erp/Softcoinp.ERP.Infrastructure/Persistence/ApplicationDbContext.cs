@@ -78,11 +78,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<IndividualCharge> IndividualCharges => Set<IndividualCharge>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
-    public DbSet<LateInterest> LateInterests => Set<LateInterest>();
-    public DbSet<PaymentAgreement> PaymentAgreements => Set<PaymentAgreement>();
-    public DbSet<AgreementInstallment> AgreementInstallments => Set<AgreementInstallment>();
     public DbSet<ClearanceCertificate> ClearanceCertificates => Set<ClearanceCertificate>();
-    public DbSet<AgreementDebt> AgreementDebts => Set<AgreementDebt>();
+    public DbSet<BillingAdjustment> BillingAdjustments => Set<BillingAdjustment>();
 
     // ── Módulo de Dashboard (nuevo) ────────────────────────────────────
     public DbSet<AlertConfiguration> AlertConfigurations => Set<AlertConfiguration>();
@@ -477,9 +474,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.VerificationDigit).HasMaxLength(1);
             entity.Property(e => e.LegalRepresentativeDocumentType).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.LegalRepresentativeDv).HasMaxLength(1);
-            
-            entity.Property(e => e.LatePaymentInterestRate).HasPrecision(5, 2);
-            entity.Property(e => e.MaxLegalInterestRate).HasPrecision(5, 2);
+
             entity.Property(e => e.AnnualBudget).HasPrecision(18, 2);
             entity.Property(e => e.ContingencyFundPercentage).HasPrecision(5, 2);
             entity.HasIndex(e => e.TenantId).IsUnique();
@@ -974,61 +969,18 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.IndividualChargeId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(e => e.LateInterest)
-                  .WithMany()
-                  .HasForeignKey(e => e.LateInterestId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
             entity.HasIndex(e => new { e.PaymentId, e.AllocationType });
             entity.HasIndex(e => new { e.UnitFeeId, e.AllocationType });
-            entity.HasIndex(e => e.LateInterestId)
-                  .HasDatabaseName("IX_payment_alloc_late_interest");
         });
 
-        modelBuilder.Entity<LateInterest>(entity =>
+        modelBuilder.Entity<BillingAdjustment>(entity =>
         {
-            entity.ToTable("erp_late_interests");
+            entity.ToTable("erp_billing_adjustments");
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.Period).IsRequired().HasMaxLength(7);
-            entity.Property(e => e.BaseAmount).HasPrecision(18, 2);
-            entity.Property(e => e.DailyRate).HasPrecision(12, 8);
-            entity.Property(e => e.CalculatedAmount).HasPrecision(18, 2);
-
-            entity.HasOne(e => e.UnitFee)
-                  .WithMany()
-                  .HasForeignKey(e => e.UnitFeeId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(e => e.ExtraordinaryFeeDistribution)
-                  .WithMany()
-                  .HasForeignKey(e => e.ExtraordinaryFeeDistributionId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(e => e.IndividualCharge)
-                  .WithMany()
-                  .HasForeignKey(e => e.IndividualChargeId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(e => new { e.TenantId, e.UnitFeeId, e.Period });
-            entity.HasIndex(e => new { e.TenantId, e.IsCapitalized });
-            entity.HasIndex(e => new { e.TenantId, e.UnitFeeId, e.IsCapitalized, e.CalculatedAmount })
-                  .HasDatabaseName("IX_late_interests_fee_cap_amount");
-        });
-
-        modelBuilder.Entity<PaymentAgreement>(entity =>
-        {
-            entity.ToTable("erp_payment_agreements");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.TotalDebtIncluded).HasPrecision(18, 2);
-            entity.Property(e => e.InstallmentAmount).HasPrecision(18, 2);
-            entity.Property(e => e.InterestForgivenessPercentage).HasPrecision(5, 2);
-            entity.Property(e => e.CouncilActNumber).HasMaxLength(100);
-            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.Property(e => e.DigitalAcceptance).HasMaxLength(2000);
+            entity.Property(e => e.Amount).HasPrecision(18, 2);
+            entity.Property(e => e.Reason).IsRequired().HasMaxLength(1000);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
 
             entity.HasOne(e => e.Unit)
@@ -1036,46 +988,17 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.UnitId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
-        });
-
-        modelBuilder.Entity<AgreementInstallment>(entity =>
-        {
-            entity.ToTable("erp_agreement_installments");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.Amount).HasPrecision(18, 2);
-            entity.Property(e => e.PaidAmount).HasPrecision(18, 2);
-            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
-
-            entity.HasOne(e => e.PaymentAgreement)
-                  .WithMany(a => a.Installments)
-                  .HasForeignKey(e => e.PaymentAgreementId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasIndex(e => new { e.PaymentAgreementId, e.InstallmentNumber }).IsUnique();
-            entity.HasIndex(e => new { e.TenantId, e.Status, e.DueDate });
-            entity.HasIndex(e => new { e.TenantId, e.Status, e.DueDate, e.Amount })
-                  .HasDatabaseName("IX_agreement_installments_overdue");
-        });
-
-        modelBuilder.Entity<AgreementDebt>(entity =>
-        {
-            entity.ToTable("erp_agreement_debts");
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.SourceType).IsRequired().HasMaxLength(30);
-            entity.Property(e => e.OriginalBalance).HasPrecision(18, 2);
-
-            entity.HasOne(e => e.PaymentAgreement)
+            entity.HasOne(e => e.BillingPeriod)
                   .WithMany()
-                  .HasForeignKey(e => e.PaymentAgreementId)
-                  .OnDelete(DeleteBehavior.Cascade);
+                  .HasForeignKey(e => e.BillingPeriodId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasIndex(e => new { e.PaymentAgreementId, e.SourceType, e.SourceId }).IsUnique();
-            entity.HasIndex(e => new { e.TenantId, e.SourceType, e.SourceId });
+            entity.HasOne(e => e.UnitFee)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitFeeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.CreatedAt });
         });
 
         modelBuilder.Entity<ClearanceCertificate>(entity =>

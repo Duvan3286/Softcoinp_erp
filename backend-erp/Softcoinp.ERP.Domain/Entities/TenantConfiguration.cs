@@ -52,12 +52,6 @@ public class TenantConfiguration : BaseEntity
     /// <summary>Días de gracia después del BillingCycleDay para pago sin mora</summary>
     public int GracePeriodDays { get; set; } = 10;
 
-    /// <summary>Tasa Mensual de Interés de Mora (%) que aplica el conjunto</summary>
-    public decimal LatePaymentInterestRate { get; set; } = 0m;
-
-    /// <summary>Tasa Máxima Legal Vigente (%) según Superfinanciera (Control/Validación)</summary>
-    public decimal MaxLegalInterestRate { get; set; } = 0m;
-
     /// <summary>Mes de inicio del período fiscal (1 = Enero)</summary>
     public int FiscalYearStartMonth { get; set; } = 1;
 

@@ -461,17 +461,6 @@ ORDER BY u.Identifier";
 
         var now = DateTime.UtcNow;
 
-        if (!defaultConfigs.ContainsKey(AlertRuleType.PaymentAgreementInstallmentOverdue))
-        {
-            defaultConfigs[AlertRuleType.PaymentAgreementInstallmentOverdue] = new AlertConfiguration
-            {
-                RuleType = AlertRuleType.PaymentAgreementInstallmentOverdue,
-                ThresholdDays = 5,
-                DefaultUrgency = AlertUrgency.High,
-                UseDefaultThreshold = true
-            };
-        }
-
         if (!defaultConfigs.ContainsKey(AlertRuleType.BudgetAccountExceeded))
         {
             defaultConfigs[AlertRuleType.BudgetAccountExceeded] = new AlertConfiguration
@@ -481,41 +470,6 @@ ORDER BY u.Identifier";
                 DefaultUrgency = AlertUrgency.High,
                 UseDefaultThreshold = true
             };
-        }
-
-        var agreementConfig = defaultConfigs.GetValueOrDefault(AlertRuleType.PaymentAgreementInstallmentOverdue);
-        if (agreementConfig != null)
-        {
-            var overdueInstallments = await _context.AgreementInstallments
-                .Where(ai => ai.TenantId == tenantId
-                    && ai.Status == AgreementInstallmentStatus.Overdue
-                    && ai.DueDate <= now.AddDays(-agreementConfig.ThresholdDays))
-                .Join(_context.PaymentAgreements,
-                    ai => ai.PaymentAgreementId,
-                    pa => pa.Id,
-                    (ai, pa) => new
-                    {
-                        ai.Id,
-                        pa.UnitId,
-                        ai.InstallmentNumber,
-                        ai.Amount,
-                        ai.DueDate
-                    })
-                .ToListAsync();
-
-            foreach (var installment in overdueInstallments)
-            {
-                alerts.Add(new AlertDto
-                {
-                    Id = $"agreement_{installment.Id}",
-                    RuleType = AlertRuleType.PaymentAgreementInstallmentOverdue.ToString(),
-                    Urgency = AlertUrgency.High,
-                    Title = $"Cuota de acuerdo de pago vencida",
-                    Description = $"La cuota No. {installment.InstallmentNumber} por {installment.Amount:N0} COP venció el {installment.DueDate:dd/MM/yyyy}.",
-                    ModuleLink = "/portfolio",
-                    CreatedAt = now
-                });
-            }
         }
 
         return alerts.OrderByDescending(a => a.Urgency).ThenBy(a => a.CreatedAt).ToList();
@@ -529,7 +483,7 @@ ORDER BY u.Identifier";
 
         var overdueFees = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId
-                && uf.Status == FeeStatus.Overdue
+                && uf.Status != FeeStatus.FullyPaid
                 && uf.DueDate >= now
                 && uf.DueDate <= thirtyDaysFromNow)
             .GroupBy(uf => uf.DueDate)
@@ -573,25 +527,6 @@ ORDER BY u.Identifier";
             .ToListAsync();
 
         activities.AddRange(recentPayments);
-
-        var recentAgreements = await _context.PaymentAgreements
-            .Where(pa => pa.TenantId == tenantId)
-            .OrderByDescending(pa => pa.CreatedAt)
-            .Take(5)
-            .Join(_context.Units,
-                pa => pa.UnitId,
-                u => u.Id,
-                (pa, u) => new RecentActivityDto
-                {
-                    Action = "Acuerdo de pago creado",
-                    Description = $"Acuerdo por {pa.TotalDebtIncluded:N0} COP de {u.Identifier}",
-                    UserName = pa.CreatedByUserId,
-                    Timestamp = pa.CreatedAt,
-                    ModuleLink = "/portfolio"
-                })
-            .ToListAsync();
-
-        activities.AddRange(recentAgreements);
 
         return activities.OrderByDescending(a => a.Timestamp).Take(20).ToList();
     }
@@ -648,22 +583,14 @@ ORDER BY u.Identifier";
                 && ic.BalanceAmount > 0)
             .ToListAsync();
 
+        var adjustmentTotal = await _context.BillingAdjustments
+            .Where(a => a.TenantId == tenantId && a.UnitId == unitOwner.UnitId)
+            .SumAsync(a => a.Amount);
+
         data.CurrentBalance = overdueFees.Sum(f => f.BalanceAmount)
             + overdueExtra.Sum(f => f.BalanceAmount)
-            + overdueCharges.Sum(f => f.BalanceAmount);
-
-        var unitFeeIds = overdueFees.Select(f => f.Id).ToList();
-        var lateInterests = await _context.LateInterests
-            .Where(li => li.TenantId == tenantId
-                && li.UnitFeeId != null
-                && unitFeeIds.Contains(li.UnitFeeId.Value)
-                && !li.IsCapitalized)
-            .ToListAsync();
-
-        data.LateInterestAccrued = lateInterests.Sum(li => li.CalculatedAmount);
-        data.DailyInterestRate = lateInterests.Count > 0
-            ? lateInterests.Max(li => li.DailyRate)
-            : 0;
+            + overdueCharges.Sum(f => f.BalanceAmount)
+            + adjustmentTotal;
 
         var allDueDates = overdueFees.Select(f => f.DueDate)
             .Concat(overdueExtra.Select(f => f.DueDate))
@@ -697,16 +624,6 @@ ORDER BY u.Identifier";
 
         var defaults = new List<AlertConfiguration>
         {
-            new AlertConfiguration
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                RuleType = AlertRuleType.PaymentAgreementInstallmentOverdue,
-                IsEnabled = true,
-                ThresholdDays = 5,
-                DefaultUrgency = AlertUrgency.High,
-                UseDefaultThreshold = true
-            },
             new AlertConfiguration
             {
                 Id = Guid.NewGuid(),

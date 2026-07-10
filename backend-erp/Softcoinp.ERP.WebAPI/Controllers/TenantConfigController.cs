@@ -61,10 +61,6 @@ public class TenantConfigController : BaseController
         if (dto.BillingCycleDay < 1 || dto.BillingCycleDay > 28)
             return BadRequest("El día de corte debe estar entre el 1 y el 28.");
 
-        // Validación manual: La tasa de mora no puede superar la tasa máxima legal vigente ingresada
-        if (dto.LatePaymentInterestRate > dto.MaxLegalInterestRate)
-            return BadRequest($"La tasa de interés de mora ({dto.LatePaymentInterestRate}%) no puede superar el límite legal ingresado ({dto.MaxLegalInterestRate}%).");
-
         if (dto.HasContingencyFund && dto.ContingencyFundPercentage < 1m)
             return BadRequest("Según la Ley 675, el fondo de imprevistos debe ser mínimo el 1% del presupuesto.");
 
@@ -129,8 +125,6 @@ public class TenantConfigController : BaseController
 
         config.BillingCycleDay = dto.BillingCycleDay;
         config.GracePeriodDays = dto.GracePeriodDays;
-        config.LatePaymentInterestRate = dto.LatePaymentInterestRate;
-        config.MaxLegalInterestRate = dto.MaxLegalInterestRate;
         config.FiscalYearStartMonth = dto.FiscalYearStartMonth;
         config.FiscalYearStartDay = dto.FiscalYearStartDay;
         config.AnnualBudget = dto.AnnualBudget;
@@ -303,17 +297,11 @@ public class TenantConfigController : BaseController
 
     private Task AuditFinancialChange(string tenantId, TenantConfiguration oldConfig, UpdateTenantConfigDto newConfig, string userId)
     {
-        if (oldConfig.LatePaymentInterestRate != newConfig.LatePaymentInterestRate)
-            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "LatePaymentInterestRate", oldConfig.LatePaymentInterestRate, newConfig.LatePaymentInterestRate, userId));
-
         if (oldConfig.BillingCycleDay != newConfig.BillingCycleDay)
             _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "BillingCycleDay", oldConfig.BillingCycleDay, newConfig.BillingCycleDay, userId));
 
         if (oldConfig.AnnualBudget != newConfig.AnnualBudget)
             _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "AnnualBudget", oldConfig.AnnualBudget, newConfig.AnnualBudget, userId));
-
-        if (oldConfig.MaxLegalInterestRate != newConfig.MaxLegalInterestRate)
-            _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "MaxLegalInterestRate", oldConfig.MaxLegalInterestRate, newConfig.MaxLegalInterestRate, userId));
 
         if (oldConfig.GracePeriodDays != newConfig.GracePeriodDays)
             _context.ConfigurationAuditLogs.Add(CreateAudit(tenantId, "GracePeriodDays", oldConfig.GracePeriodDays, newConfig.GracePeriodDays, userId));
@@ -362,8 +350,6 @@ public class TenantConfigController : BaseController
             LegalRepresentativeDv = config.LegalRepresentativeDv,
             BillingCycleDay = config.BillingCycleDay,
             GracePeriodDays = config.GracePeriodDays,
-            LatePaymentInterestRate = config.LatePaymentInterestRate,
-            MaxLegalInterestRate = config.MaxLegalInterestRate,
             FiscalYearStartMonth = config.FiscalYearStartMonth,
             FiscalYearStartDay = config.FiscalYearStartDay,
             AnnualBudget = config.AnnualBudget,
@@ -444,8 +430,6 @@ public class UpdateTenantConfigDto
 
     public int BillingCycleDay { get; set; }
     public int GracePeriodDays { get; set; }
-    public decimal LatePaymentInterestRate { get; set; }
-    public decimal MaxLegalInterestRate { get; set; }
     public int FiscalYearStartMonth { get; set; }
     public int FiscalYearStartDay { get; set; }
     public decimal AnnualBudget { get; set; }
@@ -487,8 +471,6 @@ public class TenantConfigurationDto
     public string LegalRepresentativeDv { get; set; } = string.Empty;
     public int BillingCycleDay { get; set; }
     public int GracePeriodDays { get; set; }
-    public decimal LatePaymentInterestRate { get; set; }
-    public decimal MaxLegalInterestRate { get; set; }
     public int FiscalYearStartMonth { get; set; }
     public int FiscalYearStartDay { get; set; }
     public decimal AnnualBudget { get; set; }

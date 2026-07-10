@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,26 +19,20 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 public class FeesAndPortfolioController : BaseController
 {
     private readonly BillingEngineService _billingEngine;
-    private readonly LateInterestService _lateInterestService;
     private readonly PaymentService _paymentService;
-    private readonly PaymentAgreementService _agreementService;
     private readonly StatementService _statementService;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<FeesAndPortfolioController> _logger;
 
     public FeesAndPortfolioController(
         BillingEngineService billingEngine,
-        LateInterestService lateInterestService,
         PaymentService paymentService,
-        PaymentAgreementService agreementService,
         StatementService statementService,
         ApplicationDbContext context,
         ILogger<FeesAndPortfolioController> logger)
     {
         _billingEngine = billingEngine;
-        _lateInterestService = lateInterestService;
         _paymentService = paymentService;
-        _agreementService = agreementService;
         _statementService = statementService;
         _context = context;
         _logger = logger;
@@ -68,6 +61,7 @@ public class FeesAndPortfolioController : BaseController
                 request.Period,
                 request.CutoffDate,
                 request.PaymentDueDate,
+                request.ExcludedUnits,
                 userId);
 
             return Ok(new
@@ -75,12 +69,16 @@ public class FeesAndPortfolioController : BaseController
                 id = billingPeriod.Id,
                 period = billingPeriod.Period,
                 status = billingPeriod.Status.ToString(),
-                totalBilled = billingPeriod.MonthlyBudgetTotal,
+                totalBilled = billingPeriod.TotalBilled,
                 roundingAdjustment = billingPeriod.RoundingAdjustment,
                 executedAt = billingPeriod.ExecutedAt
             });
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
         }
@@ -130,6 +128,44 @@ public class FeesAndPortfolioController : BaseController
         await _context.SaveChangesAsync();
 
         return Ok(new { id = billingPeriod.Id, notes = billingPeriod.Notes });
+    }
+
+    [HttpPost("adjustments")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<IActionResult> CreateAdjustment([FromBody] CreateBillingAdjustmentRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        try
+        {
+            var adjustment = await _billingEngine.CreateAdjustmentAsync(tenantId, request, userId);
+            return Ok(new
+            {
+                id = adjustment.Id,
+                unitId = adjustment.UnitId,
+                amount = adjustment.Amount,
+                reason = adjustment.Reason,
+                createdAt = adjustment.CreatedAt
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpGet("units/{unitId}/adjustments")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    public async Task<IActionResult> GetUnitAdjustments(Guid unitId)
+    {
+        var tenantId = GetTenantId();
+        var adjustments = await _billingEngine.GetUnitAdjustmentsAsync(tenantId, unitId);
+        return Ok(adjustments);
     }
 
     [HttpGet("portfolio-summary")]
@@ -198,89 +234,6 @@ public class FeesAndPortfolioController : BaseController
         };
 
         return Ok(summary);
-    }
-
-    [HttpGet("interest-rate")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
-    public async Task<IActionResult> GetInterestRate()
-    {
-        var tenantId = GetTenantId();
-        var monthlyRate = await _lateInterestService.GetMonthlyRateAsync(tenantId);
-        var dailyRate = _lateInterestService.GetDailyRate(monthlyRate);
-
-        var config = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
-
-        return Ok(new LateInterestRateConfigDto
-        {
-            MonthlyRate = monthlyRate,
-            MaxLegalRate = config?.MaxLegalInterestRate ?? 0m,
-            DailyRate = dailyRate
-        });
-    }
-
-    [HttpGet("units/{unitId}/interest-preview")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
-    public async Task<IActionResult> PreviewUnitInterest(Guid unitId, [FromQuery] DateTime? asOfDate)
-    {
-        var tenantId = GetTenantId();
-        var date = asOfDate ?? DateTime.UtcNow;
-        var interests = await _lateInterestService.PreviewUnitInterestAsync(tenantId, unitId, date);
-        return Ok(new
-        {
-            unitId,
-            asOfDate = date,
-            totalInterest = Math.Round(interests.Sum(i => i.CalculatedInterest), 2),
-            items = interests
-        });
-    }
-
-    [HttpPost("interest/capitalize")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-    public async Task<IActionResult> CapitalizeInterest([FromBody] CapitalizeInterestRequestDto request)
-    {
-        var tenantId = GetTenantId();
-        var userId = GetUserId();
-
-        try
-        {
-            var interests = await _lateInterestService.CapitalizeInterestAsync(
-                tenantId, request.SourceType, request.SourceId, request.Period, userId);
-
-            return Ok(new { count = interests.Count, total = interests.Sum(i => i.CalculatedAmount) });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
-
-    [HttpPost("interest/capitalize-all")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-    public async Task<IActionResult> CapitalizeAllInterest([FromBody] CapitalizeAllInterestRequestDto request)
-    {
-        var tenantId = GetTenantId();
-        var userId = GetUserId();
-
-        var interests = await _lateInterestService.CapitalizeAllOverdueInterestAsync(
-            tenantId, request.Period, userId);
-        return Ok(new { count = interests.Count, total = interests.Sum(i => i.CalculatedAmount) });
-    }
-
-    [HttpGet("interest/capitalized")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
-    public async Task<IActionResult> GetCapitalizedInterests([FromQuery] Guid? unitId)
-    {
-        var tenantId = GetTenantId();
-        var interests = await _lateInterestService.GetCapitalizedInterestsAsync(tenantId, unitId);
-        return Ok(interests);
     }
 
     [HttpGet("units/{unitId}/debt")]
@@ -362,99 +315,6 @@ public class FeesAndPortfolioController : BaseController
         }
     }
 
-    [HttpPost("agreements/simulate")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-    public IActionResult SimulateAgreement([FromBody] CreatePaymentAgreementRequestDto request)
-    {
-        var simulation = _agreementService.SimulateAgreement(
-            request.TotalDebtIncluded,
-            request.NumberOfInstallments,
-            request.InterestForgivenessPercentage,
-            request.StartDate);
-
-        return Ok(simulation);
-    }
-
-    [HttpPost("agreements")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-    public async Task<IActionResult> CreateAgreement([FromBody] CreatePaymentAgreementRequestDto request)
-    {
-        var tenantId = GetTenantId();
-        var userId = GetUserId();
-
-        try
-        {
-            var agreement = await _agreementService.CreateAgreementAsync(tenantId, request, userId);
-            return Ok(new
-            {
-                id = agreement.Id,
-                unitId = agreement.UnitId,
-                status = agreement.Status.ToString(),
-                installments = agreement.NumberOfInstallments,
-                installmentAmount = agreement.InstallmentAmount
-            });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
-
-    [HttpGet("agreements")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
-    public async Task<IActionResult> GetAgreements()
-    {
-        var tenantId = GetTenantId();
-        var agreements = await _agreementService.GetActiveAgreementsAsync(tenantId);
-        return Ok(agreements);
-    }
-
-    [HttpGet("agreements/{agreementId}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
-    public async Task<IActionResult> GetAgreementDetail(Guid agreementId)
-    {
-        var tenantId = GetTenantId();
-
-        try
-        {
-            var detail = await _agreementService.GetAgreementDetailAsync(tenantId, agreementId);
-            return Ok(detail);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-    }
-
-    [HttpPost("agreements/{agreementId}/pay")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-    public async Task<IActionResult> PayAgreementInstallment(Guid agreementId, [FromBody] PayAgreementRequestDto request)
-    {
-        var tenantId = GetTenantId();
-
-        try
-        {
-            await _agreementService.ApplyPaymentToAgreementAsync(tenantId, agreementId, request.Amount);
-            return Ok(new { message = "Pago aplicado al acuerdo exitosamente." });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
-
     [HttpPost("statement")]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
     public async Task<IActionResult> GetUnitStatement([FromBody] StatementRequestDto request)
@@ -523,6 +383,23 @@ public class FeesAndPortfolioController : BaseController
         {
             var detail = await _statementService.GetCertificateDetailAsync(tenantId, certificateId);
             return Ok(detail);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
+    [HttpGet("clearance-certificates/{certificateId}/pdf")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    public async Task<IActionResult> DownloadCertificatePdf(Guid certificateId)
+    {
+        var tenantId = GetTenantId();
+
+        try
+        {
+            var pdfBytes = await _statementService.GenerateCertificatePdfAsync(tenantId, certificateId);
+            return File(pdfBytes, "application/pdf", "paz-y-salvo-" + certificateId + ".pdf");
         }
         catch (KeyNotFoundException ex)
         {
@@ -605,7 +482,7 @@ public class FeesAndPortfolioController : BaseController
         {
             _context.ExtraordinaryFees.Add(fee);
 
-            var distributions = new List<ExtraordinaryFeeDistribution>();
+            var distributions = new System.Collections.Generic.List<ExtraordinaryFeeDistribution>();
             foreach (var unit in units)
             {
                 decimal unitAmount;
@@ -888,7 +765,7 @@ public class FeesAndPortfolioController : BaseController
         charge.Status = newStatus;
         if (!string.IsNullOrEmpty(request.Notes))
         {
-            charge.Description = $"{charge.Description} | {request.Notes}";
+            charge.Description = charge.Description + " | " + request.Notes;
         }
 
         if (newStatus == IndividualChargeStatus.Paid)
@@ -926,23 +803,20 @@ public class FeesAndPortfolioController : BaseController
             .Where(c => unitIds.Contains(c.UnitId) && c.TenantId == tenantId)
             .ToListAsync();
 
+        var adjustments = await _context.BillingAdjustments
+            .Where(a => unitIds.Contains(a.UnitId) && a.TenantId == tenantId)
+            .ToListAsync();
+
         var payments = await _context.Payments
             .Where(p => unitIds.Contains(p.UnitId) && p.TenantId == tenantId)
             .OrderByDescending(p => p.PaymentDate)
             .ToListAsync();
 
-        var agreements = await _context.PaymentAgreements
-            .Include(a => a.Installments)
-            .Where(a => unitIds.Contains(a.UnitId) && a.TenantId == tenantId)
-            .ToListAsync();
-
         var now = DateTime.UtcNow;
-        var nowDate = now.Date;
 
-        var preventive = new List<CollectionStageUnitDto>();
-        var preJudicial = new List<CollectionStageUnitDto>();
-        var judicialList = new List<CollectionStageUnitDto>();
-        var agreementList = new List<CollectionStageUnitDto>();
+        var oneMonth = new System.Collections.Generic.List<CollectionStageUnitDto>();
+        var twoMonths = new System.Collections.Generic.List<CollectionStageUnitDto>();
+        var threeOrMoreMonths = new System.Collections.Generic.List<CollectionStageUnitDto>();
 
         foreach (var unit in units)
         {
@@ -955,95 +829,80 @@ public class FeesAndPortfolioController : BaseController
                 .ToList();
 
             var overdueCharges = individualCharges
-                .Where(c => c.UnitId == unit.Id && c.Status != IndividualChargeStatus.Paid && c.ChargeDate < now)
+                .Where(c => c.UnitId == unit.Id && c.Status != IndividualChargeStatus.Paid && !c.IsDisputed && c.ChargeDate < now)
+                .ToList();
+
+            var positiveAdjustments = adjustments
+                .Where(a => a.UnitId == unit.Id && a.Amount > 0)
                 .ToList();
 
             var totalDebt = overdueFees.Sum(f => f.BalanceAmount)
                 + overdueExtraordinary.Sum(d => d.BalanceAmount)
-                + overdueCharges.Sum(c => c.BalanceAmount);
+                + overdueCharges.Sum(c => c.BalanceAmount)
+                + positiveAdjustments.Sum(a => a.Amount);
 
             if (totalDebt <= 0)
                 continue;
 
-            var maxOverdueDays = overdueFees
-                .Select(f => (nowDate - f.DueDate.Date).Days)
-                .Concat(overdueExtraordinary.Select(d => (nowDate - d.DueDate.Date).Days))
-                .Concat(overdueCharges.Select(c => (nowDate - c.ChargeDate.Date).Days))
-                .DefaultIfEmpty(0)
-                .Max();
+            var referenceDates = overdueFees.Select(f => f.DueDate)
+                .Concat(overdueExtraordinary.Select(d => d.DueDate))
+                .Concat(overdueCharges.Select(c => c.ChargeDate))
+                .Concat(positiveAdjustments.Select(a => a.CreatedAt))
+                .ToList();
 
-            var lastPayment = payments
-                .Where(p => p.UnitId == unit.Id)
-                .FirstOrDefault();
+            var oldestReferenceDate = referenceDates.DefaultIfEmpty(now).Min();
+            var monthsOverdue = CalculateMonthsOverdue(oldestReferenceDate, now);
+
+            if (monthsOverdue <= 0)
+                continue;
+
+            var lastPayment = payments.FirstOrDefault(p => p.UnitId == unit.Id);
 
             var stageDto = new CollectionStageUnitDto
             {
                 UnitId = unit.Id,
                 UnitIdentifier = unit.Identifier,
                 TotalDebt = totalDebt,
-                OverdueBalance = totalDebt,
-                LateDays = maxOverdueDays,
-                LastPaymentDate = lastPayment?.PaymentDate.ToString("yyyy-MM-dd") ?? "N/A"
+                MonthsOverdue = monthsOverdue,
+                LastPaymentDate = lastPayment != null ? lastPayment.PaymentDate.ToString("yyyy-MM-dd") : "N/A"
             };
 
-            var activeAgreement = agreements
-                .FirstOrDefault(a => a.UnitId == unit.Id && a.Status == AgreementStatus.Active);
-
-            if (activeAgreement != null)
+            if (monthsOverdue == 1)
             {
-                stageDto.TotalDebt = activeAgreement.TotalDebtIncluded;
-                stageDto.OverdueBalance = activeAgreement.Installments
-                    .Where(i => i.Status == AgreementInstallmentStatus.Overdue)
-                    .Sum(i => i.Amount - i.PaidAmount);
-                agreementList.Add(stageDto);
+                oneMonth.Add(stageDto);
             }
-            else if (maxOverdueDays <= 60)
+            else if (monthsOverdue == 2)
             {
-                preventive.Add(stageDto);
-            }
-            else if (maxOverdueDays <= 120)
-            {
-                preJudicial.Add(stageDto);
+                twoMonths.Add(stageDto);
             }
             else
             {
-                judicialList.Add(stageDto);
+                threeOrMoreMonths.Add(stageDto);
             }
         }
 
         var result = new PortfolioCollectionStagesDto
         {
-            Preventive = new CollectionStageDto
+            OneMonth = new CollectionStageDto
             {
-                Stage = "Preventivo",
-                UnitCount = preventive.Count,
-                TotalDebt = preventive.Sum(u => u.TotalDebt),
-                TotalOverdue = preventive.Sum(u => u.OverdueBalance),
-                Units = preventive
+                Stage = "1 mes",
+                UnitCount = oneMonth.Count,
+                TotalDebt = oneMonth.Sum(u => u.TotalDebt),
+                Units = oneMonth
             },
-            PreJudicial = new CollectionStageDto
+            TwoMonths = new CollectionStageDto
             {
-                Stage = "Prejurídico",
-                UnitCount = preJudicial.Count,
-                TotalDebt = preJudicial.Sum(u => u.TotalDebt),
-                TotalOverdue = preJudicial.Sum(u => u.OverdueBalance),
-                Units = preJudicial
+                Stage = "2 meses",
+                UnitCount = twoMonths.Count,
+                TotalDebt = twoMonths.Sum(u => u.TotalDebt),
+                Units = twoMonths
             },
-            Judicial = new CollectionStageDto
+            ThreeOrMoreMonths = new CollectionStageDto
             {
-                Stage = "Jurídico",
-                UnitCount = judicialList.Count,
-                TotalDebt = judicialList.Sum(u => u.TotalDebt),
-                TotalOverdue = judicialList.Sum(u => u.OverdueBalance),
-                Units = judicialList
-            },
-            Agreement = new CollectionStageDto
-            {
-                Stage = "Acuerdo de Pago",
-                UnitCount = agreementList.Count,
-                TotalDebt = agreementList.Sum(u => u.TotalDebt),
-                TotalOverdue = agreementList.Sum(u => u.OverdueBalance),
-                Units = agreementList
+                Stage = "3 o más meses",
+                UnitCount = threeOrMoreMonths.Count,
+                TotalDebt = threeOrMoreMonths.Sum(u => u.TotalDebt),
+                Units = threeOrMoreMonths
             }
         };
 
@@ -1080,6 +939,10 @@ public class FeesAndPortfolioController : BaseController
             .OrderByDescending(c => c.ChargeDate)
             .ToListAsync();
 
+        var adjustments = await _context.BillingAdjustments
+            .Where(a => a.UnitId == unitId && a.TenantId == tenantId)
+            .ToListAsync();
+
         var latestPayments = await _context.Payments
             .Where(p => p.UnitId == unitId && p.TenantId == tenantId)
             .OrderByDescending(p => p.PaymentDate)
@@ -1091,9 +954,12 @@ public class FeesAndPortfolioController : BaseController
             .SumAsync(p => p.AdvanceAmount);
 
         var now = DateTime.UtcNow;
+        var adjustmentTotal = adjustments.Sum(a => a.Amount);
+
         var outstandingBalance = unitFees.Sum(f => f.BalanceAmount)
             + extraordinaryDistributions.Sum(d => d.BalanceAmount)
-            + individualCharges.Sum(c => c.BalanceAmount);
+            + individualCharges.Where(c => !c.IsDisputed).Sum(c => c.BalanceAmount)
+            + adjustmentTotal;
 
         var overdueBalance = unitFees
             .Where(f => f.Status != FeeStatus.FullyPaid && f.DueDate < now)
@@ -1102,36 +968,33 @@ public class FeesAndPortfolioController : BaseController
                 .Where(d => d.Status != FeeStatus.FullyPaid && d.DueDate < now)
                 .Sum(d => d.BalanceAmount)
             + individualCharges
-                .Where(c => c.Status != IndividualChargeStatus.Paid && c.ChargeDate < now)
-                .Sum(c => c.BalanceAmount);
+                .Where(c => c.Status != IndividualChargeStatus.Paid && !c.IsDisputed && c.ChargeDate < now)
+                .Sum(c => c.BalanceAmount)
+            + adjustments.Where(a => a.Amount > 0).Sum(a => a.Amount);
 
-        var maxLateDays = unitFees
+        var referenceDates = unitFees
             .Where(f => f.Status != FeeStatus.FullyPaid && f.DueDate < now)
-            .Select(f => (now - f.DueDate).Days)
+            .Select(f => f.DueDate)
             .Concat(extraordinaryDistributions
                 .Where(d => d.Status != FeeStatus.FullyPaid && d.DueDate < now)
-                .Select(d => (now - d.DueDate).Days))
+                .Select(d => d.DueDate))
             .Concat(individualCharges
-                .Where(c => c.Status != IndividualChargeStatus.Paid && c.ChargeDate < now)
-                .Select(c => (now - c.ChargeDate).Days))
-            .DefaultIfEmpty(0)
-            .Max();
+                .Where(c => c.Status != IndividualChargeStatus.Paid && !c.IsDisputed && c.ChargeDate < now)
+                .Select(c => c.ChargeDate))
+            .ToList();
 
-        var lateDays = Math.Max(0, maxLateDays);
+        var monthsOverdue = 0;
+        if (referenceDates.Count > 0)
+        {
+            var oldestReferenceDate = referenceDates.Min();
+            monthsOverdue = CalculateMonthsOverdue(oldestReferenceDate, now);
+        }
 
-        string collectionStage;
-        if (lateDays <= 60)
-            collectionStage = "Preventivo";
-        else if (lateDays <= 120)
-            collectionStage = "Prejurídico";
-        else
-            collectionStage = "Jurídico";
-
-        var debtItems = new List<PortfolioDebtItemDto>();
+        var debtItems = new System.Collections.Generic.List<PortfolioDebtItemDto>();
         debtItems.AddRange(unitFees.Select(f => new PortfolioDebtItemDto
         {
             SourceType = "Cuota Ordinaria",
-            Description = $"Período {f.BillingPeriod?.Period ?? "N/A"}",
+            Description = "Período " + (f.BillingPeriod != null ? f.BillingPeriod.Period : "N/A"),
             DueDate = f.DueDate,
             Amount = f.FeeValue,
             Balance = f.BalanceAmount,
@@ -1140,7 +1003,7 @@ public class FeesAndPortfolioController : BaseController
         debtItems.AddRange(extraordinaryDistributions.Select(d => new PortfolioDebtItemDto
         {
             SourceType = "Cuota Extraordinaria",
-            Description = $"{d.ExtraordinaryFee?.Name ?? "N/A"} - Cuota {d.InstallmentNumber}",
+            Description = (d.ExtraordinaryFee != null ? d.ExtraordinaryFee.Name : "N/A") + " - Cuota " + d.InstallmentNumber,
             DueDate = d.DueDate,
             Amount = d.Amount,
             Balance = d.BalanceAmount,
@@ -1148,22 +1011,22 @@ public class FeesAndPortfolioController : BaseController
         }));
         debtItems.AddRange(individualCharges.Select(c => new PortfolioDebtItemDto
         {
-            SourceType = c.ChargeType switch
-            {
-                ChargeType.Fine => "Multa",
-                ChargeType.Damage => "Daño",
-                ChargeType.ParkingFee => "Parqueadero",
-                _ => "Otro"
-            },
+            SourceType = DescribeChargeType(c.ChargeType),
             Description = c.Description,
             DueDate = c.ChargeDate,
             Amount = c.Amount,
             Balance = c.BalanceAmount,
             DaysOverdue = c.Status != IndividualChargeStatus.Paid ? Math.Max(0, (now - c.ChargeDate).Days) : 0
         }));
-
-        var monthlyRate = await _lateInterestService.GetMonthlyRateAsync(tenantId);
-        var dailyRate = _lateInterestService.GetDailyRate(monthlyRate);
+        debtItems.AddRange(adjustments.Select(a => new PortfolioDebtItemDto
+        {
+            SourceType = "Ajuste",
+            Description = a.Reason,
+            DueDate = a.CreatedAt,
+            Amount = a.Amount,
+            Balance = a.Amount,
+            DaysOverdue = 0
+        }));
 
         var detail = new UnitPortfolioDetailDto
         {
@@ -1174,11 +1037,7 @@ public class FeesAndPortfolioController : BaseController
             OutstandingBalance = outstandingBalance,
             OverdueBalance = overdueBalance,
             AdvanceBalance = advanceBalance,
-            AccruedInterest = unitFees
-                .Where(f => f.Status != FeeStatus.FullyPaid && f.DueDate < now)
-                .Sum(f => Math.Round(f.BalanceAmount * dailyRate * Math.Max(0, (now - f.DueDate).Days), 2)),
-            LateDays = lateDays,
-            CollectionStage = collectionStage,
+            MonthsOverdue = monthsOverdue,
             DebtItems = debtItems.OrderByDescending(d => d.DaysOverdue).ToList(),
             RecentPayments = latestPayments.Select(p => new RecentPaymentDto
             {
@@ -1190,5 +1049,30 @@ public class FeesAndPortfolioController : BaseController
         };
 
         return Ok(detail);
+    }
+
+    private static string DescribeChargeType(ChargeType chargeType)
+    {
+        switch (chargeType)
+        {
+            case ChargeType.Fine:
+                return "Multa";
+            case ChargeType.Damage:
+                return "Daño";
+            case ChargeType.ParkingFee:
+                return "Parqueadero";
+            default:
+                return "Otro";
+        }
+    }
+
+    private static int CalculateMonthsOverdue(DateTime dueDate, DateTime now)
+    {
+        var months = ((now.Year - dueDate.Year) * 12) + (now.Month - dueDate.Month);
+        if (now.Day < dueDate.Day)
+        {
+            months -= 1;
+        }
+        return Math.Max(0, months);
     }
 }

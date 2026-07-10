@@ -97,8 +97,12 @@ public class PaymentService
             });
         }
 
-        var totalDebt = items.Sum(i => i.Balance);
-        var totalOverdue = items.Where(i => i.IsOverdue).Sum(i => i.Balance);
+        var adjustmentTotal = await _context.BillingAdjustments
+            .Where(a => a.TenantId == tenantId && a.UnitId == unitId)
+            .SumAsync(a => a.Amount);
+
+        var totalDebt = items.Sum(i => i.Balance) + adjustmentTotal;
+        var totalOverdue = items.Where(i => i.IsOverdue).Sum(i => i.Balance) + adjustmentTotal;
 
         var advanceBalance = await GetAdvanceBalanceAsync(tenantId, unitId);
 
@@ -108,7 +112,6 @@ public class PaymentService
             UnitIdentifier = unit.Identifier,
             TotalDebt = totalDebt,
             TotalOverdue = totalOverdue,
-            TotalInterestAccrued = 0m,
             AdvanceBalance = advanceBalance,
             Items = items
         };
@@ -120,29 +123,6 @@ public class PaymentService
         var now = DateTime.UtcNow;
         var remaining = amount;
         var allocations = new List<PaymentAllocationPreviewDto>();
-
-        var unpaidInterestIds = await GetUnpaidCapitalizedInterestIdsAsync(tenantId, unitId);
-
-        var unpaidInterests = await _context.LateInterests
-            .Where(li => unpaidInterestIds.Contains(li.Id))
-            .OrderBy(li => li.Period)
-            .ToListAsync();
-
-        foreach (var interest in unpaidInterests)
-        {
-            if (remaining <= 0m) break;
-
-            var toAllocate = Math.Min(remaining, interest.CalculatedAmount);
-            remaining -= toAllocate;
-
-            allocations.Add(new PaymentAllocationPreviewDto
-            {
-                SourceType = "LateInterest",
-                SourceId = interest.Id,
-                Description = "Interés mora " + interest.Period,
-                AllocatedAmount = toAllocate
-            });
-        }
 
         var overdueFees = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId
@@ -240,14 +220,12 @@ public class PaymentService
             });
         }
 
-        var interestTotal = allocations.Where(a => a.SourceType == "LateInterest").Sum(a => a.AllocatedAmount);
-        var capitalTotal = allocations.Where(a => a.SourceType != "LateInterest").Sum(a => a.AllocatedAmount);
+        var totalAllocated = allocations.Sum(a => a.AllocatedAmount);
 
         return new PaymentPreviewDto
         {
             TotalPayment = amount,
-            AllocatedToInterest = interestTotal,
-            AllocatedToCapital = capitalTotal,
+            TotalAllocated = totalAllocated,
             AdvanceAmount = Math.Max(0, remaining),
             Allocations = allocations
         };
@@ -258,7 +236,7 @@ public class PaymentService
     {
         if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, true, out var paymentMethod))
         {
-            throw new ArgumentException("El medio de pago especificado es inválido (Cash, Transfer, Check, Online).");
+            throw new ArgumentException("El medio de pago especificado es inválido (Cash, Transfer, Check).");
         }
 
         var preview = await PreviewPaymentAllocationAsync(tenantId, request.UnitId, request.Amount);
@@ -288,16 +266,11 @@ public class PaymentService
                 TenantId = tenantId,
                 PaymentId = payment.Id,
                 Amount = alloc.AllocatedAmount,
-                AllocationType = alloc.SourceType == "LateInterest"
-                    ? PaymentAllocationType.Interest
-                    : PaymentAllocationType.Capital
+                AllocationType = PaymentAllocationType.Capital
             };
 
             switch (alloc.SourceType)
             {
-                case "LateInterest":
-                    allocation.LateInterestId = alloc.SourceId;
-                    break;
                 case "UnitFee":
                     allocation.UnitFeeId = alloc.SourceId;
                     await UpdateUnitFeeAfterPayment(alloc.SourceId, alloc.AllocatedAmount);
@@ -317,7 +290,7 @@ public class PaymentService
 
         await _context.SaveChangesAsync();
 
-        _cache.Remove($"mora_map_{tenantId}");
+        _cache.Remove("mora_map_" + tenantId);
         await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
         return payment;
     }
@@ -365,12 +338,11 @@ public class PaymentService
             .Select(pa => new PaymentAllocationDto
             {
                 Id = pa.Id,
-                SourceType = pa.LateInterestId != null ? "LateInterest"
-                           : pa.UnitFeeId != null ? "UnitFee"
+                SourceType = pa.UnitFeeId != null ? "UnitFee"
                            : pa.ExtraordinaryFeeDistributionId != null ? "ExtraordinaryFee"
                            : pa.IndividualChargeId != null ? "IndividualCharge"
                            : "Unknown",
-                SourceId = pa.LateInterestId ?? pa.UnitFeeId ?? pa.ExtraordinaryFeeDistributionId ?? pa.IndividualChargeId,
+                SourceId = pa.UnitFeeId ?? pa.ExtraordinaryFeeDistributionId ?? pa.IndividualChargeId,
                 Amount = pa.Amount,
                 AllocationType = pa.AllocationType.ToString()
             })
@@ -452,29 +424,5 @@ public class PaymentService
             .SumAsync(p => p.AdvanceAmount);
 
         return totalAdvances;
-    }
-
-    private async Task<List<Guid>> GetUnpaidCapitalizedInterestIdsAsync(string tenantId, Guid unitId)
-    {
-        var unitFeeIds = await _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId && uf.UnitId == unitId)
-            .Select(uf => uf.Id)
-            .ToListAsync();
-
-        var paidInterestIds = await _context.PaymentAllocations
-            .Where(pa => pa.LateInterestId != null && pa.TenantId == tenantId)
-            .Select(pa => pa.LateInterestId!.Value)
-            .ToListAsync();
-
-        var unpaidInterests = await _context.LateInterests
-            .Where(li => li.TenantId == tenantId
-                      && li.IsCapitalized
-                      && li.UnitFeeId != null
-                      && unitFeeIds.Contains(li.UnitFeeId.Value)
-                      && !paidInterestIds.Contains(li.Id))
-            .Select(li => li.Id)
-            .ToListAsync();
-
-        return unpaidInterests;
     }
 }

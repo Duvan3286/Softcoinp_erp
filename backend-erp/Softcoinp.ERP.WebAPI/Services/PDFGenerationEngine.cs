@@ -146,9 +146,6 @@ public class PDFGenerationEngine
                 case "PortfolioProjection":
                     RenderPortfolioProjection(col, tenantId);
                     break;
-                case "PaymentAgreements":
-                    RenderPaymentAgreements(col, tenantId);
-                    break;
                 case "PQRSummary":
                     RenderPQRSummary(col, tenantId, periodFrom, periodTo);
                     break;
@@ -638,54 +635,6 @@ public class PDFGenerationEngine
             table.Cell().Background(Colors.Grey.Lighten3).Padding(3).AlignRight().Text(estimatedRecovery.ToString("N2")).Style(totalStyle);
             table.Cell().Padding(3).Text("Saldo de dificil recuperacion").Style(rowStyle);
             table.Cell().Padding(3).AlignRight().Text(estimatedUnrecoverable.ToString("N2")).Style(rowStyle);
-        });
-    }
-    private void RenderPaymentAgreements(ColumnDescriptor col, string tenantId)
-    {
-        col.Item().Text("Acuerdos de Pago Activos").FontSize(14).Bold();
-        col.Item().PaddingBottom(8);
-        var agreements = _context.PaymentAgreements
-            .Where(a => a.TenantId == tenantId && a.Status == AgreementStatus.Active)
-            .Include(a => a.Unit)
-            .Include(a => a.Installments)
-            .ToList();
-        if (agreements.Count == 0)
-        {
-            col.Item().Padding(10).Text("No hay acuerdos de pago activos.").FontColor(Colors.Grey.Darken2);
-            return;
-        }
-        col.Item().Table(table =>
-        {
-            table.ColumnsDefinition(cd =>
-            {
-                cd.ConstantColumn(60);
-                cd.ConstantColumn(70);
-                cd.ConstantColumn(70);
-                cd.ConstantColumn(70);
-                cd.ConstantColumn(70);
-                cd.ConstantColumn(60);
-            });
-            var headerStyle = TextStyle.Default.FontSize(9).Bold().FontColor(Colors.White);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Unidad").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("Deuda").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("Cuota").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("No.Cuotas").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Inicio").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Estado").Style(headerStyle);
-            var rowStyle = TextStyle.Default.FontSize(8);
-            var altColor = Colors.Grey.Lighten4;
-            var index = 0;
-            foreach (var agreement in agreements)
-            {
-                var bg = index % 2 == 0 ? Colors.White : altColor;
-                table.Cell().Background(bg).Padding(3).Text(agreement.Unit?.Identifier ?? "").Style(rowStyle);
-                table.Cell().Background(bg).Padding(3).AlignRight().Text(agreement.TotalDebtIncluded.ToString("N2")).Style(rowStyle);
-                table.Cell().Background(bg).Padding(3).AlignRight().Text(agreement.InstallmentAmount.ToString("N2")).Style(rowStyle);
-                table.Cell().Background(bg).Padding(3).AlignRight().Text(agreement.NumberOfInstallments.ToString()).Style(rowStyle);
-                table.Cell().Background(bg).Padding(3).Text(agreement.StartedAt.ToString("dd/MMM/yyyy", CultureInfo.GetCultureInfo("es-CO"))).Style(rowStyle);
-                table.Cell().Background(bg).Padding(3).Text(agreement.Status.ToString()).Style(rowStyle);
-                index++;
-            }
         });
     }
     private void RenderPQRSummary(ColumnDescriptor col, string tenantId, DateTime? from, DateTime? to)

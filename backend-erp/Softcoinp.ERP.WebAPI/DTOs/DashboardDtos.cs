@@ -118,8 +118,6 @@ public class ResidentDashboardDto
 {
     public string UnitIdentifier { get; set; } = string.Empty;
     public decimal CurrentBalance { get; set; }
-    public decimal LateInterestAccrued { get; set; }
-    public decimal DailyInterestRate { get; set; }
     public int DaysOverdue { get; set; }
     public DateTime OldestDebtDate { get; set; }
     public List<ResidentOpenPqrDto> OpenPqrs { get; set; } = new();

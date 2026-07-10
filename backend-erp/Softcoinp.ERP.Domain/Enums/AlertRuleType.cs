@@ -5,7 +5,5 @@ public enum AlertRuleType
     ProviderContractExpiring,
     PreventiveMaintenanceDue,
     PqrOverdue,
-    PaymentAgreementInstallmentOverdue,
-    BudgetAccountExceeded,
-    LatePaymentThreshold
+    BudgetAccountExceeded
 }

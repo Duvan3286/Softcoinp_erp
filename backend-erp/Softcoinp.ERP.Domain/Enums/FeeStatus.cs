@@ -4,6 +4,5 @@ public enum FeeStatus
 {
     Pending,
     PartiallyPaid,
-    FullyPaid,
-    Overdue
+    FullyPaid
 }

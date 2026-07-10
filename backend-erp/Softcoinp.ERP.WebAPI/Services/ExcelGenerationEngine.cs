@@ -97,9 +97,6 @@ public class ExcelGenerationEngine
             case "PeriodCollection":
                 FillPeriodCollection(ws, tenantId, periodFrom, periodTo);
                 break;
-            case "PaymentAgreements":
-                FillPaymentAgreements(ws, tenantId);
-                break;
             case "ActiveContracts":
                 FillActiveContracts(ws, tenantId);
                 break;
@@ -668,78 +665,6 @@ public class ExcelGenerationEngine
         ws.Columns(4, 4).Width = 12;
         ws.Columns(5, 6).Width = 15;
         ws.Columns(7, 7).Width = 30;
-    }
-
-    private void FillPaymentAgreements(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Unidad", "Total Deuda", "Valor Cuota", "Numero Cuotas", "Estado", "Fecha Inicio" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var agreements = _context.PaymentAgreements
-            .Where(a => a.TenantId == tenantId && a.Status == AgreementStatus.Active)
-            .Include(a => a.Unit)
-            .Include(a => a.Installments)
-            .OrderBy(a => a.StartedAt)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var totalDebt = 0m;
-        var totalInstallmentValue = 0m;
-        var totalInstallments = 0;
-
-        foreach (var agreement in agreements)
-        {
-            var unitIdentifier = agreement.Unit != null ? agreement.Unit.Identifier : string.Empty;
-            var statusName = agreement.Status.ToString();
-            var installmentsPaid = agreement.Installments.Count(i => i.Status == AgreementInstallmentStatus.Paid);
-            var installmentsPending = agreement.Installments.Count(i => i.Status == AgreementInstallmentStatus.Pending);
-
-            ws.Cell(row, 1).Value = unitIdentifier;
-            ws.Cell(row, 2).Value = agreement.TotalDebtIncluded;
-            ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 3).Value = agreement.InstallmentAmount;
-            ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 4).Value = installmentsPaid + " / " + agreement.NumberOfInstallments;
-            ws.Cell(row, 5).Value = statusName;
-            ws.Cell(row, 6).Value = agreement.StartedAt.ToString("yyyy-MM-dd");
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 6; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            totalDebt += agreement.TotalDebtIncluded;
-            totalInstallmentValue += agreement.InstallmentAmount;
-            totalInstallments += agreement.NumberOfInstallments;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 2).Value = totalDebt;
-        ws.Cell(row, 2).Style.Font.Bold = true;
-        ws.Cell(row, 2).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 3).Value = totalInstallmentValue;
-        ws.Cell(row, 3).Style.Font.Bold = true;
-        ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 4).Value = totalInstallments.ToString();
-        ws.Cell(row, 4).Style.Font.Bold = true;
-
-        ws.Range(1, 1, row, 6).SetAutoFilter();
-        ws.Columns(1, 1).Width = 15;
-        ws.Columns(2, 3).Width = 15;
-        ws.Columns(4, 4).Width = 18;
-        ws.Columns(5, 5).Width = 14;
-        ws.Columns(6, 6).Width = 14;
     }
 
     private void FillActiveContracts(IXLWorksheet ws, string tenantId)

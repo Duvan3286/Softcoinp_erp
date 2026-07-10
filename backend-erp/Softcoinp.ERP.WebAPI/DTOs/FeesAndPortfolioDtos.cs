@@ -3,11 +3,18 @@ using System.Collections.Generic;
 
 namespace Softcoinp.ERP.WebAPI.DTOs;
 
+public class BillingExclusionRequestDto
+{
+    public Guid UnitId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
 public class ExecuteBillingRequestDto
 {
     public string Period { get; set; } = string.Empty;
     public DateTime CutoffDate { get; set; }
     public DateTime PaymentDueDate { get; set; }
+    public List<BillingExclusionRequestDto> ExcludedUnits { get; set; } = new();
 }
 
 public class BillingPeriodSummaryDto
@@ -38,6 +45,7 @@ public class BillingPeriodDetailDto
     public decimal RoundingAdjustment { get; set; }
     public string Notes { get; set; } = string.Empty;
     public List<UnitFeeDto> UnitFees { get; set; } = new();
+    public List<BillingAdjustmentDto> Adjustments { get; set; } = new();
 }
 
 public class UnitFeeDto
@@ -66,6 +74,28 @@ public class BillingChecklistDto
     public List<string> Warnings { get; set; } = new();
 }
 
+public class CreateBillingAdjustmentRequestDto
+{
+    public Guid UnitId { get; set; }
+    public Guid? BillingPeriodId { get; set; }
+    public Guid? UnitFeeId { get; set; }
+    public decimal Amount { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class BillingAdjustmentDto
+{
+    public Guid Id { get; set; }
+    public Guid UnitId { get; set; }
+    public string UnitIdentifier { get; set; } = string.Empty;
+    public Guid? BillingPeriodId { get; set; }
+    public Guid? UnitFeeId { get; set; }
+    public decimal Amount { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public string CreatedByUserId { get; set; } = string.Empty;
+}
+
 public class PortfolioSummaryDto
 {
     public decimal TotalBilled { get; set; }
@@ -92,7 +122,6 @@ public class UnitStatementDto
     public decimal OpeningBalance { get; set; }
     public decimal TotalCharges { get; set; }
     public decimal TotalPayments { get; set; }
-    public decimal TotalInterest { get; set; }
     public decimal ClosingBalance { get; set; }
     public List<StatementLineDto> Lines { get; set; } = new();
 }
@@ -105,48 +134,6 @@ public class StatementLineDto
     public decimal Debit { get; set; }
     public decimal Credit { get; set; }
     public decimal Balance { get; set; }
-}
-
-public class LateInterestPreviewDto
-{
-    public string SourceType { get; set; } = string.Empty;
-    public Guid SourceId { get; set; }
-    public decimal BalanceAmount { get; set; }
-    public int DaysOverdue { get; set; }
-    public decimal DailyRate { get; set; }
-    public decimal CalculatedInterest { get; set; }
-}
-
-public class LateInterestSummaryDto
-{
-    public Guid Id { get; set; }
-    public string SourceType { get; set; } = string.Empty;
-    public Guid? SourceId { get; set; }
-    public string Period { get; set; } = string.Empty;
-    public decimal BaseAmount { get; set; }
-    public decimal DailyRate { get; set; }
-    public int DaysOverdue { get; set; }
-    public decimal CalculatedAmount { get; set; }
-    public bool IsCapitalized { get; set; }
-}
-
-public class CapitalizeInterestRequestDto
-{
-    public string SourceType { get; set; } = "UnitFee";
-    public Guid SourceId { get; set; }
-    public string Period { get; set; } = string.Empty;
-}
-
-public class CapitalizeAllInterestRequestDto
-{
-    public string Period { get; set; } = string.Empty;
-}
-
-public class LateInterestRateConfigDto
-{
-    public decimal MonthlyRate { get; set; }
-    public decimal MaxLegalRate { get; set; }
-    public decimal DailyRate { get; set; }
 }
 
 public class RegisterPaymentRequestDto
@@ -162,8 +149,7 @@ public class RegisterPaymentRequestDto
 public class PaymentPreviewDto
 {
     public decimal TotalPayment { get; set; }
-    public decimal AllocatedToInterest { get; set; }
-    public decimal AllocatedToCapital { get; set; }
+    public decimal TotalAllocated { get; set; }
     public decimal AdvanceAmount { get; set; }
     public List<PaymentAllocationPreviewDto> Allocations { get; set; } = new();
 }
@@ -220,7 +206,6 @@ public class UnitDebtSummaryDto
     public string UnitIdentifier { get; set; } = string.Empty;
     public decimal TotalDebt { get; set; }
     public decimal TotalOverdue { get; set; }
-    public decimal TotalInterestAccrued { get; set; }
     public decimal AdvanceBalance { get; set; }
     public List<DebtItemDto> Items { get; set; } = new();
 }
@@ -234,92 +219,6 @@ public class DebtItemDto
     public decimal Amount { get; set; }
     public decimal Balance { get; set; }
     public bool IsOverdue { get; set; }
-}
-
-public class CreatePaymentAgreementRequestDto
-{
-    public Guid UnitId { get; set; }
-    public decimal TotalDebtIncluded { get; set; }
-    public int NumberOfInstallments { get; set; }
-    public decimal InterestForgivenessPercentage { get; set; }
-    public string CouncilActNumber { get; set; } = string.Empty;
-    public string DigitalAcceptance { get; set; } = string.Empty;
-    public DateTime StartDate { get; set; }
-    public List<AgreementDebtItemDto> IncludedDebts { get; set; } = new();
-}
-
-public class AgreementDebtItemDto
-{
-    public string SourceType { get; set; } = string.Empty;
-    public Guid SourceId { get; set; }
-}
-
-public class AgreementSimulationDto
-{
-    public decimal TotalDebt { get; set; }
-    public decimal InterestForgivenessPercentage { get; set; }
-    public decimal ForgivenAmount { get; set; }
-    public decimal NetDebt { get; set; }
-    public int NumberOfInstallments { get; set; }
-    public decimal InstallmentAmount { get; set; }
-    public List<SimulatedInstallmentDto> Installments { get; set; } = new();
-}
-
-public class SimulatedInstallmentDto
-{
-    public int Number { get; set; }
-    public DateTime DueDate { get; set; }
-    public decimal Amount { get; set; }
-}
-
-public class PaymentAgreementSummaryDto
-{
-    public Guid Id { get; set; }
-    public Guid UnitId { get; set; }
-    public string UnitIdentifier { get; set; } = string.Empty;
-    public decimal TotalDebtIncluded { get; set; }
-    public decimal InstallmentAmount { get; set; }
-    public int NumberOfInstallments { get; set; }
-    public decimal InterestForgivenessPercentage { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public DateTime StartedAt { get; set; }
-    public DateTime? DefaultedAt { get; set; }
-    public int PaidInstallments { get; set; }
-    public int OverdueInstallments { get; set; }
-}
-
-public class PaymentAgreementDetailDto
-{
-    public Guid Id { get; set; }
-    public Guid UnitId { get; set; }
-    public string UnitIdentifier { get; set; } = string.Empty;
-    public decimal TotalDebtIncluded { get; set; }
-    public decimal InstallmentAmount { get; set; }
-    public int NumberOfInstallments { get; set; }
-    public decimal InterestForgivenessPercentage { get; set; }
-    public string CouncilActNumber { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public DateTime StartedAt { get; set; }
-    public DateTime? DefaultedAt { get; set; }
-    public string DigitalAcceptance { get; set; } = string.Empty;
-    public List<AgreementInstallmentDto> Installments { get; set; } = new();
-    public List<AgreementDebtItemDto> IncludedDebts { get; set; } = new();
-}
-
-public class AgreementInstallmentDto
-{
-    public Guid Id { get; set; }
-    public int InstallmentNumber { get; set; }
-    public DateTime DueDate { get; set; }
-    public decimal Amount { get; set; }
-    public decimal PaidAmount { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public DateTime? PaidAt { get; set; }
-}
-
-public class PayAgreementRequestDto
-{
-    public decimal Amount { get; set; }
 }
 
 public class StatementRequestDto
@@ -459,7 +358,6 @@ public class CollectionStageDto
     public string Stage { get; set; } = string.Empty;
     public int UnitCount { get; set; }
     public decimal TotalDebt { get; set; }
-    public decimal TotalOverdue { get; set; }
     public List<CollectionStageUnitDto> Units { get; set; } = new();
 }
 
@@ -468,17 +366,15 @@ public class CollectionStageUnitDto
     public Guid UnitId { get; set; }
     public string UnitIdentifier { get; set; } = string.Empty;
     public decimal TotalDebt { get; set; }
-    public decimal OverdueBalance { get; set; }
-    public int LateDays { get; set; }
+    public int MonthsOverdue { get; set; }
     public string LastPaymentDate { get; set; } = string.Empty;
 }
 
 public class PortfolioCollectionStagesDto
 {
-    public CollectionStageDto Preventive { get; set; } = new();
-    public CollectionStageDto PreJudicial { get; set; } = new();
-    public CollectionStageDto Judicial { get; set; } = new();
-    public CollectionStageDto Agreement { get; set; } = new();
+    public CollectionStageDto OneMonth { get; set; } = new();
+    public CollectionStageDto TwoMonths { get; set; } = new();
+    public CollectionStageDto ThreeOrMoreMonths { get; set; } = new();
 }
 
 public class UnitPortfolioDetailDto
@@ -490,9 +386,7 @@ public class UnitPortfolioDetailDto
     public decimal OutstandingBalance { get; set; }
     public decimal OverdueBalance { get; set; }
     public decimal AdvanceBalance { get; set; }
-    public decimal AccruedInterest { get; set; }
-    public int LateDays { get; set; }
-    public string CollectionStage { get; set; } = string.Empty;
+    public int MonthsOverdue { get; set; }
     public List<PortfolioDebtItemDto> DebtItems { get; set; } = new();
     public List<RecentPaymentDto> RecentPayments { get; set; } = new();
 }
@@ -518,7 +412,6 @@ public class RecentPaymentDto
 public class PortfolioFiltersDto
 {
     public string? Tower { get; set; }
-    public string? CollectionStage { get; set; }
     public string? UnitType { get; set; }
     public string? Search { get; set; }
 }

@@ -36,7 +36,6 @@ public class BillingEngineService
         var result = new BillingChecklistDto();
 
         var fiscalYear = int.Parse(period.Substring(0, 4));
-        var month = int.Parse(period.Substring(5, 2));
 
         var activeBudget = await _context.Budgets
             .FirstOrDefaultAsync(b => b.TenantId == tenantId
@@ -95,6 +94,7 @@ public class BillingEngineService
         string period,
         DateTime cutoffDate,
         DateTime paymentDueDate,
+        List<BillingExclusionRequestDto> excludedUnits,
         string userId)
     {
         var checklist = await GetBillingChecklistAsync(tenantId, period);
@@ -112,18 +112,37 @@ public class BillingEngineService
             .OrderBy(u => u.Identifier)
             .ToListAsync();
 
+        var activeUnitIds = new HashSet<Guid>(activeUnits.Select(u => u.Id));
+        foreach (var exclusion in excludedUnits)
+        {
+            if (!activeUnitIds.Contains(exclusion.UnitId))
+            {
+                throw new ArgumentException("La unidad excluida " + exclusion.UnitId + " no es una unidad activa del conjunto.");
+            }
+            if (string.IsNullOrWhiteSpace(exclusion.Reason))
+            {
+                throw new ArgumentException("Toda unidad excluida de la liquidación debe tener una justificación.");
+            }
+        }
+
+        var excludedUnitIds = new HashSet<Guid>(excludedUnits.Select(e => e.UnitId));
+
         var tenantConfig = await _context.TenantConfigurations
             .FirstOrDefaultAsync(tc => tc.Id != Guid.Empty);
 
         var roundingPolicy = tenantConfig?.RoundingPolicy ?? RoundingPolicy.Nearest;
 
         var monthlyTotal = checklist.MonthlyBudgetTotal;
-        var coefficientSum = checklist.CoeficientSum;
         var roundedSum = 0m;
         var unitFees = new List<UnitFee>();
 
         foreach (var unit in activeUnits)
         {
+            if (excludedUnitIds.Contains(unit.Id))
+            {
+                continue;
+            }
+
             var rawFee = monthlyTotal * (unit.CoproprietyCoefficient / 100m);
             var roundedFee = ApplyRounding(rawFee, roundingPolicy);
 
@@ -143,7 +162,11 @@ public class BillingEngineService
             roundedSum += roundedFee;
         }
 
-        var roundingAdjustment = Math.Round(monthlyTotal - roundedSum, 2);
+        var billedCoefficientSum = activeUnits
+            .Where(u => !excludedUnitIds.Contains(u.Id))
+            .Sum(u => u.CoproprietyCoefficient);
+        var billedRawTotal = monthlyTotal * (billedCoefficientSum / 100m);
+        var roundingAdjustment = Math.Round(billedRawTotal - roundedSum, 2);
         var totalBilled = roundedSum;
 
         var billingPeriod = new BillingPeriod
@@ -171,6 +194,20 @@ public class BillingEngineService
         }
 
         _context.UnitFees.AddRange(unitFees);
+
+        var exclusionAdjustments = excludedUnits.Select(exclusion => new BillingAdjustment
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UnitId = exclusion.UnitId,
+            BillingPeriodId = billingPeriod.Id,
+            UnitFeeId = null,
+            Amount = 0m,
+            Reason = "Unidad excluida de la liquidación del período " + period + ": " + exclusion.Reason,
+            CreatedByUserId = userId
+        }).ToList();
+
+        _context.BillingAdjustments.AddRange(exclusionAdjustments);
 
         using var tx = await _context.Database.BeginTransactionAsync();
         try
@@ -217,8 +254,8 @@ public class BillingEngineService
                     PaymentDate = DateTime.UtcNow,
                     Amount = 0m,
                     PaymentMethod = PaymentMethod.Cash,
-                    ReferenceNumber = $"ADV-{billingPeriod.Id:N}",
-                    Notes = "Aplicacion automatica de saldo a favor",
+                    ReferenceNumber = "ADV-" + billingPeriod.Id.ToString("N"),
+                    Notes = "Aplicación automática de saldo a favor",
                     ReceivedByUserId = "SYSTEM",
                     AdvanceAmount = -applied
                 };
@@ -246,9 +283,90 @@ public class BillingEngineService
             throw;
         }
 
-        _cache.Remove($"mora_map_{tenantId}");
+        _cache.Remove("mora_map_" + tenantId);
         await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
         return billingPeriod;
+    }
+
+    public async Task<BillingAdjustment> CreateAdjustmentAsync(
+        string tenantId, CreateBillingAdjustmentRequestDto request, string userId)
+    {
+        var unit = await _context.Units
+            .FirstOrDefaultAsync(u => u.Id == request.UnitId && u.TenantId == tenantId);
+
+        if (unit == null)
+        {
+            throw new KeyNotFoundException("No se encontró la unidad especificada.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new ArgumentException("Todo ajuste de liquidación debe tener una justificación.");
+        }
+
+        if (request.BillingPeriodId.HasValue)
+        {
+            var periodExists = await _context.BillingPeriods
+                .AnyAsync(bp => bp.Id == request.BillingPeriodId.Value && bp.TenantId == tenantId);
+
+            if (!periodExists)
+            {
+                throw new KeyNotFoundException("No se encontró el período de liquidación especificado.");
+            }
+        }
+
+        if (request.UnitFeeId.HasValue)
+        {
+            var feeExists = await _context.UnitFees
+                .AnyAsync(uf => uf.Id == request.UnitFeeId.Value && uf.TenantId == tenantId && uf.UnitId == request.UnitId);
+
+            if (!feeExists)
+            {
+                throw new KeyNotFoundException("No se encontró la cuota especificada para la unidad.");
+            }
+        }
+
+        var adjustment = new BillingAdjustment
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UnitId = request.UnitId,
+            BillingPeriodId = request.BillingPeriodId,
+            UnitFeeId = request.UnitFeeId,
+            Amount = request.Amount,
+            Reason = request.Reason,
+            CreatedByUserId = userId
+        };
+
+        _context.BillingAdjustments.Add(adjustment);
+        await _context.SaveChangesAsync();
+
+        _cache.Remove("mora_map_" + tenantId);
+        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
+        return adjustment;
+    }
+
+    public async Task<List<BillingAdjustmentDto>> GetUnitAdjustmentsAsync(string tenantId, Guid unitId)
+    {
+        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId);
+
+        var adjustments = await _context.BillingAdjustments
+            .Where(a => a.TenantId == tenantId && a.UnitId == unitId)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync();
+
+        return adjustments.Select(a => new BillingAdjustmentDto
+        {
+            Id = a.Id,
+            UnitId = a.UnitId,
+            UnitIdentifier = unit != null ? unit.Identifier : string.Empty,
+            BillingPeriodId = a.BillingPeriodId,
+            UnitFeeId = a.UnitFeeId,
+            Amount = a.Amount,
+            Reason = a.Reason,
+            CreatedAt = a.CreatedAt,
+            CreatedByUserId = a.CreatedByUserId
+        }).ToList();
     }
 
     public async Task<BillingPeriodDetailDto> GetBillingPeriodDetailAsync(string tenantId, Guid billingPeriodId)
@@ -283,6 +401,26 @@ public class BillingEngineService
             .ThenBy(d => d.UnitIdentifier)
             .ToListAsync();
 
+        var adjustments = await _context.BillingAdjustments
+            .Where(a => a.BillingPeriodId == billingPeriodId)
+            .Join(_context.Units,
+                  a => a.UnitId,
+                  u => u.Id,
+                  (a, u) => new BillingAdjustmentDto
+                  {
+                      Id = a.Id,
+                      UnitId = a.UnitId,
+                      UnitIdentifier = u.Identifier,
+                      BillingPeriodId = a.BillingPeriodId,
+                      UnitFeeId = a.UnitFeeId,
+                      Amount = a.Amount,
+                      Reason = a.Reason,
+                      CreatedAt = a.CreatedAt,
+                      CreatedByUserId = a.CreatedByUserId
+                  })
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync();
+
         return new BillingPeriodDetailDto
         {
             Id = billingPeriod.Id,
@@ -295,7 +433,8 @@ public class BillingEngineService
             ExecutedByUserId = billingPeriod.ExecutedByUserId,
             RoundingAdjustment = billingPeriod.RoundingAdjustment,
             Notes = billingPeriod.Notes,
-            UnitFees = unitFees
+            UnitFees = unitFees,
+            Adjustments = adjustments
         };
     }
 

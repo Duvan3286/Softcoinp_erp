@@ -143,13 +143,6 @@ public class DbInitializer
             },
             new()
             {
-                TenantId = tenantId, ReportTypeCode = ReportTypeEnum.PaymentAgreements,
-                Name = "Acuerdos de Pago", Description = "Listado de acuerdos de pago activos, vencidos y cumplidos con sus condiciones.",
-                Category = ReportCategory.Portfolio, SourceModules = "Billing", AllowedRoles = "SuperAdmin,Admin,Accountant,Auditor",
-                ContainsPersonalData = false, IsActive = true
-            },
-            new()
-            {
                 TenantId = tenantId, ReportTypeCode = ReportTypeEnum.PQRSummary,
                 Name = "Resumen de PQR", Description = "Estadísticas y detalle de peticiones, quejas y reclamos recibidos en el período.",
                 Category = ReportCategory.Operational, SourceModules = "PQR", AllowedRoles = "SuperAdmin,Admin,Council",

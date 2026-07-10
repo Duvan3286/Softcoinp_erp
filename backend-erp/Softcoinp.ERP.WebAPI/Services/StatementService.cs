@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -13,14 +16,11 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class StatementService
 {
     private readonly ApplicationDbContext _context;
-    private readonly LateInterestService _lateInterestService;
 
-    public StatementService(
-        ApplicationDbContext context,
-        LateInterestService lateInterestService)
+    public StatementService(ApplicationDbContext context)
     {
         _context = context;
-        _lateInterestService = lateInterestService;
+        QuestPDF.Settings.License = LicenseType.Community;
     }
 
     public async Task<UnitStatementDto> GetUnitStatementAsync(
@@ -37,9 +37,6 @@ public class StatementService
         var periodStart = startDate ?? new DateTime(DateTime.UtcNow.Year, 1, 1);
         var periodEnd = endDate ?? DateTime.UtcNow;
 
-        var lines = new List<StatementLineDto>();
-        var runningBalance = 0m;
-
         var allCharges = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId && uf.UnitId == unitId)
             .OrderBy(uf => uf.DueDate)
@@ -50,9 +47,14 @@ public class StatementService
             .OrderBy(ed => ed.DueDate)
             .ToListAsync();
 
-        var allCharges_ind = await _context.IndividualCharges
+        var allIndividualCharges = await _context.IndividualCharges
             .Where(ic => ic.TenantId == tenantId && ic.UnitId == unitId)
             .OrderBy(ic => ic.ChargeDate)
+            .ToListAsync();
+
+        var allAdjustments = await _context.BillingAdjustments
+            .Where(a => a.TenantId == tenantId && a.UnitId == unitId)
+            .OrderBy(a => a.CreatedAt)
             .ToListAsync();
 
         var allPayments = await _context.Payments
@@ -60,17 +62,7 @@ public class StatementService
             .OrderBy(p => p.PaymentDate)
             .ToListAsync();
 
-        var unitFeeIds = allCharges.Select(f => f.Id).ToList();
-
-        var allCapitalizedInterests = await _context.LateInterests
-            .Where(li => li.TenantId == tenantId
-                      && li.IsCapitalized
-                      && li.UnitFeeId != null
-                      && unitFeeIds.Contains(li.UnitFeeId.Value))
-            .OrderBy(li => li.Period)
-            .ToListAsync();
-
-        var chargeLines = new List<(DateTime Date, string Desc, string Ref, decimal Debit, decimal Credit)>();
+        var chargeLines = new List<(DateTime Date, string Description, string Reference, decimal Debit, decimal Credit)>();
 
         foreach (var fee in allCharges)
         {
@@ -78,65 +70,66 @@ public class StatementService
                 fee.Id.ToString(), fee.FeeValue, 0m));
         }
 
-        foreach (var ed in allExtraordinary)
+        foreach (var distribution in allExtraordinary)
         {
-            chargeLines.Add((ed.DueDate, "Cuota extraordinaria #" + ed.InstallmentNumber,
-                ed.ExtraordinaryFeeId.ToString(), ed.Amount, 0m));
+            chargeLines.Add((distribution.DueDate, "Cuota extraordinaria #" + distribution.InstallmentNumber,
+                distribution.ExtraordinaryFeeId.ToString(), distribution.Amount, 0m));
         }
 
-        foreach (var ic in allCharges_ind)
+        foreach (var charge in allIndividualCharges)
         {
-            chargeLines.Add((ic.ChargeDate, ic.Concept, ic.Id.ToString(), ic.Amount, 0m));
+            chargeLines.Add((charge.ChargeDate, charge.Concept, charge.Id.ToString(), charge.Amount, 0m));
         }
 
-        foreach (var li in allCapitalizedInterests)
+        foreach (var adjustment in allAdjustments)
         {
-            chargeLines.Add((DateTime.Parse(li.Period + "-01"), "Interés mora " + li.Period,
-                li.Id.ToString(), li.CalculatedAmount, 0m));
+            if (adjustment.Amount >= 0m)
+            {
+                chargeLines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), adjustment.Amount, 0m));
+            }
+            else
+            {
+                chargeLines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), 0m, -adjustment.Amount));
+            }
         }
 
-        foreach (var p in allPayments)
+        foreach (var payment in allPayments)
         {
-            chargeLines.Add((p.PaymentDate, "Pago " + p.PaymentMethod,
-                p.ReferenceNumber, 0m, p.Amount));
+            chargeLines.Add((payment.PaymentDate, "Pago " + payment.PaymentMethod,
+                payment.ReferenceNumber, 0m, payment.Amount));
         }
 
         chargeLines = chargeLines.OrderBy(c => c.Date).ToList();
 
         var openingBalance = 0m;
-        foreach (var (date, desc, ref_, debit, credit) in chargeLines)
+        foreach (var line in chargeLines)
         {
-            if (date < periodStart)
+            if (line.Date < periodStart)
             {
-                openingBalance += debit - credit;
+                openingBalance += line.Debit - line.Credit;
             }
         }
 
-        runningBalance = openingBalance;
+        var runningBalance = openingBalance;
+        var lines = new List<StatementLineDto>();
 
-        foreach (var (date, desc, ref_, debit, credit) in chargeLines)
+        foreach (var line in chargeLines)
         {
-            if (date < periodStart) continue;
-            if (date > periodEnd) break;
+            if (line.Date < periodStart) continue;
+            if (line.Date > periodEnd) break;
 
-            runningBalance += debit - credit;
+            runningBalance += line.Debit - line.Credit;
 
             lines.Add(new StatementLineDto
             {
-                Date = date,
-                Description = desc,
-                Reference = ref_,
-                Debit = debit,
-                Credit = credit,
+                Date = line.Date,
+                Description = line.Description,
+                Reference = line.Reference,
+                Debit = line.Debit,
+                Credit = line.Credit,
                 Balance = runningBalance
             });
         }
-
-        var realTimeInterests = await _lateInterestService.PreviewUnitInterestAsync(
-            tenantId, unitId, periodEnd);
-
-        var totalInterest = realTimeInterests.Sum(i => i.CalculatedInterest);
-        var closingBalance = runningBalance + totalInterest;
 
         return new UnitStatementDto
         {
@@ -146,9 +139,7 @@ public class StatementService
             OpeningBalance = openingBalance,
             TotalCharges = chargeLines.Where(c => c.Date >= periodStart && c.Date <= periodEnd).Sum(c => c.Debit),
             TotalPayments = chargeLines.Where(c => c.Date >= periodStart && c.Date <= periodEnd).Sum(c => c.Credit),
-            TotalInterest = totalInterest,
-            ClosingBalance = closingBalance,
-            Lines = lines
+            ClosingBalance = runningBalance
         };
     }
 
@@ -233,48 +224,123 @@ public class StatementService
     public async Task<ClearanceCertificateDto> GetCertificateDetailAsync(
         string tenantId, Guid certificateId)
     {
-        var cert = await _context.ClearanceCertificates
-            .FirstOrDefaultAsync(cc => cc.Id == certificateId && cc.TenantId == tenantId);
+        var certificate = await GetCertificateOrThrowAsync(tenantId, certificateId);
+        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == certificate.UnitId);
 
-        if (cert == null)
-        {
-            throw new KeyNotFoundException("No se encontró el paz y salvo.");
-        }
-
-        var unit = await _context.Units
-            .FirstOrDefaultAsync(u => u.Id == cert.UnitId);
-
-        return new ClearanceCertificateDto
-        {
-            Id = cert.Id,
-            UnitId = cert.UnitId,
-            UnitIdentifier = unit?.Identifier ?? string.Empty,
-            CertificateNumber = cert.CertificateNumber,
-            IssueDate = cert.IssueDate,
-            ExpirationDate = cert.ExpirationDate,
-            BalanceAtDate = cert.BalanceAtDate,
-            Status = cert.Status.ToString(),
-            IssuedByUserId = cert.IssuedByUserId,
-            SignedByAdministratorName = cert.SignedByAdministratorName
-        };
+        return MapToDto(certificate, unit);
     }
 
     public async Task RevokeCertificateAsync(string tenantId, Guid certificateId)
     {
-        var cert = await _context.ClearanceCertificates
-            .FirstOrDefaultAsync(cc => cc.Id == certificateId && cc.TenantId == tenantId);
+        var certificate = await GetCertificateOrThrowAsync(tenantId, certificateId);
 
-        if (cert == null)
-        {
-            throw new KeyNotFoundException("No se encontró el paz y salvo.");
-        }
-
-        if (cert.Status != ClearanceCertificateStatus.Active)
+        if (certificate.Status != ClearanceCertificateStatus.Active)
         {
             throw new InvalidOperationException("Solo se puede revocar un paz y salvo activo.");
         }
 
-        cert.Status = ClearanceCertificateStatus.Revoked;
+        certificate.Status = ClearanceCertificateStatus.Revoked;
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<byte[]> GenerateCertificatePdfAsync(string tenantId, Guid certificateId)
+    {
+        var certificate = await GetCertificateOrThrowAsync(tenantId, certificateId);
+        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == certificate.UnitId);
+        var config = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
+
+        var conjuntoName = config?.OfficialName ?? string.Empty;
+        var conjuntoNit = config?.Nit ?? string.Empty;
+        var unitIdentifier = unit?.Identifier ?? string.Empty;
+        var unitTower = unit?.TowerOrBlock ?? string.Empty;
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(50);
+                page.DefaultTextStyle(style => style.FontSize(11).FontColor(Colors.Black));
+
+                page.Header().Column(column =>
+                {
+                    column.Item().Text(conjuntoName).FontSize(16).Bold();
+                    if (!string.IsNullOrEmpty(conjuntoNit))
+                    {
+                        column.Item().Text("NIT " + conjuntoNit).FontSize(9).FontColor(Colors.Grey.Darken1);
+                    }
+                    column.Item().PaddingTop(10).Text("CERTIFICADO DE PAZ Y SALVO").FontSize(14).Bold().AlignCenter();
+                    column.Item().Text("No. " + certificate.CertificateNumber).FontSize(11).AlignCenter();
+                });
+
+                page.Content().PaddingVertical(20).Column(column =>
+                {
+                    column.Spacing(12);
+
+                    column.Item().Text(text =>
+                    {
+                        text.Span("El administrador del conjunto hace constar que la unidad ");
+                        text.Span(unitIdentifier).Bold();
+                        text.Span(string.IsNullOrEmpty(unitTower) ? "" : " (" + unitTower + ")");
+                        text.Span(" se encuentra a paz y salvo por concepto de cuotas de administración, cuotas extraordinarias y cobros individuales, con corte al ");
+                        text.Span(certificate.IssueDate.ToString("dd/MM/yyyy")).Bold();
+                        text.Span(".");
+                    });
+
+                    column.Item().Text(text =>
+                    {
+                        text.Span("Saldo pendiente a la fecha de expedición: ");
+                        text.Span(certificate.BalanceAtDate.ToString("C2")).Bold();
+                    });
+
+                    column.Item().Text(text =>
+                    {
+                        text.Span("Este certificado tiene vigencia hasta el ");
+                        text.Span(certificate.ExpirationDate.ToString("dd/MM/yyyy")).Bold();
+                        text.Span(". Después de esta fecha debe solicitarse uno nuevo.");
+                    });
+
+                    column.Item().PaddingTop(40).Text(certificate.SignedByAdministratorName).Bold();
+                    column.Item().Text("Administrador del conjunto");
+                });
+
+                page.Footer().AlignCenter().Text(text =>
+                {
+                    text.Span("Generado el " + DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm"));
+                });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    private async Task<ClearanceCertificate> GetCertificateOrThrowAsync(string tenantId, Guid certificateId)
+    {
+        var certificate = await _context.ClearanceCertificates
+            .FirstOrDefaultAsync(cc => cc.Id == certificateId && cc.TenantId == tenantId);
+
+        if (certificate == null)
+        {
+            throw new KeyNotFoundException("No se encontró el paz y salvo.");
+        }
+
+        return certificate;
+    }
+
+    private static ClearanceCertificateDto MapToDto(ClearanceCertificate certificate, Softcoinp.ERP.Domain.Entities.Unit? unit)
+    {
+        return new ClearanceCertificateDto
+        {
+            Id = certificate.Id,
+            UnitId = certificate.UnitId,
+            UnitIdentifier = unit?.Identifier ?? string.Empty,
+            CertificateNumber = certificate.CertificateNumber,
+            IssueDate = certificate.IssueDate,
+            ExpirationDate = certificate.ExpirationDate,
+            BalanceAtDate = certificate.BalanceAtDate,
+            Status = certificate.Status.ToString(),
+            IssuedByUserId = certificate.IssuedByUserId,
+            SignedByAdministratorName = certificate.SignedByAdministratorName
+        };
     }
 }

@@ -47,10 +47,10 @@ public class DelinquencySequenceEngine
             .ToListAsync();
 
         // Buscar unidades con cuotas vencidas usando la entidad UnitFee
-        // que tiene Status = Pending o Overdue y DueDate menor a hoy
+        // (no incluye cuotas ya pagadas totalmente) y DueDate menor a hoy
         var overdueUnits = await _context.Set<UnitFee>()
             .Where(f => f.TenantId == tenantId &&
-                        (f.Status == FeeStatus.Pending || f.Status == FeeStatus.Overdue) &&
+                        f.Status != FeeStatus.FullyPaid &&
                         f.BalanceAmount > 0 &&
                         f.DueDate < today)
             .Select(f => f.UnitId)
@@ -73,7 +73,7 @@ public class DelinquencySequenceEngine
             // Obtener día más antiguo de vencimiento para esta unidad
             var oldestDueDate = await _context.Set<UnitFee>()
                 .Where(f => f.UnitId == unitId &&
-                            (f.Status == FeeStatus.Pending || f.Status == FeeStatus.Overdue) &&
+                            f.Status != FeeStatus.FullyPaid &&
                             f.BalanceAmount > 0)
                 .MinAsync(f => (DateTime?)f.DueDate);
 

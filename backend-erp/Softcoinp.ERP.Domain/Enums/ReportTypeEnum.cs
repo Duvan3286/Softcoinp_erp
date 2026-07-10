@@ -10,7 +10,6 @@ public enum ReportTypeEnum
     TopDebtors,
     PeriodCollection,
     PortfolioProjection,
-    PaymentAgreements,
     PQRSummary,
     CommonAreaUsage,
     MaintenanceSummary,

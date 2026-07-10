@@ -8,8 +8,6 @@ public enum NotificationEventType
     DelinquencyNotice2,
     DelinquencyNotice3,
     PreLegalNotice,
-    PaymentAgreementConfirmed,
-    PaymentAgreementDueSoon,
     PeaceAndSafetyIssued,
     PQRReceived,
     PQRStatusUpdated,

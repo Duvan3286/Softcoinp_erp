@@ -25,7 +25,7 @@ public class ReportAccessControlService
         {
             "BudgetExecution",
             "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
-            "PeriodCollection", "PortfolioProjection", "PaymentAgreements",
+            "PeriodCollection", "PortfolioProjection",
             "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
             "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport", "OwnerRegistry"
@@ -34,7 +34,7 @@ public class ReportAccessControlService
         {
             "BudgetExecution",
             "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
-            "PeriodCollection", "PortfolioProjection", "PaymentAgreements",
+            "PeriodCollection", "PortfolioProjection",
             "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
             "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport", "OwnerRegistry"
