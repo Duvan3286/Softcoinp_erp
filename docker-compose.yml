@@ -15,7 +15,14 @@ services:
     networks:
       - erp-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p1234"]
+      # MySQL client tools treat the literal host "localhost" specially and connect
+      # via the Unix socket instead of TCP. During first-time initialization on a
+      # fresh volume, the entrypoint runs a temporary server with networking disabled
+      # (--skip-networking) while it executes init scripts; that temporary server still
+      # answers on the socket, so a socket-based ping reports "healthy" before the real
+      # server is listening on TCP. erp-backend connects over TCP through the Docker
+      # network, so the healthcheck must probe TCP explicitly to reflect real readiness.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=TCP", "-u", "root", "-p1234"]
       interval: 5s
       timeout: 10s
       retries: 20
