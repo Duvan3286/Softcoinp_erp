@@ -94,6 +94,9 @@ export default function ContractsPage() {
           <p className="text-sm text-muted-foreground mt-1">Gestión de contratos con proveedores y contratistas.</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => router.push('/contracts/payments-pending')}>
+            <Clock className="w-4 h-4 mr-1" /> Pagos Pendientes
+          </Button>
           <Button variant="secondary" onClick={() => router.push('/contracts/indicators')}>
             <DollarSign className="w-4 h-4 mr-1" /> Indicadores
           </Button>

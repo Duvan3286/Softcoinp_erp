@@ -24,7 +24,7 @@ const alertTypeLabels: Record<string, string> = {
   AutoRenewalWarning: 'Renovación Automática',
 };
 const invoiceStatusLabels: Record<string, string> = {
-  PendingPayment: 'Pendiente', PartiallyPaid: 'Pago Parcial', FullyPaid: 'Pagada',
+  PendingPayment: 'Pendiente', PartiallyPaid: 'Pago Parcial', FullyPaid: 'Pagada', Cancelled: 'Anulada',
 };
 const paymentMethodLabels: Record<string, string> = {
   Cash: 'Efectivo', BankTransfer: 'Transferencia', Check: 'Cheque', CreditCard: 'Tarjeta de Crédito',
@@ -42,6 +42,8 @@ export default function ContractDetailPage() {
   const [newStatus, setNewStatus] = useState('');
   const [justification, setJustification] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
+  const [statusError, setStatusError] = useState('');
+  const [councilActNumber, setCouncilActNumber] = useState('');
 
   const fetchContract = async () => {
     setLoading(true);
@@ -62,18 +64,42 @@ export default function ContractDetailPage() {
   const formatDate = (d: string) => new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const handleStatusChange = async () => {
-    if (!newStatus || !justification.trim()) return;
+    if (!newStatus || !justification.trim() || !contract) return;
+    setStatusError('');
+
+    const requiresCouncilAct = newStatus === 'Active' && contract.approvalLevel === 'Council';
+    const missingAct = !contract.councilMeetingActNumber.trim() && !councilActNumber.trim();
+
+    if (requiresCouncilAct && missingAct) {
+      setStatusError('Este contrato requiere aprobación del consejo. Ingrese el número de acta antes de activarlo.');
+      return;
+    }
+
     setSubmittingAction(true);
     try {
+      if (requiresCouncilAct && councilActNumber.trim() && !contract.councilMeetingActNumber.trim()) {
+        await supplierService.updateContract(id, { councilMeetingActNumber: councilActNumber.trim() });
+      }
       await supplierService.changeContractStatus(id, { newStatus });
       setShowStatusModal(false);
       setNewStatus('');
       setJustification('');
+      setCouncilActNumber('');
       fetchContract();
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Error al cambiar el estado.');
+      setStatusError(err?.response?.data?.error || 'Error al cambiar el estado.');
     } finally {
       setSubmittingAction(false);
+    }
+  };
+
+  const handleCancelInvoice = async (invoiceId: string) => {
+    if (!confirm('¿Está seguro de anular esta factura? Se revertirá la ejecución presupuestal asociada.')) return;
+    try {
+      await supplierService.cancelInvoice(invoiceId);
+      fetchContract();
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Error al anular la factura.');
     }
   };
 
@@ -158,8 +184,15 @@ export default function ContractDetailPage() {
 
       {showStatusModal && (
         <Card>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-bold text-foreground mb-3">Cambiar Estado a: {statusLabels[newStatus] || newStatus}</h3>
+          <CardContent className="p-4 space-y-3">
+            <h3 className="text-sm font-bold text-foreground">Cambiar Estado a: {statusLabels[newStatus] || newStatus}</h3>
+
+            {newStatus === 'Active' && contract.approvalLevel === 'Council' && !contract.councilMeetingActNumber.trim() && (
+              <input type="text" placeholder="Número de acta del consejo" value={councilActNumber}
+                onChange={(e) => setCouncilActNumber(e.target.value.slice(0, 100))}
+                className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
+            )}
+
             <div className="flex gap-3">
               <input type="text" placeholder="Justificación del cambio de estado" value={justification}
                 onChange={(e) => setJustification(e.target.value)}
@@ -168,8 +201,14 @@ export default function ContractDetailPage() {
                 {submittingAction ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
                 Confirmar
               </Button>
-              <Button variant="ghost" onClick={() => setShowStatusModal(false)}>Cancelar</Button>
+              <Button variant="ghost" onClick={() => { setShowStatusModal(false); setStatusError(''); }}>Cancelar</Button>
             </div>
+
+            {statusError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" /> {statusError}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -219,6 +258,7 @@ export default function ContractDetailPage() {
                 <div><span className="text-muted-foreground">Aprobación:</span><p className="font-medium">{approvalLabels[contract.approvalLevel]}</p></div>
                 <div><span className="text-muted-foreground">Renovación Auto.:</span><p className="font-medium">{contract.hasAutoRenewal ? `Sí (${contract.autoRenewalNoticeDays} días)` : 'No'}</p></div>
                 {contract.councilMeetingActNumber && <div><span className="text-muted-foreground">Acta Consejo:</span><p className="font-medium">{contract.councilMeetingActNumber}</p></div>}
+                {contract.approvedInAssemblyTitle && <div><span className="text-muted-foreground">Aprobado en Asamblea:</span><p className="font-medium">{contract.approvedInAssemblyTitle}</p></div>}
               </div>
               {contract.observations && (
                 <div className="mt-4 p-3 bg-muted/30 rounded-lg">
@@ -229,10 +269,15 @@ export default function ContractDetailPage() {
             </CardContent>
           </Card>
 
-          {contract.invoices.length > 0 && (
-            <Card>
-              <CardHeader className="py-3 px-6"><h3 className="text-sm font-bold text-foreground">Facturas</h3></CardHeader>
-              <CardContent className="p-0">
+          <Card>
+            <CardHeader className="py-3 px-6 flex flex-row items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground">Facturas</h3>
+              <Button variant="secondary" onClick={() => router.push(`/contracts/${id}/invoices/new`)}>Nueva Factura</Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {contract.invoices.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Sin facturas registradas.</p>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-border">
                     <thead className="bg-muted/50">
@@ -243,6 +288,7 @@ export default function ContractDetailPage() {
                         <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Pagado</th>
                         <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Pendiente</th>
                         <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Estado</th>
+                        <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -258,14 +304,22 @@ export default function ContractDetailPage() {
                               {invoiceStatusLabels[inv.status] || inv.status}
                             </span>
                           </td>
+                          <td className="px-5 py-3 text-right">
+                            {inv.status !== 'Cancelled' && (
+                              <button onClick={() => handleCancelInvoice(inv.id)}
+                                className="text-xs font-semibold text-rose-600 hover:text-rose-800 px-2 py-1 rounded bg-rose-50 hover:bg-rose-100">
+                                Anular
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           {contract.invoices.length > 0 && contract.invoices.some(inv => inv.payments.length > 0) && (
             <Card>

@@ -171,6 +171,13 @@ public class DbInitializer
             },
             new()
             {
+                TenantId = tenantId, ReportTypeCode = ReportTypeEnum.ProviderPayments,
+                Name = "Pagos a Proveedores", Description = "Pagos registrados a proveedores en el período, con factura, contrato y rubro presupuestal asociado.",
+                Category = ReportCategory.Operational, SourceModules = "Suppliers,Contracts", AllowedRoles = "SuperAdmin,Admin,Council,Accountant",
+                ContainsPersonalData = false, IsActive = true
+            },
+            new()
+            {
                 TenantId = tenantId, ReportTypeCode = ReportTypeEnum.CommunicationSummary,
                 Name = "Resumen de Comunicaciones", Description = "Estadísticas de comunicaciones enviadas por tipo, destinatario y tasa de apertura.",
                 Category = ReportCategory.Operational, SourceModules = "Communications", AllowedRoles = "SuperAdmin,Admin,Council",

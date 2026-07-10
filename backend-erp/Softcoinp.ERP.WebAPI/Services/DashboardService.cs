@@ -472,6 +472,42 @@ ORDER BY u.Identifier";
             };
         }
 
+        if (!defaultConfigs.ContainsKey(AlertRuleType.ProviderContractExpiring))
+        {
+            defaultConfigs[AlertRuleType.ProviderContractExpiring] = new AlertConfiguration
+            {
+                RuleType = AlertRuleType.ProviderContractExpiring,
+                ThresholdDays = 30,
+                DefaultUrgency = AlertUrgency.High,
+                UseDefaultThreshold = true
+            };
+        }
+
+        var contractExpirationConfig = defaultConfigs[AlertRuleType.ProviderContractExpiring];
+        var contractThresholdDays = contractExpirationConfig.ThresholdDays;
+        var contractLimitDate = now.AddDays(contractThresholdDays);
+
+        var expiringContractsCount = await _context.Contracts
+            .Where(c => c.TenantId == tenantId
+                && c.Status == ContractStatus.Active
+                && c.EndDate > now
+                && c.EndDate <= contractLimitDate)
+            .CountAsync();
+
+        if (expiringContractsCount > 0)
+        {
+            alerts.Add(new AlertDto
+            {
+                Id = Guid.NewGuid().ToString(),
+                RuleType = AlertRuleType.ProviderContractExpiring.ToString(),
+                Urgency = contractExpirationConfig.DefaultUrgency,
+                Title = "Contratos próximos a vencer",
+                Description = $"Hay {expiringContractsCount} contrato(s) de proveedores que vencen en menos de {contractThresholdDays} días.",
+                ModuleLink = "/contracts",
+                CreatedAt = now
+            });
+        }
+
         return alerts.OrderByDescending(a => a.Urgency).ThenBy(a => a.CreatedAt).ToList();
     }
 

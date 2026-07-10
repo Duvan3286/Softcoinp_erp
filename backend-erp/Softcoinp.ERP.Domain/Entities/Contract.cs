@@ -34,6 +34,9 @@ public class Contract
 
     public string CouncilMeetingActNumber { get; set; } = string.Empty;
 
+    public Guid? ApprovedInAssemblyId { get; set; }
+    public Assembly? ApprovedInAssembly { get; set; }
+
     public ContractStatus Status { get; set; } = ContractStatus.Draft;
 
     public string SignedContractFilePath { get; set; } = string.Empty;

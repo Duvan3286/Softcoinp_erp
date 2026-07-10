@@ -38,6 +38,8 @@ export default function NewContractPage() {
   const [autoRenewalNoticeDays, setAutoRenewalNoticeDays] = useState('30');
   const [observations, setObservations] = useState('');
 
+  const selectedProvider = providers.find((p) => p.id === providerId);
+
   useEffect(() => {
     const fetchProviders = async () => {
       try {
@@ -146,6 +148,13 @@ export default function NewContractPage() {
                     <option value="">Seleccione un proveedor...</option>
                     {providers.map((p) => <option key={p.id} value={p.id}>{p.businessName} — {p.documentNumber}</option>)}
                   </select>
+                  {selectedProvider && selectedProvider.averageEvaluationScore > 0 && selectedProvider.averageEvaluationScore < 3 && (
+                    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      Este proveedor tiene una evaluación promedio de {selectedProvider.averageEvaluationScore.toFixed(1)}/5, inferior al mínimo recomendado de 3.0.
+                      El sistema puede rechazar la creación del contrato si el promedio de los últimos dos períodos evaluados es menor a 3.0.
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Nro. Contrato *</label>

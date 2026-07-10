@@ -14,6 +14,7 @@ public enum ReportTypeEnum
     CommonAreaUsage,
     MaintenanceSummary,
     ActiveContracts,
+    ProviderPayments,
     CommunicationSummary,
     AssemblyMinutes,
     AssemblyDecisions,

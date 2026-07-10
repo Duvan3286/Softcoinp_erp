@@ -100,6 +100,9 @@ public class ExcelGenerationEngine
             case "ActiveContracts":
                 FillActiveContracts(ws, tenantId);
                 break;
+            case "ProviderPayments":
+                FillProviderPayments(ws, tenantId, periodFrom, periodTo);
+                break;
             case "OwnerRegistry":
                 FillOwnerRegistry(ws, tenantId);
                 break;
@@ -731,6 +734,81 @@ public class ExcelGenerationEngine
         ws.Columns(3, 3).Width = 14;
         ws.Columns(4, 5).Width = 15;
         ws.Columns(6, 7).Width = 14;
+    }
+
+    private void FillProviderPayments(IXLWorksheet ws, string tenantId, DateTime? periodFrom, DateTime? periodTo)
+    {
+        var headers = new[] { "Fecha de Pago", "Proveedor", "Factura", "Contrato", "Medio de Pago", "Referencia", "Valor" };
+        for (var i = 0; i < headers.Length; i++)
+        {
+            var cell = ws.Cell(1, i + 1);
+            cell.Value = headers[i];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
+            cell.Style.Font.FontColor = XLColor.White;
+        }
+
+        var query = _context.ProviderPayments
+            .Where(p => p.TenantId == tenantId)
+            .Include(p => p.Invoice)
+                .ThenInclude(i => i!.Provider)
+            .Include(p => p.Invoice)
+                .ThenInclude(i => i!.Contract)
+            .AsQueryable();
+
+        if (periodFrom.HasValue)
+        {
+            query = query.Where(p => p.PaymentDate >= periodFrom.Value);
+        }
+        if (periodTo.HasValue)
+        {
+            query = query.Where(p => p.PaymentDate <= periodTo.Value);
+        }
+
+        var payments = query.OrderBy(p => p.PaymentDate).ToList();
+
+        var row = 2;
+        var altColor = XLColor.FromHtml("#f8fafc");
+        var totalAmount = 0m;
+
+        foreach (var payment in payments)
+        {
+            var providerName = payment.Invoice != null && payment.Invoice.Provider != null ? payment.Invoice.Provider.BusinessName : string.Empty;
+            var invoiceNumber = payment.Invoice != null ? payment.Invoice.InvoiceNumber : string.Empty;
+            var contractNumber = payment.Invoice != null && payment.Invoice.Contract != null ? payment.Invoice.Contract.ContractNumber : string.Empty;
+
+            ws.Cell(row, 1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
+            ws.Cell(row, 2).Value = providerName;
+            ws.Cell(row, 3).Value = invoiceNumber;
+            ws.Cell(row, 4).Value = contractNumber;
+            ws.Cell(row, 5).Value = payment.PaymentMethod.ToString();
+            ws.Cell(row, 6).Value = payment.ReferenceNumber;
+            ws.Cell(row, 7).Value = payment.Amount;
+            ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0.00";
+
+            if (row % 2 == 0)
+            {
+                for (var c = 1; c <= 7; c++)
+                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
+            }
+
+            totalAmount += payment.Amount;
+            row++;
+        }
+
+        ws.Cell(row, 1).Value = "TOTAL";
+        ws.Cell(row, 1).Style.Font.Bold = true;
+        ws.Cell(row, 7).Value = totalAmount;
+        ws.Cell(row, 7).Style.Font.Bold = true;
+        ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0.00";
+
+        ws.Range(1, 1, row, 7).SetAutoFilter();
+        ws.Columns(1, 1).Width = 14;
+        ws.Columns(2, 2).Width = 30;
+        ws.Columns(3, 4).Width = 18;
+        ws.Columns(5, 5).Width = 16;
+        ws.Columns(6, 6).Width = 18;
+        ws.Columns(7, 7).Width = 15;
     }
 
     private void FillOwnerRegistry(IXLWorksheet ws, string tenantId)

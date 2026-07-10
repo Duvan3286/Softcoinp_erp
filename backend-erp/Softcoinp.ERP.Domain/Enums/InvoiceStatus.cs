@@ -4,5 +4,6 @@ public enum InvoiceStatus
 {
     PendingPayment,
     PartiallyPaid,
-    FullyPaid
+    FullyPaid,
+    Cancelled
 }

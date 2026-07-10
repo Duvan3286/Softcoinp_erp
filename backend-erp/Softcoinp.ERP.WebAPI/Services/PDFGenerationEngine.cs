@@ -158,6 +158,9 @@ public class PDFGenerationEngine
                 case "ActiveContracts":
                     RenderActiveContracts(col, tenantId);
                     break;
+                case "ProviderPayments":
+                    RenderProviderPayments(col, tenantId, periodFrom, periodTo);
+                    break;
                 case "CommunicationSummary":
                     RenderCommunicationSummary(col, tenantId, periodFrom, periodTo);
                     break;
@@ -839,6 +842,68 @@ public class PDFGenerationEngine
             table.Cell().Background(Colors.Grey.Lighten3).Padding(3).AlignRight().Text(totalValue.ToString("N2")).Style(totalStyle);
             table.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text("").Style(totalStyle);
             table.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text("").Style(totalStyle);
+        });
+    }
+    private void RenderProviderPayments(ColumnDescriptor col, string tenantId, DateTime? from, DateTime? to)
+    {
+        col.Item().Text("Pagos a Proveedores del Período").FontSize(14).Bold();
+        col.Item().PaddingBottom(8);
+        var query = _context.ProviderPayments
+            .Where(p => p.TenantId == tenantId)
+            .Include(p => p.Invoice)
+                .ThenInclude(i => i!.Provider)
+            .AsQueryable();
+        if (from.HasValue)
+        {
+            query = query.Where(p => p.PaymentDate >= from.Value);
+        }
+        if (to.HasValue)
+        {
+            query = query.Where(p => p.PaymentDate <= to.Value);
+        }
+        var payments = query.OrderBy(p => p.PaymentDate).ToList();
+        if (payments.Count == 0)
+        {
+            col.Item().Padding(10).Text("No hay pagos a proveedores en el período.").FontColor(Colors.Grey.Darken2);
+            return;
+        }
+        col.Item().Table(table =>
+        {
+            table.ColumnsDefinition(cd =>
+            {
+                cd.ConstantColumn(60);
+                cd.RelativeColumn();
+                cd.ConstantColumn(70);
+                cd.ConstantColumn(70);
+                cd.ConstantColumn(70);
+            });
+            var headerStyle = TextStyle.Default.FontSize(9).Bold().FontColor(Colors.White);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Fecha").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Proveedor").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Factura").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).Text("Medio de Pago").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(4).AlignRight().Text("Valor").Style(headerStyle);
+            var rowStyle = TextStyle.Default.FontSize(8);
+            var altColor = Colors.Grey.Lighten4;
+            var index = 0;
+            decimal totalValue = 0;
+            foreach (var payment in payments)
+            {
+                var bg = index % 2 == 0 ? Colors.White : altColor;
+                table.Cell().Background(bg).Padding(3).Text(payment.PaymentDate.ToString("dd/MMM/yyyy", CultureInfo.GetCultureInfo("es-CO"))).Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).Text(payment.Invoice?.Provider?.BusinessName ?? "").Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).Text(payment.Invoice?.InvoiceNumber ?? "").Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).Text(payment.PaymentMethod.ToString()).Style(rowStyle);
+                table.Cell().Background(bg).Padding(3).AlignRight().Text(payment.Amount.ToString("N2")).Style(rowStyle);
+                totalValue += payment.Amount;
+                index++;
+            }
+            var totalStyle = TextStyle.Default.FontSize(8).Bold();
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text("TOTAL").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text("").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text("").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text("").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(3).AlignRight().Text(totalValue.ToString("N2")).Style(totalStyle);
         });
     }
     private void RenderCommunicationSummary(ColumnDescriptor col, string tenantId, DateTime? from, DateTime? to)

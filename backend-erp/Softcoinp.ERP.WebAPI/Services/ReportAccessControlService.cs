@@ -26,7 +26,7 @@ public class ReportAccessControlService
             "BudgetExecution",
             "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
             "PeriodCollection", "PortfolioProjection",
-            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
+            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts", "ProviderPayments",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
             "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport", "OwnerRegistry"
         },
@@ -35,7 +35,7 @@ public class ReportAccessControlService
             "BudgetExecution",
             "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
             "PeriodCollection", "PortfolioProjection",
-            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
+            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts", "ProviderPayments",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
             "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport", "OwnerRegistry"
         },
@@ -43,14 +43,14 @@ public class ReportAccessControlService
         {
             "BudgetExecution",
             "ContingencyFund", "CashFlow",
-            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts",
+            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts", "ProviderPayments",
             "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
             "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport"
         },
         ["Accountant"] = new List<string>
         {
             "BudgetExecution",
-            "ContingencyFund", "CashFlow", "PortfolioAging", "PeriodCollection", "OwnerRegistry"
+            "ContingencyFund", "CashFlow", "PortfolioAging", "PeriodCollection", "OwnerRegistry", "ProviderPayments"
         },
         ["Auditor"] = new List<string>
         {

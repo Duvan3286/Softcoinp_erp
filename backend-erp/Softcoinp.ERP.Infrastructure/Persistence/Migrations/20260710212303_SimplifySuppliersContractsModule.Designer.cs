@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Softcoinp.ERP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Softcoinp.ERP.Infrastructure.Persistence;
 namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260710212303_SimplifySuppliersContractsModule")]
+    partial class SimplifySuppliersContractsModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2116,9 +2119,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<Guid?>("ApprovedInAssemblyId")
-                        .HasColumnType("char(36)");
-
                     b.Property<int>("AutoRenewalNoticeDays")
                         .HasColumnType("int");
 
@@ -2201,8 +2201,6 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(450)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ApprovedInAssemblyId");
 
                     b.HasIndex("ProviderId");
 
@@ -6673,18 +6671,11 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.Contract", b =>
                 {
-                    b.HasOne("Softcoinp.ERP.Domain.Entities.Assembly", "ApprovedInAssembly")
-                        .WithMany()
-                        .HasForeignKey("ApprovedInAssemblyId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Softcoinp.ERP.Domain.Entities.Provider", "Provider")
                         .WithMany("Contracts")
                         .HasForeignKey("ProviderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("ApprovedInAssembly");
 
                     b.Navigation("Provider");
                 });

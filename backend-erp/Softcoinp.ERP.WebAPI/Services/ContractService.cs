@@ -97,6 +97,7 @@ public class ContractService
     {
         var contract = await _context.Contracts
             .Include(c => c.Provider)
+            .Include(c => c.ApprovedInAssembly)
             .Include(c => c.Alerts.Where(a => a.IsActive))
             .Include(c => c.Invoices)
                 .ThenInclude(i => i.Payments)
@@ -127,6 +128,8 @@ public class ContractService
             AutoRenewalNoticeDays = contract.AutoRenewalNoticeDays,
             ApprovalLevel = contract.ApprovalLevel.ToString(),
             CouncilMeetingActNumber = contract.CouncilMeetingActNumber,
+            ApprovedInAssemblyId = contract.ApprovedInAssemblyId,
+            ApprovedInAssemblyTitle = contract.ApprovedInAssembly != null ? contract.ApprovedInAssembly.Title : string.Empty,
             Status = contract.Status.ToString(),
             SignedContractFilePath = contract.SignedContractFilePath,
             Observations = contract.Observations,
@@ -303,6 +306,20 @@ public class ContractService
         if (request.AutoRenewalNoticeDays.HasValue) contract.AutoRenewalNoticeDays = request.AutoRenewalNoticeDays.Value;
         if (request.SignedContractFilePath != null) contract.SignedContractFilePath = request.SignedContractFilePath;
         if (request.CouncilMeetingActNumber != null) contract.CouncilMeetingActNumber = request.CouncilMeetingActNumber;
+
+        if (request.ApprovedInAssemblyId.HasValue)
+        {
+            var assemblyExists = await _context.Assemblies
+                .AnyAsync(a => a.Id == request.ApprovedInAssemblyId.Value && a.TenantId == tenantId);
+
+            if (!assemblyExists)
+            {
+                throw new KeyNotFoundException("La asamblea especificada no existe.");
+            }
+
+            contract.ApprovedInAssemblyId = request.ApprovedInAssemblyId.Value;
+        }
+
         if (request.Observations != null) contract.Observations = request.Observations;
 
         contract.UpdatedByUserId = userId;
@@ -360,10 +377,18 @@ public class ContractService
                 throw new KeyNotFoundException("El contrato especificado no existe.");
             }
 
-            if (request.TotalAmount > contract.TotalValue)
+            var invoicedSoFar = await _context.ProviderInvoices
+                .Where(i => i.ContractId == request.ContractId.Value
+                    && i.TenantId == tenantId
+                    && i.Status != InvoiceStatus.Cancelled)
+                .SumAsync(i => i.TotalAmount);
+
+            var accumulatedTotal = invoicedSoFar + request.TotalAmount;
+
+            if (accumulatedTotal > contract.TotalValue)
             {
                 throw new InvalidOperationException(
-                    $"El valor total de la factura ({request.TotalAmount:C}) supera el valor total del contrato ({contract.TotalValue:C}). " +
+                    $"El acumulado de facturas ({accumulatedTotal:C}) superaría el valor total del contrato ({contract.TotalValue:C}). " +
                     "Verifique el valor antes de continuar.");
             }
         }
@@ -372,7 +397,7 @@ public class ContractService
         {
             var budgetItem = await _context.ExpenseItems
                 .Include(e => e.Budget)
-                .FirstOrDefaultAsync(e => e.Id == request.BudgetItemId);
+                .FirstOrDefaultAsync(e => e.Id == request.BudgetItemId.Value && e.Budget!.TenantId == tenantId);
 
             if (budgetItem == null)
             {
@@ -380,7 +405,7 @@ public class ContractService
             }
 
             var executedAmount = await _context.ExecutedExpenses
-                .Where(e => e.ExpenseItemId == request.BudgetItemId.Value)
+                .Where(e => e.ExpenseItemId == request.BudgetItemId.Value && e.TenantId == tenantId)
                 .SumAsync(e => e.Amount);
 
             var available = budgetItem.AnnualValue - executedAmount;
@@ -518,6 +543,45 @@ public class ContractService
         await _context.SaveChangesAsync();
 
         return payment;
+    }
+
+    public async Task CancelInvoiceAsync(string tenantId, string userId, Guid invoiceId)
+    {
+        var invoice = await _context.ProviderInvoices
+            .Include(i => i.Payments)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && i.TenantId == tenantId);
+
+        if (invoice == null)
+        {
+            throw new KeyNotFoundException("Factura no encontrada.");
+        }
+
+        if (invoice.Status == InvoiceStatus.Cancelled)
+        {
+            throw new InvalidOperationException("La factura ya se encuentra anulada.");
+        }
+
+        if (invoice.BudgetItemId.HasValue)
+        {
+            var linkedExpenses = await _context.ExecutedExpenses
+                .Where(e => e.TenantId == tenantId
+                    && e.ExpenseItemId == invoice.BudgetItemId.Value
+                    && e.InvoiceReference == invoice.InvoiceNumber)
+                .ToListAsync();
+
+            _context.ExecutedExpenses.RemoveRange(linkedExpenses);
+        }
+
+        foreach (var payment in invoice.Payments)
+        {
+            payment.Status = PaymentStatus.Cancelled;
+        }
+
+        invoice.Status = InvoiceStatus.Cancelled;
+        invoice.UpdatedByUserId = userId;
+        invoice.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task<List<PendingPaymentDto>> GetPendingPaymentsAsync(string tenantId)

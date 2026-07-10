@@ -70,6 +70,7 @@ public class UpdateContractRequestDto
     public int? AutoRenewalNoticeDays { get; set; }
     public string? SignedContractFilePath { get; set; }
     public string? CouncilMeetingActNumber { get; set; }
+    public Guid? ApprovedInAssemblyId { get; set; }
     public string? Observations { get; set; }
 }
 
@@ -255,6 +256,8 @@ public class ContractDetailDto
     public int AutoRenewalNoticeDays { get; set; }
     public string ApprovalLevel { get; set; } = string.Empty;
     public string CouncilMeetingActNumber { get; set; } = string.Empty;
+    public Guid? ApprovedInAssemblyId { get; set; }
+    public string ApprovedInAssemblyTitle { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string SignedContractFilePath { get; set; } = string.Empty;
     public string Observations { get; set; } = string.Empty;

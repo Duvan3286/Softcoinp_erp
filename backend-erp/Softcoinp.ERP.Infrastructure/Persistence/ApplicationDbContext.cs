@@ -1256,6 +1256,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.ProviderId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(e => e.ApprovedInAssembly)
+                  .WithMany()
+                  .HasForeignKey(e => e.ApprovedInAssemblyId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
             entity.HasIndex(e => new { e.TenantId, e.ContractNumber }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.ProviderId });
@@ -1304,6 +1309,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasOne(e => e.Contract)
                   .WithMany(c => c.Invoices)
                   .HasForeignKey(e => e.ContractId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne<ExpenseItem>()
+                  .WithMany()
+                  .HasForeignKey(e => e.BudgetItemId)
                   .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => new { e.TenantId, e.InvoiceNumber });

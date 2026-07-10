@@ -157,6 +157,7 @@ export interface UpdateContractRequest {
   autoRenewalNoticeDays?: number;
   signedContractFilePath?: string;
   councilMeetingActNumber?: string;
+  approvedInAssemblyId?: string;
   observations?: string;
 }
 
@@ -227,6 +228,8 @@ export interface ContractDetail {
   autoRenewalNoticeDays: number;
   approvalLevel: string;
   councilMeetingActNumber: string;
+  approvedInAssemblyId?: string;
+  approvedInAssemblyTitle: string;
   status: string;
   signedContractFilePath: string;
   observations: string;
@@ -403,6 +406,10 @@ const supplierService = {
   async registerPayment(invoiceId: string, request: CreatePaymentRequest): Promise<ContractPaymentDto> {
     const response = await apiClient.post<ContractPaymentDto>(`/contracts/invoices/${invoiceId}/payments`, request);
     return response.data;
+  },
+
+  async cancelInvoice(invoiceId: string): Promise<void> {
+    await apiClient.post(`/contracts/invoices/${invoiceId}/cancel`);
   },
 
   async getPendingPayments(): Promise<PendingPaymentItem[]> {

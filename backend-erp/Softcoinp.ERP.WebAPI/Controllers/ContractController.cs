@@ -22,7 +22,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<List<ContractListDto>>> GetContracts(
         [FromQuery] string? status = null,
         [FromQuery] string? contractType = null,
@@ -35,7 +35,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<ContractDetailDto>> GetContract(Guid id)
     {
         var tenantId = GetTenantId();
@@ -104,7 +104,7 @@ public class ContractController : BaseController
     }
 
     [HttpPut("{id:guid}/status")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council")]
     public async Task<ActionResult<ContractDetailDto>> ChangeContractStatus(Guid id, [FromBody] ChangeContractStatusRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -210,6 +210,28 @@ public class ContractController : BaseController
         }
     }
 
+    [HttpPost("invoices/{invoiceId:guid}/cancel")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> CancelInvoice(Guid invoiceId)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        try
+        {
+            await _contractService.CancelInvoiceAsync(tenantId, userId, invoiceId);
+            return Ok(new { message = "Factura anulada y ejecución presupuestal revertida correctamente." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("payments-pending")]
     [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
     public async Task<ActionResult<List<PendingPaymentDto>>> GetPendingPayments()
@@ -230,7 +252,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("alerts/active")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<List<ContractAlertDto>>> GetActiveAlerts()
     {
         var tenantId = GetTenantId();
@@ -257,7 +279,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("approval-thresholds")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
     public async Task<ActionResult<List<ApprovalThresholdDto>>> GetApprovalThresholds()
     {
         var tenantId = GetTenantId();
