@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
 using Softcoinp.ERP.WebAPI.DTOs;
+using Softcoinp.ERP.WebAPI.Services;
 
 namespace Softcoinp.ERP.WebAPI.Controllers;
 
@@ -19,12 +19,12 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 public class UnitsController : BaseController
 {
     private readonly ApplicationDbContext _context;
-    private readonly IMemoryCache _cache;
+    private readonly IndicatorCacheService _indicatorCache;
 
-    public UnitsController(ApplicationDbContext context, IMemoryCache cache)
+    public UnitsController(ApplicationDbContext context, IndicatorCacheService indicatorCache)
     {
         _context = context;
-        _cache = cache;
+        _indicatorCache = indicatorCache;
     }
 
     [HttpGet("types")]
@@ -229,7 +229,7 @@ public class UnitsController : BaseController
         });
 
         await _context.SaveChangesAsync();
-        _cache.Remove($"mora_map_{tenantId}");
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
         return Ok();
     }
 
@@ -293,7 +293,7 @@ public class UnitsController : BaseController
         unit.InternalObservations = dto.InternalObservations;
 
         await _context.SaveChangesAsync();
-        _cache.Remove($"mora_map_{tenantId}");
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
         return Ok();
     }
 
@@ -525,7 +525,7 @@ public class UnitsController : BaseController
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
-            _cache.Remove($"mora_map_{tenantId}");
+            await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
 
             await LogBulkImport(tenantId, BulkImportStatus.Success, newUnits.Count, 0, "[]");
 

@@ -4,7 +4,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Softcoinp.ERP.Domain.Enums;
+using Softcoinp.ERP.WebAPI.DTOs;
 using Softcoinp.ERP.WebAPI.Services;
 
 namespace Softcoinp.ERP.WebAPI.Controllers;
@@ -21,48 +21,132 @@ public class DashboardController : BaseController
         _dashboardService = dashboardService;
     }
 
-    [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
-    public async Task<IActionResult> GetDashboard()
+    [HttpGet("kpis")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council,Accountant")]
+    public async Task<ActionResult<DashboardKpisDto>> GetKpis()
+    {
+        var tenantId = GetTenantId();
+        var kpis = await _dashboardService.GetKpisAsync(tenantId);
+        return Ok(kpis);
+    }
+
+    [HttpGet("alerts")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council")]
+    public async Task<ActionResult> GetAlerts()
+    {
+        var tenantId = GetTenantId();
+        var alerts = await _dashboardService.GetAlertsAsync(tenantId);
+        return Ok(alerts);
+    }
+
+    [HttpGet("alerts/configurations")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult> GetAlertConfigurations()
+    {
+        var tenantId = GetTenantId();
+        var configurations = await _dashboardService.GetAlertConfigurationsAsync(tenantId);
+        return Ok(configurations);
+    }
+
+    [HttpPut("alerts/configurations/{ruleType}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<AlertConfigurationDto>> UpdateAlertConfiguration(
+        string ruleType, [FromBody] UpdateAlertConfigurationRequestDto request)
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
-        var role = GetUserRole();
-
-        if (string.IsNullOrEmpty(tenantId))
-        {
-            return Unauthorized("Tenant not resolved.");
-        }
-
-        if (string.IsNullOrEmpty(role))
-        {
-            return Forbid();
-        }
 
         try
         {
-            var data = await _dashboardService.GetDashboardAsync(tenantId, userId, role);
-            return Ok(data);
+            var updated = await _dashboardService.UpdateAlertConfigurationAsync(tenantId, ruleType, userId, request);
+            return Ok(updated);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
-            return StatusCode(500, new { message = "Error al cargar datos del dashboard.", detail = ex.Message });
+            return BadRequest(new { error = ex.Message });
         }
     }
 
-    [HttpPost("initialize-alerts")]
+    [HttpPost("alerts/initialize")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> InitializeAlerts()
     {
         var tenantId = GetTenantId();
-
-        if (string.IsNullOrEmpty(tenantId))
-        {
-            return Unauthorized("Tenant not resolved.");
-        }
-
         await _dashboardService.InitializeDefaultAlertConfigurationsAsync(tenantId);
-        return Ok(new { message = "Alert configurations initialized." });
+        return Ok(new { message = "Configuración de alertas inicializada." });
+    }
+
+    [HttpGet("collection-chart")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council,Accountant")]
+    public async Task<ActionResult> GetCollectionChart()
+    {
+        var tenantId = GetTenantId();
+        var chart = await _dashboardService.GetCollectionChartAsync(tenantId);
+        return Ok(chart);
+    }
+
+    [HttpGet("payment-status-map")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<PaymentStatusMapDto>> GetPaymentStatusMap()
+    {
+        var tenantId = GetTenantId();
+        var map = await _dashboardService.GetPaymentStatusMapAsync(tenantId);
+        return Ok(map);
+    }
+
+    [HttpGet("upcoming-events")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council,Resident")]
+    public async Task<ActionResult> GetUpcomingEvents()
+    {
+        var tenantId = GetTenantId();
+        var events = await _dashboardService.GetUpcomingEventsAsync(tenantId);
+        return Ok(events);
+    }
+
+    [HttpGet("recent-activity")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult> GetRecentActivity()
+    {
+        var tenantId = GetTenantId();
+        var activity = await _dashboardService.GetRecentActivityAsync(tenantId);
+        return Ok(activity);
+    }
+
+    [HttpGet("council")]
+    [Authorize(Roles = "SuperAdmin,Admin,Council")]
+    public async Task<ActionResult<CouncilDashboardDto>> GetCouncilDashboard()
+    {
+        var tenantId = GetTenantId();
+        var data = await _dashboardService.GetCouncilDashboardAsync(tenantId);
+        return Ok(data);
+    }
+
+    [HttpGet("accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    public async Task<ActionResult<AccountantBudgetPanelDto>> GetAccountantPanel()
+    {
+        var tenantId = GetTenantId();
+        var data = await _dashboardService.GetAccountantBudgetPanelAsync(tenantId);
+        return Ok(data);
+    }
+
+    [HttpGet("auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin,Auditor")]
+    public async Task<ActionResult<AuditorDashboardDto>> GetAuditorDashboard()
+    {
+        var tenantId = GetTenantId();
+        var data = await _dashboardService.GetAuditorDashboardAsync(tenantId);
+        return Ok(data);
+    }
+
+    [HttpGet("resident")]
+    [Authorize(Roles = "Resident")]
+    public async Task<ActionResult<ResidentDashboardDto>> GetResidentDashboard()
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+        var data = await _dashboardService.GetResidentDashboardAsync(tenantId, userId);
+        return Ok(data);
     }
 
     [HttpPost("invalidate-cache")]
@@ -70,24 +154,7 @@ public class DashboardController : BaseController
     public async Task<IActionResult> InvalidateCache()
     {
         var tenantId = GetTenantId();
-
-        if (string.IsNullOrEmpty(tenantId))
-        {
-            return Unauthorized("Tenant not resolved.");
-        }
-
-        await _dashboardService.InvalidateMoraMapCacheAsync(tenantId);
-        return Ok(new { message = "Mora map cache invalidated." });
-    }
-
-    private string GetUserRole()
-    {
-        var roles = User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
-        if (roles.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        return roles.First();
+        await _dashboardService.InvalidateDashboardCacheAsync(tenantId);
+        return Ok(new { message = "Caché del dashboard invalidada." });
     }
 }

@@ -22,6 +22,7 @@ public class AuthController : ControllerBase
     private readonly UserManager<User> _userManager;
     private readonly IConfiguration _configuration;
     private readonly ApplicationDbContext _db;
+    private readonly MasterDbContext _masterDb;
     private readonly ILogger<AuthController> _logger;
     private readonly ITenantResolver _tenantResolver;
 
@@ -34,12 +35,14 @@ public class AuthController : ControllerBase
         UserManager<User> userManager,
         IConfiguration configuration,
         ApplicationDbContext db,
+        MasterDbContext masterDb,
         ILogger<AuthController> logger,
         ITenantResolver tenantResolver)
     {
         _userManager = userManager;
         _configuration = configuration;
         _db = db;
+        _masterDb = masterDb;
         _logger = logger;
         _tenantResolver = tenantResolver;
     }
@@ -315,6 +318,58 @@ public class AuthController : ControllerBase
     }
 
     // ─────────────────────────────────────────────────────────────────
+    // GET /api/auth/my-tenants
+    // ─────────────────────────────────────────────────────────────────
+    [HttpGet("my-tenants")]
+    [Authorize]
+    public async Task<IActionResult> GetMyTenants()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
+        var currentTenant = HttpContext.Items["Tenant"] as Tenant;
+        var now = DateTime.UtcNow;
+
+        var roles = await _db.UserTenantRoles
+            .Where(r => r.UserId == userId
+                && r.IsActive
+                && (!r.ExpiresAt.HasValue || r.ExpiresAt.Value >= now))
+            .ToListAsync();
+
+        var options = new List<MyTenantOption>();
+
+        foreach (var role in roles)
+        {
+            if (!Guid.TryParse(role.TenantId, out var parsedTenantId))
+            {
+                continue;
+            }
+
+            var tenant = await _masterDb.Tenants
+                .FirstOrDefaultAsync(t => t.Id == parsedTenantId && t.IsActive);
+
+            if (tenant == null)
+            {
+                continue;
+            }
+
+            var isCurrent = currentTenant != null && currentTenant.Id == tenant.Id;
+
+            options.Add(new MyTenantOption(
+                tenant.Id,
+                tenant.Name,
+                tenant.Subdomain,
+                role.Role.ToString(),
+                isCurrent));
+        }
+
+        return Ok(options.OrderBy(o => o.Name));
+    }
+
+    // ─────────────────────────────────────────────────────────────────
     // POST /api/auth/switch-tenant
     // ─────────────────────────────────────────────────────────────────
     [HttpPost("switch-tenant")]
@@ -567,3 +622,4 @@ public record RefreshRequest(string RefreshToken);
 public record LogoutRequest(string? RefreshToken);
 public record SwitchTenantRequest(Guid TenantId);
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+public record MyTenantOption(Guid TenantId, string Name, string Subdomain, string Role, bool IsCurrent);

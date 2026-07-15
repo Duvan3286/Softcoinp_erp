@@ -25,6 +25,22 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface TenantOption {
+  tenantId: string;
+  name: string;
+  subdomain: string;
+  role: string;
+  isCurrent: boolean;
+}
+
+export interface SwitchTenantResponse {
+  token: string;
+  tokenExpiry: string;
+  refreshToken: string;
+  tenantId: string;
+  role: string;
+}
+
 const authService = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
@@ -64,6 +80,26 @@ const authService = {
 
   async getCurrentUser(): Promise<User> {
     const response = await apiClient.get<User>('/auth/me');
+    return response.data;
+  },
+
+  async getMyTenants(): Promise<TenantOption[]> {
+    const response = await apiClient.get<TenantOption[]>('/auth/my-tenants');
+    return response.data;
+  },
+
+  async switchTenant(tenantId: string): Promise<SwitchTenantResponse> {
+    const response = await apiClient.post<SwitchTenantResponse>('/auth/switch-tenant', { tenantId });
+    const { token, refreshToken } = response.data;
+
+    if (!isSameOrigin && typeof window !== 'undefined') {
+      sessionStorage.setItem('auth_token', token);
+      if (refreshToken) {
+        sessionStorage.setItem('refresh_token', refreshToken);
+      }
+      setAuthCookie(token);
+    }
+
     return response.data;
   }
 };

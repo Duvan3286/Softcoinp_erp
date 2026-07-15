@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -12,99 +10,46 @@ using Softcoinp.ERP.WebAPI.DTOs;
 
 namespace Softcoinp.ERP.WebAPI.Services;
 
+/// <summary>
+/// Orquesta el Dashboard Principal: información operativa del conjunto para que el
+/// administrador, el consejo, el contador, el auditor y el residente decidan sin
+/// tener que navegar cada módulo por separado. Ningún método de esta clase consulta
+/// datos del módulo de Contabilidad, que fue eliminado del sistema.
+/// Todos los indicadores se calculan en tiempo real, excepto el gráfico de recaudo
+/// histórico y el mapa de estado de pago, que usan caché con invalidación por eventos
+/// (ver PaymentStatusMapService y los puntos de invalidación en PaymentService y
+/// BillingEngineService).
+/// </summary>
 public class DashboardService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IMemoryCache _memoryCache;
     private readonly IndicatorCacheService _indicatorCache;
     private readonly ExecutionEngineService _executionEngineService;
+    private readonly DashboardAlertEngineService _alertEngineService;
+    private readonly PaymentStatusMapService _paymentStatusMapService;
+    private readonly ReportAccessControlService _reportAccessControlService;
+
+    public const string CollectionChartCacheKeyPrefix = "collection_chart_";
 
     public DashboardService(
         ApplicationDbContext context,
-        IMemoryCache memoryCache,
         IndicatorCacheService indicatorCache,
-        ExecutionEngineService executionEngineService)
+        ExecutionEngineService executionEngineService,
+        DashboardAlertEngineService alertEngineService,
+        PaymentStatusMapService paymentStatusMapService,
+        ReportAccessControlService reportAccessControlService)
     {
         _context = context;
-        _memoryCache = memoryCache;
         _indicatorCache = indicatorCache;
         _executionEngineService = executionEngineService;
+        _alertEngineService = alertEngineService;
+        _paymentStatusMapService = paymentStatusMapService;
+        _reportAccessControlService = reportAccessControlService;
     }
 
-    public async Task<DashboardDataDto> GetDashboardAsync(
-        string tenantId, string userId, string role)
-    {
-        var data = new DashboardDataDto();
+    // ── KPIs ──────────────────────────────────────────────────────────
 
-        if (role == AppRole.Resident.ToString())
-        {
-            try { data.ResidentData = await GetResidentDataAsync(tenantId, userId); }
-            catch (Exception ex) { _ = ex; }
-            return data;
-        }
-
-        if (role == AppRole.Auditor.ToString())
-        {
-            return data;
-        }
-
-        bool isAdmin = role == AppRole.Admin.ToString()
-            || role == AppRole.SuperAdmin.ToString();
-        bool isCouncil = role == AppRole.Council.ToString();
-        bool isAccountant = role == AppRole.Accountant.ToString();
-
-        if (isAdmin || isCouncil)
-        {
-            try { data.Kpis = await GetKpisAsync(tenantId); }
-            catch (Exception ex) { _ = ex; }
-
-            try { data.MonthlyCollection = await GetMonthlyCollectionAsync(tenantId); }
-            catch (Exception ex) { _ = ex; }
-
-            try { data.UpcomingEvents = await GetUpcomingEventsAsync(tenantId); }
-            catch (Exception ex) { _ = ex; }
-
-            try { data.Alerts = await EvaluateAlertsAsync(tenantId, role); }
-            catch (Exception ex) { _ = ex; }
-
-            if (isAdmin)
-            {
-                try { data.MoraMap = await GetMoraMapAsync(tenantId); }
-                catch (Exception ex) { _ = ex; }
-
-                try { data.UnitSummaries = await GetUnitSummariesAsync(tenantId); }
-                catch (Exception ex) { _ = ex; }
-
-                try { data.RecentActivity = await GetRecentActivityAsync(tenantId); }
-                catch (Exception ex) { _ = ex; }
-            }
-
-        }
-
-        if (isAccountant)
-        {
-            try { data.Kpis = await GetKpisAsync(tenantId); }
-            catch (Exception ex) { _ = ex; }
-
-            try { data.MonthlyCollection = await GetMonthlyCollectionAsync(tenantId); }
-            catch (Exception ex) { _ = ex; }
-        }
-
-        return data;
-    }
-
-    private async Task<DashboardKpisDto> GetKpisAsync(string tenantId)
-    {
-        var cacheKey = $"kpis_{tenantId}";
-        var cached = await _indicatorCache.GetAsync<DashboardKpisDto>(tenantId, cacheKey);
-        if (cached != null) return cached;
-
-        var kpis = await ComputeKpisAsync(tenantId);
-        await _indicatorCache.SetAsync(tenantId, cacheKey, kpis, expirationMinutes: 5);
-        return kpis;
-    }
-
-    private async Task<DashboardKpisDto> ComputeKpisAsync(string tenantId)
+    public async Task<DashboardKpisDto> GetKpisAsync(string tenantId)
     {
         var now = DateTime.UtcNow;
         var currentPeriod = $"{now.Year}-{now.Month:D2}";
@@ -131,24 +76,24 @@ public class DashboardService
         if (currentBillingPeriod != null)
         {
             var currentFeesAgg = await _context.UnitFees
-                .Where(uf => uf.TenantId == tenantId
-                    && uf.BillingPeriodId == currentBillingPeriod.Id)
+                .Where(uf => uf.TenantId == tenantId && uf.BillingPeriodId == currentBillingPeriod.Id)
                 .GroupBy(uf => 1)
                 .Select(g => new { Billed = g.Sum(uf => uf.FeeValue), Collected = g.Sum(uf => uf.PaidAmount) })
                 .FirstOrDefaultAsync();
 
             kpis.CurrentMonthBilled = currentFeesAgg?.Billed ?? 0m;
             kpis.CurrentMonthCollected = currentFeesAgg?.Collected ?? 0m;
-            kpis.CurrentMonthCollectionPercentage = kpis.CurrentMonthBilled > 0
-                ? Math.Round(kpis.CurrentMonthCollected / kpis.CurrentMonthBilled * 100, 1)
-                : 0;
+
+            if (kpis.CurrentMonthBilled > 0)
+            {
+                kpis.CurrentMonthCollectionPercentage = Math.Round(kpis.CurrentMonthCollected / kpis.CurrentMonthBilled * 100, 1);
+            }
         }
 
         if (previousBillingPeriod != null)
         {
             var prevFeesAgg = await _context.UnitFees
-                .Where(uf => uf.TenantId == tenantId
-                    && uf.BillingPeriodId == previousBillingPeriod.Id)
+                .Where(uf => uf.TenantId == tenantId && uf.BillingPeriodId == previousBillingPeriod.Id)
                 .GroupBy(uf => 1)
                 .Select(g => new { Billed = g.Sum(uf => uf.FeeValue), Collected = g.Sum(uf => uf.PaidAmount) })
                 .FirstOrDefaultAsync();
@@ -156,126 +101,196 @@ public class DashboardService
             var prevBilled = prevFeesAgg?.Billed ?? 0m;
             var prevCollected = prevFeesAgg?.Collected ?? 0m;
 
-            kpis.PreviousMonthCollectionPercentage = prevBilled > 0
-                ? Math.Round(prevCollected / prevBilled * 100, 1)
-                : 0;
+            if (prevBilled > 0)
+            {
+                kpis.PreviousMonthCollectionPercentage = Math.Round(prevCollected / prevBilled * 100, 1);
+            }
         }
 
-        var totalOverdue = await _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId
-                && uf.BalanceAmount > 0
-                && uf.Status != FeeStatus.FullyPaid)
-            .SumAsync(uf => uf.BalanceAmount);
+        var aging = await GetPortfolioAgingAsync(tenantId);
+        kpis.TotalOverduePortfolio = aging.OverdueOneMonth + aging.OverdueTwoMonths + aging.OverdueThreeOrMoreMonths;
+        kpis.OverdueOneMonth = aging.OverdueOneMonth;
+        kpis.OverdueTwoMonths = aging.OverdueTwoMonths;
+        kpis.OverdueThreeOrMoreMonths = aging.OverdueThreeOrMoreMonths;
 
-        var totalOverdueExtraordinary = await _context.ExtraordinaryFeeDistributions
-            .Where(efd => efd.TenantId == tenantId
-                && efd.BalanceAmount > 0
-                && efd.Status != FeeStatus.FullyPaid)
-            .SumAsync(efd => efd.BalanceAmount);
+        var budgetExecution = await GetBudgetExecutionSummaryAsync(tenantId, now.Year);
+        kpis.BudgetExecutionPercentage = budgetExecution.OverallPercentage;
+        kpis.BudgetExpectedExecutionPercentage = budgetExecution.ExpectedPercentage;
 
-        var totalOverdueCharges = await _context.IndividualCharges
-            .Where(ic => ic.TenantId == tenantId
-                && ic.BalanceAmount > 0
-                && ic.Status != IndividualChargeStatus.Paid)
-            .SumAsync(ic => ic.BalanceAmount);
+        kpis.OpenPqrCount = await _context.PqrRecords
+            .CountAsync(p => p.TenantId == tenantId && p.Status != PQRStatus.Closed);
 
-        kpis.TotalOverduePortfolio = totalOverdue + totalOverdueExtraordinary + totalOverdueCharges;
-
-        var overdueItems = new List<(decimal Balance, int DaysOverdue)>();
-
-        await foreach (var item in _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId
-                && uf.BalanceAmount > 0
-                && uf.Status != FeeStatus.FullyPaid)
-            .Select(uf => new { uf.BalanceAmount, uf.DueDate })
-            .AsAsyncEnumerable())
-        {
-            var days = (int)(DateTime.UtcNow - item.DueDate).TotalDays;
-            overdueItems.Add((item.BalanceAmount, days));
-        }
-
-        await foreach (var item in _context.ExtraordinaryFeeDistributions
-            .Where(efd => efd.TenantId == tenantId
-                && efd.BalanceAmount > 0
-                && efd.Status != FeeStatus.FullyPaid)
-            .Select(efd => new { efd.BalanceAmount, efd.DueDate })
-            .AsAsyncEnumerable())
-        {
-            var days = (int)(DateTime.UtcNow - item.DueDate).TotalDays;
-            overdueItems.Add((item.BalanceAmount, days));
-        }
-
-        await foreach (var item in _context.IndividualCharges
-            .Where(ic => ic.TenantId == tenantId
-                && ic.BalanceAmount > 0
-                && ic.Status != IndividualChargeStatus.Paid)
-            .Select(ic => new { ic.BalanceAmount, ic.ChargeDate })
-            .AsAsyncEnumerable())
-        {
-            var days = (int)(DateTime.UtcNow - item.ChargeDate).TotalDays;
-            overdueItems.Add((item.BalanceAmount, days));
-        }
-
-        kpis.EarlyOverdue = overdueItems
-            .Where(x => x.DaysOverdue >= 1 && x.DaysOverdue <= 90)
-            .Sum(x => x.Balance);
-
-        kpis.MediumOverdue = overdueItems
-            .Where(x => x.DaysOverdue >= 91 && x.DaysOverdue <= 180)
-            .Sum(x => x.Balance);
-
-        kpis.LegalOverdue = overdueItems
-            .Where(x => x.DaysOverdue > 180)
-            .Sum(x => x.Balance);
-
-        kpis.AvailableCash = 0m;
-
-        var currentYear = now.Year;
-        var yearStart = new DateTime(currentYear, 1, 1);
-        var yearProgress = (now - yearStart).TotalDays / (DateTime.IsLeapYear(currentYear) ? 366 : 365);
-        kpis.YearProgressPercentage = Math.Round((decimal)(yearProgress * 100), 1);
-
-        kpis.BudgetExecutionPercentage = await GetBudgetExecutionPercentageAsync(tenantId, currentYear);
+        kpis.OverduePqrCount = await _context.PqrRecords
+            .CountAsync(p => p.TenantId == tenantId
+                && p.Deadline != null
+                && p.Deadline < now
+                && p.Status != PQRStatus.Closed
+                && p.Status != PQRStatus.Responded
+                && p.Status != PQRStatus.Escalated);
 
         return kpis;
     }
 
-    private async Task<decimal> GetBudgetExecutionPercentageAsync(string tenantId, int fiscalYear)
+    private class PortfolioAgingRawDto
+    {
+        public int MonthsOverdue { get; set; }
+        public decimal OverdueBalance { get; set; }
+    }
+
+    private class PortfolioAgingResult
+    {
+        public decimal OverdueOneMonth { get; set; }
+        public decimal OverdueTwoMonths { get; set; }
+        public decimal OverdueThreeOrMoreMonths { get; set; }
+    }
+
+    private async Task<PortfolioAgingResult> GetPortfolioAgingAsync(string tenantId)
+    {
+        var sql = @"
+WITH fee_debts AS (
+    SELECT UnitId,
+           SUM(BalanceAmount) AS FeeBalance,
+           COUNT(DISTINCT BillingPeriodId) AS MonthsOverdue
+    FROM erp_unit_fees
+    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
+    GROUP BY UnitId
+),
+extra_debts AS (
+    SELECT UnitId, SUM(BalanceAmount) AS ExtraBalance
+    FROM erp_extraordinary_fee_distributions
+    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
+    GROUP BY UnitId
+),
+charge_debts AS (
+    SELECT UnitId, SUM(BalanceAmount) AS ChargeBalance
+    FROM erp_individual_charges
+    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'Paid'
+    GROUP BY UnitId
+)
+SELECT
+    COALESCE(fd.MonthsOverdue, 0) AS MonthsOverdue,
+    COALESCE(fd.FeeBalance, 0) + COALESCE(ed.ExtraBalance, 0) + COALESCE(cd.ChargeBalance, 0) AS OverdueBalance
+FROM erp_units u
+LEFT JOIN fee_debts fd ON fd.UnitId = u.Id
+LEFT JOIN extra_debts ed ON ed.UnitId = u.Id
+LEFT JOIN charge_debts cd ON cd.UnitId = u.Id
+WHERE u.TenantId = @p0
+  AND (COALESCE(fd.FeeBalance, 0) + COALESCE(ed.ExtraBalance, 0) + COALESCE(cd.ChargeBalance, 0)) > 0";
+
+        var rows = await _context.Database
+            .SqlQueryRaw<PortfolioAgingRawDto>(sql, tenantId)
+            .ToListAsync();
+
+        var result = new PortfolioAgingResult();
+
+        foreach (var row in rows)
+        {
+            if (row.MonthsOverdue <= 1)
+            {
+                result.OverdueOneMonth += row.OverdueBalance;
+            }
+            else if (row.MonthsOverdue == 2)
+            {
+                result.OverdueTwoMonths += row.OverdueBalance;
+            }
+            else
+            {
+                result.OverdueThreeOrMoreMonths += row.OverdueBalance;
+            }
+        }
+
+        return result;
+    }
+
+    private class BudgetExecutionSummary
+    {
+        public decimal OverallPercentage { get; set; }
+        public decimal ExpectedPercentage { get; set; }
+    }
+
+    private async Task<BudgetExecutionSummary> GetBudgetExecutionSummaryAsync(string tenantId, int fiscalYear)
     {
         try
         {
-            var executionDashboard = await _executionEngineService.GetExecutionDashboardAsync(tenantId, fiscalYear);
-            return executionDashboard.OverallExecutionPercentage;
+            var execution = await _executionEngineService.GetExecutionDashboardAsync(tenantId, fiscalYear);
+
+            var totalAnnual = execution.ExpenseItems.Sum(i => i.AnnualValue);
+            var totalProportional = execution.ExpenseItems.Sum(i => i.ProportionalToDate);
+            var expectedPercentage = 0m;
+
+            if (totalAnnual > 0)
+            {
+                expectedPercentage = Math.Round(totalProportional / totalAnnual * 100m, 1);
+            }
+
+            return new BudgetExecutionSummary
+            {
+                OverallPercentage = execution.OverallExecutionPercentage,
+                ExpectedPercentage = expectedPercentage
+            };
         }
         catch (KeyNotFoundException)
         {
-            return 0m;
+            return new BudgetExecutionSummary();
         }
     }
 
-    private async Task<List<MonthlyCollectionDto>> GetMonthlyCollectionAsync(string tenantId)
+    // ── Alertas ───────────────────────────────────────────────────────
+
+    public Task<List<AlertDto>> GetAlertsAsync(string tenantId)
+    {
+        return _alertEngineService.EvaluateActiveAlertsAsync(tenantId);
+    }
+
+    public Task<List<AlertConfigurationDto>> GetAlertConfigurationsAsync(string tenantId)
+    {
+        return _alertEngineService.GetConfigurationsAsync(tenantId);
+    }
+
+    public Task<AlertConfigurationDto> UpdateAlertConfigurationAsync(
+        string tenantId, string ruleType, string userId, UpdateAlertConfigurationRequestDto request)
+    {
+        return _alertEngineService.UpdateConfigurationAsync(tenantId, ruleType, userId, request);
+    }
+
+    public Task InitializeDefaultAlertConfigurationsAsync(string tenantId)
+    {
+        return _alertEngineService.InitializeDefaultAlertConfigurationsAsync(tenantId);
+    }
+
+    // ── Gráfico de recaudo histórico (cacheado) ──────────────────────
+
+    public async Task<List<MonthlyCollectionDto>> GetCollectionChartAsync(string tenantId)
+    {
+        var cacheKey = $"{CollectionChartCacheKeyPrefix}{tenantId}";
+        var cached = await _indicatorCache.GetAsync<List<MonthlyCollectionDto>>(tenantId, cacheKey);
+        if (cached != null)
+        {
+            return cached;
+        }
+
+        var chart = await ComputeCollectionChartAsync(tenantId);
+        await _indicatorCache.SetAsync(tenantId, cacheKey, chart, expirationMinutes: 15);
+        return chart;
+    }
+
+    private async Task<List<MonthlyCollectionDto>> ComputeCollectionChartAsync(string tenantId)
     {
         var now = DateTime.UtcNow;
         var twelveMonthsAgo = now.AddMonths(-12);
+        var earliestPeriod = $"{twelveMonthsAgo.Year}-{twelveMonthsAgo.Month:D2}";
 
         var billingPeriods = await _context.BillingPeriods
-            .Where(bp => bp.TenantId == tenantId
-                && string.Compare(bp.Period, $"{twelveMonthsAgo.Year}-{twelveMonthsAgo.Month:D2}") >= 0)
+            .Where(bp => bp.TenantId == tenantId && string.Compare(bp.Period, earliestPeriod) >= 0)
             .OrderBy(bp => bp.Period)
             .ToListAsync();
 
         var periodIds = billingPeriods.Select(bp => bp.Id).ToList();
 
         var feesByPeriod = await _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId
-                && periodIds.Contains(uf.BillingPeriodId))
+            .Where(uf => uf.TenantId == tenantId && periodIds.Contains(uf.BillingPeriodId))
             .GroupBy(uf => uf.BillingPeriodId)
-            .Select(g => new
-            {
-                BillingPeriodId = g.Key,
-                Billed = g.Sum(uf => uf.FeeValue),
-                Collected = g.Sum(uf => uf.PaidAmount)
-            })
+            .Select(g => new { BillingPeriodId = g.Key, Billed = g.Sum(uf => uf.FeeValue), Collected = g.Sum(uf => uf.PaidAmount) })
             .ToDictionaryAsync(g => g.BillingPeriodId);
 
         var result = new List<MonthlyCollectionDto>();
@@ -295,269 +310,16 @@ public class DashboardService
         return result;
     }
 
-    private async Task<List<UnitMoraDto>> GetMoraMapAsync(string tenantId)
+    // ── Mapa de estado de pago (cacheado, delegado) ──────────────────
+
+    public Task<PaymentStatusMapDto> GetPaymentStatusMapAsync(string tenantId)
     {
-        var cacheKey = $"mora_map_{tenantId}";
-
-        if (_memoryCache.TryGetValue(cacheKey, out List<UnitMoraDto>? cached))
-        {
-            if (cached != null)
-            {
-                return cached;
-            }
-        }
-
-        var now = DateTime.UtcNow;
-        var nowStr = now.ToString("yyyy-MM-dd HH:mm:ss");
-
-        var sql = $@"
-WITH spokespersons AS (
-    SELECT uo.UnitId, o.FullNameOrCompanyName AS OwnerName
-    FROM erp_unit_owners uo
-    INNER JOIN erp_owners o ON o.Id = uo.OwnerId
-    WHERE uo.TenantId = @p0 AND uo.IsActive = TRUE AND uo.IsSpokesperson = TRUE
-),
-fee_debts AS (
-    SELECT UnitId, SUM(BalanceAmount) AS TotalDebt, MIN(DueDate) AS OldestDate
-    FROM erp_unit_fees
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
-    GROUP BY UnitId
-),
-extra_debts AS (
-    SELECT UnitId, SUM(BalanceAmount) AS TotalDebt, MIN(DueDate) AS OldestDate
-    FROM erp_extraordinary_fee_distributions
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
-    GROUP BY UnitId
-),
-charge_debts AS (
-    SELECT UnitId, SUM(BalanceAmount) AS TotalDebt, MIN(ChargeDate) AS OldestDate
-    FROM erp_individual_charges
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'Paid'
-    GROUP BY UnitId
-),
-unit_base AS (
-    SELECT
-        u.Id AS UnitId,
-        u.Identifier,
-        COALESCE(u.TowerOrBlock, '') AS TowerOrBlock,
-        u.FloorLevel,
-        u.Status,
-        COALESCE(s.OwnerName, 'Sin propietario') AS OwnerName,
-        COALESCE(fd.TotalDebt, 0) + COALESCE(ed.TotalDebt, 0) + COALESCE(cd.TotalDebt, 0) AS OverdueBalance,
-        LEAST(
-            COALESCE(fd.OldestDate, '9999-12-31'),
-            COALESCE(ed.OldestDate, '9999-12-31'),
-            COALESCE(cd.OldestDate, '9999-12-31')
-        ) AS MinDebtDate
-    FROM erp_units u
-    LEFT JOIN spokespersons s ON s.UnitId = u.Id
-    LEFT JOIN fee_debts fd ON fd.UnitId = u.Id
-    LEFT JOIN extra_debts ed ON ed.UnitId = u.Id
-    LEFT JOIN charge_debts cd ON cd.UnitId = u.Id
-    WHERE u.TenantId = @p0
-      AND u.Status IN ('ActiveOccupied', 'ActiveUnoccupied')
-)
-SELECT
-    UnitId, Identifier, TowerOrBlock, FloorLevel, OwnerName, OverdueBalance,
-    CASE WHEN MinDebtDate = '9999-12-31' THEN 0
-         ELSE GREATEST(0, DATEDIFF(@p1, MinDebtDate))
-    END AS DaysOverdue,
-    CASE WHEN Status = 'ActiveUnoccupied' THEN 'gray'
-         WHEN OverdueBalance <= 0 THEN 'green'
-         WHEN MinDebtDate = '9999-12-31' THEN 'green'
-         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 30 THEN 'yellow'
-         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 90 THEN 'orange'
-         ELSE 'red'
-    END AS ColorCode,
-    CASE WHEN Status = 'ActiveUnoccupied' THEN 'Desocupada'
-         WHEN OverdueBalance <= 0 THEN 'Al dia'
-         WHEN MinDebtDate = '9999-12-31' THEN 'Al dia'
-         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 30 THEN 'Mora temprana'
-         WHEN GREATEST(0, DATEDIFF(@p1, MinDebtDate)) <= 90 THEN 'Mora media'
-         ELSE 'Mora critica'
-    END AS Status
-FROM unit_base
-ORDER BY Identifier";
-
-        var units = await _context.Database
-            .SqlQueryRaw<UnitMoraDto>(sql, tenantId, nowStr)
-            .ToListAsync();
-
-        var cacheOptions = new MemoryCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromMinutes(5))
-            .SetPriority(CacheItemPriority.Normal);
-
-        _memoryCache.Set(cacheKey, units, cacheOptions);
-
-        return units;
+        return _paymentStatusMapService.GetPaymentStatusMapAsync(tenantId);
     }
 
-    private async Task<List<UnitSummaryDto>> GetUnitSummariesAsync(string tenantId)
-    {
-        var sql = @"
-WITH spokespersons AS (
-    SELECT uo.UnitId, o.FullNameOrCompanyName AS OwnerName
-    FROM erp_unit_owners uo
-    INNER JOIN erp_owners o ON o.Id = uo.OwnerId
-    WHERE uo.TenantId = @p0 AND uo.IsActive = TRUE AND uo.IsSpokesperson = TRUE
-),
-fee_balances AS (
-    SELECT UnitId, SUM(BalanceAmount) AS Balance
-    FROM erp_unit_fees
-    WHERE TenantId = @p0 AND BalanceAmount > 0
-    GROUP BY UnitId
-),
-extra_balances AS (
-    SELECT UnitId, SUM(BalanceAmount) AS Balance
-    FROM erp_extraordinary_fee_distributions
-    WHERE TenantId = @p0 AND BalanceAmount > 0
-    GROUP BY UnitId
-),
-charge_balances AS (
-    SELECT UnitId, SUM(BalanceAmount) AS Balance
-    FROM erp_individual_charges
-    WHERE TenantId = @p0 AND BalanceAmount > 0
-    GROUP BY UnitId
-)
-SELECT
-    u.Id AS UnitId,
-    u.Identifier,
-    COALESCE(u.TowerOrBlock, '') AS TowerOrBlock,
-    u.FloorLevel,
-    COALESCE(s.OwnerName, 'Sin propietario') AS OwnerName,
-    COALESCE(fb.Balance, 0) + COALESCE(eb.Balance, 0) + COALESCE(cb.Balance, 0) AS CurrentBalance,
-    CASE
-        WHEN u.Status IN ('Inactive', 'DeliveryProcess') THEN 'gray'
-        WHEN COALESCE(fb.Balance, 0) + COALESCE(eb.Balance, 0) + COALESCE(cb.Balance, 0) > 0 THEN 'red'
-        ELSE 'green'
-    END AS ColorCode,
-    CASE
-        WHEN u.Status IN ('Inactive', 'DeliveryProcess') THEN 'Inactiva'
-        WHEN COALESCE(fb.Balance, 0) + COALESCE(eb.Balance, 0) + COALESCE(cb.Balance, 0) > 0 THEN 'En mora'
-        ELSE 'Al dia'
-    END AS Status
-FROM erp_units u
-LEFT JOIN spokespersons s ON s.UnitId = u.Id
-LEFT JOIN fee_balances fb ON fb.UnitId = u.Id
-LEFT JOIN extra_balances eb ON eb.UnitId = u.Id
-LEFT JOIN charge_balances cb ON cb.UnitId = u.Id
-WHERE u.TenantId = @p0
-ORDER BY u.Identifier";
+    // ── Próximos eventos ──────────────────────────────────────────────
 
-        return await _context.Database
-            .SqlQueryRaw<UnitSummaryDto>(sql, tenantId)
-            .ToListAsync();
-    }
-
-    private async Task<List<AlertDto>> EvaluateAlertsAsync(string tenantId, string role)
-    {
-        var alerts = new List<AlertDto>();
-
-        var configurations = await _context.AlertConfigurations
-            .Where(ac => ac.TenantId == tenantId && ac.IsEnabled)
-            .ToListAsync();
-
-        var defaultConfigs = configurations.ToDictionary(c => c.RuleType);
-
-        var now = DateTime.UtcNow;
-
-        if (!defaultConfigs.ContainsKey(AlertRuleType.BudgetAccountExceeded))
-        {
-            defaultConfigs[AlertRuleType.BudgetAccountExceeded] = new AlertConfiguration
-            {
-                RuleType = AlertRuleType.BudgetAccountExceeded,
-                ThresholdPercentage = 90,
-                DefaultUrgency = AlertUrgency.High,
-                UseDefaultThreshold = true
-            };
-        }
-
-        if (!defaultConfigs.ContainsKey(AlertRuleType.ProviderContractExpiring))
-        {
-            defaultConfigs[AlertRuleType.ProviderContractExpiring] = new AlertConfiguration
-            {
-                RuleType = AlertRuleType.ProviderContractExpiring,
-                ThresholdDays = 30,
-                DefaultUrgency = AlertUrgency.High,
-                UseDefaultThreshold = true
-            };
-        }
-
-        var contractExpirationConfig = defaultConfigs[AlertRuleType.ProviderContractExpiring];
-        var contractThresholdDays = contractExpirationConfig.ThresholdDays;
-        var contractLimitDate = now.AddDays(contractThresholdDays);
-
-        var expiringContractsCount = await _context.Contracts
-            .Where(c => c.TenantId == tenantId
-                && c.Status == ContractStatus.Active
-                && c.EndDate > now
-                && c.EndDate <= contractLimitDate)
-            .CountAsync();
-
-        if (expiringContractsCount > 0)
-        {
-            alerts.Add(new AlertDto
-            {
-                Id = Guid.NewGuid().ToString(),
-                RuleType = AlertRuleType.ProviderContractExpiring.ToString(),
-                Urgency = contractExpirationConfig.DefaultUrgency,
-                Title = "Contratos próximos a vencer",
-                Description = $"Hay {expiringContractsCount} contrato(s) de proveedores que vencen en menos de {contractThresholdDays} días.",
-                ModuleLink = "/contracts",
-                CreatedAt = now
-            });
-        }
-
-        var outOfServiceAssets = await _context.CommonAssets
-            .Where(a => a.TenantId == tenantId && a.Status == AssetStatus.OutOfService)
-            .ToListAsync();
-
-        if (outOfServiceAssets.Count > 0)
-        {
-            var essentialOutOfServiceCount = outOfServiceAssets.Count(a => a.IsEssential);
-            var assetAlertUrgency = AlertUrgency.Medium;
-            if (essentialOutOfServiceCount > 0)
-            {
-                assetAlertUrgency = AlertUrgency.Critical;
-            }
-
-            alerts.Add(new AlertDto
-            {
-                Id = Guid.NewGuid().ToString(),
-                RuleType = AlertRuleType.AssetOutOfService.ToString(),
-                Urgency = assetAlertUrgency,
-                Title = "Bienes fuera de servicio",
-                Description = $"Hay {outOfServiceAssets.Count} bien(es) fuera de servicio, {essentialOutOfServiceCount} esencial(es).",
-                ModuleLink = "/maintenance/out-of-service",
-                CreatedAt = now
-            });
-        }
-
-        var unassignedDueSoon = await _context.WorkOrders
-            .Where(w => w.TenantId == tenantId
-                && w.Status == WorkOrderStatus.PendingAssignment
-                && w.ScheduledDate != null
-                && w.ScheduledDate <= now.AddDays(3))
-            .CountAsync();
-
-        if (unassignedDueSoon > 0)
-        {
-            alerts.Add(new AlertDto
-            {
-                Id = Guid.NewGuid().ToString(),
-                RuleType = AlertRuleType.WorkOrderUnassigned.ToString(),
-                Urgency = AlertUrgency.High,
-                Title = "Órdenes de trabajo sin asignar",
-                Description = $"Hay {unassignedDueSoon} orden(es) sin asignar próximas a su fecha de ejecución.",
-                ModuleLink = "/maintenance/work-orders",
-                CreatedAt = now
-            });
-        }
-
-        return alerts.OrderByDescending(a => a.Urgency).ThenBy(a => a.CreatedAt).ToList();
-    }
-
-    private async Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(string tenantId)
+    public async Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(string tenantId)
     {
         var now = DateTime.UtcNow;
         var thirtyDaysFromNow = now.AddDays(30);
@@ -584,36 +346,297 @@ ORDER BY u.Identifier";
             });
         }
 
+        var expiringContracts = await _context.Contracts
+            .Include(c => c.Provider)
+            .Where(c => c.TenantId == tenantId
+                && c.Status == ContractStatus.Active
+                && c.EndDate >= now
+                && c.EndDate <= thirtyDaysFromNow)
+            .ToListAsync();
+
+        foreach (var contract in expiringContracts)
+        {
+            var providerName = string.Empty;
+            if (contract.Provider != null)
+            {
+                providerName = contract.Provider.BusinessName;
+            }
+
+            events.Add(new UpcomingEventDto
+            {
+                Title = $"Vence contrato {contract.ContractNumber}",
+                Description = $"Contrato con {providerName} vence el {contract.EndDate:dd/MM/yyyy}.",
+                EventDate = contract.EndDate,
+                EventType = "ContractExpiration",
+                ModuleLink = $"/contracts/{contract.Id}"
+            });
+        }
+
+        var upcomingMaintenance = await _context.MaintenancePlans
+            .Include(p => p.Asset)
+            .Where(p => p.TenantId == tenantId
+                && p.IsActive
+                && p.NextExecutionDate != null
+                && p.NextExecutionDate >= now
+                && p.NextExecutionDate <= thirtyDaysFromNow)
+            .ToListAsync();
+
+        foreach (var plan in upcomingMaintenance)
+        {
+            var assetName = string.Empty;
+            if (plan.Asset != null)
+            {
+                assetName = plan.Asset.Name;
+            }
+
+            events.Add(new UpcomingEventDto
+            {
+                Title = $"Mantenimiento programado: {assetName}",
+                Description = plan.Description,
+                EventDate = plan.NextExecutionDate!.Value,
+                EventType = "MaintenanceScheduled",
+                ModuleLink = "/maintenance/work-orders"
+            });
+        }
+
+        var upcomingReservations = await _context.Reservations
+            .Include(r => r.Space)
+            .Where(r => r.TenantId == tenantId
+                && r.StartDateTime >= now
+                && r.StartDateTime <= thirtyDaysFromNow
+                && (r.Status == ReservationStatus.Approved || r.Status == ReservationStatus.InUse))
+            .OrderBy(r => r.StartDateTime)
+            .Take(20)
+            .ToListAsync();
+
+        foreach (var reservation in upcomingReservations)
+        {
+            var spaceName = string.Empty;
+            if (reservation.Space != null)
+            {
+                spaceName = reservation.Space.Name;
+            }
+
+            events.Add(new UpcomingEventDto
+            {
+                Title = $"Reserva: {spaceName}",
+                Description = $"Reserva {reservation.ReservationNumber} el {reservation.StartDateTime:dd/MM/yyyy HH:mm}.",
+                EventDate = reservation.StartDateTime,
+                EventType = "Reservation",
+                ModuleLink = "/reservation/admin"
+            });
+        }
+
         return events.OrderBy(e => e.EventDate).ToList();
     }
 
-    private async Task<List<RecentActivityDto>> GetRecentActivityAsync(string tenantId)
+    // ── Actividad reciente ────────────────────────────────────────────
+
+    public async Task<List<RecentActivityDto>> GetRecentActivityAsync(string tenantId)
     {
         var activities = new List<RecentActivityDto>();
 
         var recentPayments = await _context.Payments
             .Where(p => p.TenantId == tenantId)
             .OrderByDescending(p => p.CreatedAt)
-            .Take(10)
-            .Join(_context.Units,
-                p => p.UnitId,
-                u => u.Id,
-                (p, u) => new RecentActivityDto
-                {
-                    Action = "Pago registrado",
-                    Description = $"Pago de {p.Amount:N0} COP de la unidad {u.Identifier}",
-                    UserName = p.ReceivedByUserId,
-                    Timestamp = p.CreatedAt,
-                    ModuleLink = "/billing/payments/register"
-                })
+            .Take(20)
+            .Join(_context.Units, p => p.UnitId, u => u.Id, (p, u) => new RecentActivityDto
+            {
+                Action = "Pago registrado",
+                Description = $"Pago de {p.Amount:N0} COP de la unidad {u.Identifier}",
+                UserName = p.ReceivedByUserId,
+                Timestamp = p.CreatedAt,
+                ModuleLink = "/billing/payments/register"
+            })
             .ToListAsync();
 
         activities.AddRange(recentPayments);
 
+        var recentWorkOrders = await _context.WorkOrders
+            .Include(w => w.Asset)
+            .Where(w => w.TenantId == tenantId && w.Status == WorkOrderStatus.Completed && w.ExecutionEndDate != null)
+            .OrderByDescending(w => w.ExecutionEndDate)
+            .Take(20)
+            .ToListAsync();
+
+        foreach (var order in recentWorkOrders)
+        {
+            var assetName = string.Empty;
+            if (order.Asset != null)
+            {
+                assetName = order.Asset.Name;
+            }
+
+            activities.Add(new RecentActivityDto
+            {
+                Action = "Orden de trabajo completada",
+                Description = $"{assetName}: {order.Description}",
+                UserName = order.UpdatedByUserId ?? order.CreatedByUserId,
+                Timestamp = order.ExecutionEndDate!.Value,
+                ModuleLink = "/maintenance/work-orders"
+            });
+        }
+
+        var recentPqrResponses = await _context.PqrRecords
+            .Where(p => p.TenantId == tenantId && p.Status == PQRStatus.Responded)
+            .OrderByDescending(p => p.UpdatedAt)
+            .Take(20)
+            .ToListAsync();
+
+        foreach (var pqr in recentPqrResponses)
+        {
+            var timestamp = pqr.CreatedAt;
+            if (pqr.UpdatedAt.HasValue)
+            {
+                timestamp = pqr.UpdatedAt.Value;
+            }
+
+            activities.Add(new RecentActivityDto
+            {
+                Action = "PQR respondida",
+                Description = $"{pqr.RadicadoNumber}: {pqr.Subject}",
+                UserName = pqr.AssignedToUserId ?? string.Empty,
+                Timestamp = timestamp,
+                ModuleLink = "/pqr"
+            });
+        }
+
         return activities.OrderByDescending(a => a.Timestamp).Take(20).ToList();
     }
 
-    private async Task<ResidentDashboardDto> GetResidentDataAsync(string tenantId, string userId)
+    // ── Vista de Consejo ──────────────────────────────────────────────
+
+    public async Task<CouncilDashboardDto> GetCouncilDashboardAsync(string tenantId)
+    {
+        var dashboard = new CouncilDashboardDto();
+        var now = DateTime.UtcNow;
+
+        var contractsRequiringAct = await _context.Contracts
+            .Where(c => c.TenantId == tenantId
+                && c.Status == ContractStatus.Draft
+                && c.ApprovalLevel == ApprovalLevel.Council
+                && c.CouncilMeetingActNumber == string.Empty)
+            .ToListAsync();
+
+        foreach (var contract in contractsRequiringAct)
+        {
+            dashboard.PendingApprovals.Add(new CouncilApprovalDto
+            {
+                Type = "ContractRequiresAct",
+                Description = $"Contrato {contract.ContractNumber}: {contract.ObjectDescription}",
+                Amount = contract.TotalValue,
+                RequestedAt = contract.CreatedAt,
+                ModuleLink = $"/contracts/{contract.Id}"
+            });
+        }
+
+        var expensesRequiringApproval = await _context.ExecutedExpenses
+            .Include(e => e.ExpenseItem)
+            .Where(e => e.TenantId == tenantId
+                && !e.CouncilApproved
+                && e.ExpenseItem != null
+                && e.ExpenseItem.RequiresCouncilApproval
+                && e.Amount > e.ExpenseItem.ApprovalThreshold)
+            .ToListAsync();
+
+        foreach (var expense in expensesRequiringApproval)
+        {
+            var itemName = string.Empty;
+            if (expense.ExpenseItem != null)
+            {
+                itemName = expense.ExpenseItem.Name;
+            }
+
+            dashboard.PendingApprovals.Add(new CouncilApprovalDto
+            {
+                Type = "ExpenseRequiresApproval",
+                Description = $"Gasto en {itemName}: {expense.Description}",
+                Amount = expense.Amount,
+                RequestedAt = expense.CreatedAt,
+                ModuleLink = "/budgets"
+            });
+        }
+
+        dashboard.PendingApprovals = dashboard.PendingApprovals.OrderBy(a => a.RequestedAt).ToList();
+
+        try
+        {
+            var contingencyStatus = await _executionEngineService.GetContingencyFundStatusAsync(tenantId);
+            dashboard.ContingencyFund.AvailableBalance = contingencyStatus.AvailableBalance;
+            dashboard.ContingencyFund.TotalContributed = contingencyStatus.TotalContributed;
+            dashboard.ContingencyFund.TotalUsed = contingencyStatus.TotalUsed;
+            dashboard.ContingencyFund.RecentUsages = contingencyStatus.Usages
+                .Take(5)
+                .Select(u => new ContingencyFundUsageSummaryDto
+                {
+                    Justification = u.Justification,
+                    Amount = u.Amount,
+                    CouncilApprovalActNumber = u.CouncilApprovalActNumber,
+                    CreatedAt = u.CreatedAt
+                }).ToList();
+        }
+        catch (KeyNotFoundException)
+        {
+            _ = now;
+        }
+
+        return dashboard;
+    }
+
+    // ── Vista de Contador ─────────────────────────────────────────────
+
+    public async Task<AccountantBudgetPanelDto> GetAccountantBudgetPanelAsync(string tenantId)
+    {
+        var panel = new AccountantBudgetPanelDto();
+        var currentYear = DateTime.UtcNow.Year;
+
+        try
+        {
+            panel.Execution = await _executionEngineService.GetExecutionDashboardAsync(tenantId, currentYear);
+        }
+        catch (KeyNotFoundException)
+        {
+            panel.Execution = new BudgetExecutionDashboardDto { FiscalYear = currentYear };
+        }
+
+        var catalog = await _reportAccessControlService.GetFilteredCatalogAsync(tenantId, AppRole.Accountant.ToString());
+        panel.ReportLinks = catalog
+            .Where(r => r.IsActive)
+            .Select(r => new AuditorReportLinkDto
+            {
+                ReportTypeCode = r.ReportTypeCode,
+                Name = r.Name,
+                ModuleLink = "/reports"
+            }).ToList();
+
+        return panel;
+    }
+
+    // ── Vista de Auditor ──────────────────────────────────────────────
+
+    public async Task<AuditorDashboardDto> GetAuditorDashboardAsync(string tenantId)
+    {
+        var dashboard = new AuditorDashboardDto
+        {
+            CurrentFiscalYear = DateTime.UtcNow.Year
+        };
+
+        var catalog = await _reportAccessControlService.GetFilteredCatalogAsync(tenantId, AppRole.Auditor.ToString());
+        dashboard.AvailableReports = catalog
+            .Where(r => r.IsActive)
+            .Select(r => new AuditorReportLinkDto
+            {
+                ReportTypeCode = r.ReportTypeCode,
+                Name = r.Name,
+                ModuleLink = "/reports"
+            }).ToList();
+
+        return dashboard;
+    }
+
+    // ── Vista de Residente ────────────────────────────────────────────
+
+    public async Task<ResidentDashboardDto> GetResidentDashboardAsync(string tenantId, string userId)
     {
         var data = new ResidentDashboardDto();
 
@@ -631,13 +654,8 @@ ORDER BY u.Identifier";
         }
 
         var unitOwner = await _context.UnitOwners
-            .Where(uo => uo.TenantId == tenantId
-                && uo.OwnerId == owner.Id
-                && uo.IsActive)
-            .Join(_context.Units,
-                uo => uo.UnitId,
-                u => u.Id,
-                (uo, u) => new { uo.UnitId, u.Identifier })
+            .Where(uo => uo.TenantId == tenantId && uo.OwnerId == owner.Id && uo.IsActive)
+            .Join(_context.Units, uo => uo.UnitId, u => u.Id, (uo, u) => new { uo.UnitId, u.Identifier })
             .FirstOrDefaultAsync();
 
         if (unitOwner == null)
@@ -648,21 +666,15 @@ ORDER BY u.Identifier";
         data.UnitIdentifier = unitOwner.Identifier;
 
         var overdueFees = await _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId
-                && uf.UnitId == unitOwner.UnitId
-                && uf.BalanceAmount > 0)
+            .Where(uf => uf.TenantId == tenantId && uf.UnitId == unitOwner.UnitId && uf.BalanceAmount > 0)
             .ToListAsync();
 
         var overdueExtra = await _context.ExtraordinaryFeeDistributions
-            .Where(efd => efd.TenantId == tenantId
-                && efd.UnitId == unitOwner.UnitId
-                && efd.BalanceAmount > 0)
+            .Where(efd => efd.TenantId == tenantId && efd.UnitId == unitOwner.UnitId && efd.BalanceAmount > 0)
             .ToListAsync();
 
         var overdueCharges = await _context.IndividualCharges
-            .Where(ic => ic.TenantId == tenantId
-                && ic.UnitId == unitOwner.UnitId
-                && ic.BalanceAmount > 0)
+            .Where(ic => ic.TenantId == tenantId && ic.UnitId == unitOwner.UnitId && ic.BalanceAmount > 0)
             .ToListAsync();
 
         var adjustmentTotal = await _context.BillingAdjustments
@@ -686,46 +698,90 @@ ORDER BY u.Identifier";
             data.DaysOverdue = Math.Max(0, (int)(DateTime.UtcNow - oldestDate).TotalDays);
         }
 
+        var openPqrs = await _context.PqrRecords
+            .Where(p => p.TenantId == tenantId && p.OwnerId == owner.Id && p.Status != PQRStatus.Closed)
+            .OrderByDescending(p => p.CreatedAt)
+            .Take(5)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+
+        foreach (var pqr in openPqrs)
+        {
+            var isOverdue = false;
+            if (pqr.Deadline.HasValue && pqr.Deadline.Value < now && pqr.Status != PQRStatus.Responded)
+            {
+                isOverdue = true;
+            }
+
+            data.OpenPqrs.Add(new ResidentOpenPqrDto
+            {
+                RadicadoNumber = pqr.RadicadoNumber,
+                Subject = pqr.Subject,
+                Status = pqr.Status.ToString(),
+                CreatedAt = pqr.CreatedAt,
+                IsOverdue = isOverdue
+            });
+        }
+
+        var activeReservations = await _context.Reservations
+            .Include(r => r.Space)
+            .Where(r => r.TenantId == tenantId
+                && r.OwnerId == owner.Id
+                && r.EndDateTime >= now
+                && (r.Status == ReservationStatus.Requested || r.Status == ReservationStatus.Approved || r.Status == ReservationStatus.InUse))
+            .OrderBy(r => r.StartDateTime)
+            .Take(5)
+            .ToListAsync();
+
+        foreach (var reservation in activeReservations)
+        {
+            var spaceName = string.Empty;
+            if (reservation.Space != null)
+            {
+                spaceName = reservation.Space.Name;
+            }
+
+            data.ActiveReservations.Add(new ResidentReservationDto
+            {
+                SpaceName = spaceName,
+                StartDateTime = reservation.StartDateTime,
+                EndDateTime = reservation.EndDateTime,
+                Status = reservation.Status.ToString()
+            });
+        }
+
+        var latestCirculars = await _context.Communications
+            .Where(c => c.TenantId == tenantId
+                && c.Status == CommunicationStatus.Sent
+                && (c.AudienceType == AudienceType.AllOwners || c.AudienceType == AudienceType.AllResidents))
+            .OrderByDescending(c => c.SentAt)
+            .Take(5)
+            .ToListAsync();
+
+        foreach (var circular in latestCirculars)
+        {
+            var publishedAt = circular.CreatedAt;
+            if (circular.SentAt.HasValue)
+            {
+                publishedAt = circular.SentAt.Value;
+            }
+
+            data.LatestCirculars.Add(new ResidentCircularDto
+            {
+                Title = circular.Subject,
+                PublishedAt = publishedAt
+            });
+        }
+
         return data;
     }
 
-    public Task InvalidateMoraMapCacheAsync(string tenantId)
+    // ── Invalidación de caché ─────────────────────────────────────────
+
+    public async Task InvalidateDashboardCacheAsync(string tenantId)
     {
-        _memoryCache?.Remove($"mora_map_{tenantId}");
-        return Task.CompletedTask;
-    }
-
-    public async Task InitializeDefaultAlertConfigurationsAsync(string tenantId)
-    {
-        var existing = await _context.AlertConfigurations
-            .Where(ac => ac.TenantId == tenantId)
-            .Select(ac => ac.RuleType)
-            .ToListAsync();
-
-        var existingSet = new HashSet<AlertRuleType>(existing);
-
-        var defaults = new List<AlertConfiguration>
-        {
-            new AlertConfiguration
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantId,
-                RuleType = AlertRuleType.BudgetAccountExceeded,
-                IsEnabled = true,
-                ThresholdPercentage = 90,
-                DefaultUrgency = AlertUrgency.High,
-                UseDefaultThreshold = true
-            }
-        };
-
-        foreach (var config in defaults)
-        {
-            if (!existingSet.Contains(config.RuleType))
-            {
-                _context.AlertConfigurations.Add(config);
-            }
-        }
-
-        await _context.SaveChangesAsync();
+        await _indicatorCache.InvalidateAsync(tenantId, CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
     }
 }

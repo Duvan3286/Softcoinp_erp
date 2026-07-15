@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
@@ -15,14 +14,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class PaymentService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IMemoryCache _cache;
     private readonly ILogger<PaymentService> _logger;
     private readonly IndicatorCacheService _indicatorCache;
 
-    public PaymentService(ApplicationDbContext context, IMemoryCache cache, ILogger<PaymentService> logger, IndicatorCacheService indicatorCache)
+    public PaymentService(ApplicationDbContext context, ILogger<PaymentService> logger, IndicatorCacheService indicatorCache)
     {
         _context = context;
-        _cache = cache;
         _logger = logger;
         _indicatorCache = indicatorCache;
     }
@@ -290,8 +287,8 @@ public class PaymentService
 
         await _context.SaveChangesAsync();
 
-        _cache.Remove("mora_map_" + tenantId);
-        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
         return payment;
     }
 

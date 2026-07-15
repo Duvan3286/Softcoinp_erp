@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
@@ -20,13 +19,13 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 public class ResidentsController : BaseController
 {
     private readonly ApplicationDbContext _context;
-    private readonly IMemoryCache _cache;
+    private readonly IndicatorCacheService _indicatorCache;
     private readonly NotificationService _notificationService;
 
-    public ResidentsController(ApplicationDbContext context, IMemoryCache cache, NotificationService notificationService)
+    public ResidentsController(ApplicationDbContext context, IndicatorCacheService indicatorCache, NotificationService notificationService)
     {
         _context = context;
-        _cache = cache;
+        _indicatorCache = indicatorCache;
         _notificationService = notificationService;
     }
 
@@ -1201,7 +1200,7 @@ public class ResidentsController : BaseController
         }
 
         await _context.SaveChangesAsync();
-        _cache.Remove($"mora_map_{tenantId}");
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
 
         await _notificationService.CreateAsync(
             tenantId, newOwner.Id,

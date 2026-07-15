@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -8,28 +9,27 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import dashboardService, {
-  DashboardData, AlertDto, UpcomingEventDto, RecentActivityDto,
-  UnitMoraDto, MonthlyCollectionDto, UnitSummaryDto
+  DashboardKpis, AlertItem, UpcomingEventItem, RecentActivityItem,
+  PaymentStatusMap, UnitPaymentStatus, MonthlyCollectionItem,
+  CouncilDashboard, AccountantBudgetPanel, AuditorDashboard, ResidentDashboard
 } from '@/lib/dashboard-service';
-import pqrService from '@/lib/pqr-service';
 import {
   Loader2, AlertTriangle, DollarSign, Calendar, Activity,
-  Building2, Users, TrendingUp, PiggyBank, FileText,
-  CheckCircle2, Clock, Wallet, RefreshCw, LogOut, MessageSquare
+  Building2, TrendingUp, PiggyBank, FileText,
+  CheckCircle2, Clock, RefreshCw, LogOut, MessageSquare, X
 } from 'lucide-react';
 
-const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val);
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 
-const formatPercent = (val: number) => `${val.toFixed(1)}%`;
+const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const formatDateTime = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('es-CO', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 
 const periodLabels: Record<string, string> = {
@@ -38,160 +38,117 @@ const periodLabels: Record<string, string> = {
   '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
 };
 
-const shortPeriodLabel = (period: string) => {
+function shortPeriodLabel(period: string): string {
   const parts = period.split('-');
-  if (parts.length !== 2) return period;
-  return `${periodLabels[parts[1]] || parts[1]} ${parts[0].slice(2)}`;
+  if (parts.length !== 2) {
+    return period;
+  }
+  const monthLabel = periodLabels[parts[1]];
+  if (monthLabel) {
+    return `${monthLabel} ${parts[0].slice(2)}`;
+  }
+  return `${parts[1]} ${parts[0].slice(2)}`;
+}
+
+function getCollectionColorClass(percentage: number): string {
+  if (percentage >= 70) {
+    return 'text-emerald-600';
+  }
+  if (percentage >= 50) {
+    return 'text-yellow-600';
+  }
+  return 'text-rose-600';
+}
+
+function getBudgetColorClass(executedPercentage: number, expectedPercentage: number): string {
+  if (executedPercentage > 100) {
+    return 'text-rose-600';
+  }
+  if (executedPercentage > expectedPercentage + 10) {
+    return 'text-yellow-600';
+  }
+  return 'text-violet-600';
+}
+
+function getUrgencyBadgeClass(urgency: string): string {
+  if (urgency === 'Critical') {
+    return 'bg-rose-100 text-rose-800 border-rose-200';
+  }
+  if (urgency === 'High') {
+    return 'bg-orange-100 text-orange-800 border-orange-200';
+  }
+  return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+}
+
+function getUrgencyLabel(urgency: string): string {
+  if (urgency === 'Critical') {
+    return 'Crítica';
+  }
+  if (urgency === 'High') {
+    return 'Alta';
+  }
+  return 'Media';
+}
+
+const paymentColorBg: Record<string, string> = {
+  green: 'bg-emerald-500', yellow: 'bg-yellow-400', orange: 'bg-orange-400',
+  red: 'bg-rose-500', gray: 'bg-slate-300 dark:bg-slate-600'
 };
 
-const urgencyColors: Record<number, string> = {
-  0: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  1: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  2: 'bg-orange-100 text-orange-800 border-orange-200',
-  3: 'bg-rose-100 text-rose-800 border-rose-200'
-};
+function getRefreshIconClass(refreshing?: boolean): string {
+  if (refreshing) {
+    return 'w-4 h-4 animate-spin';
+  }
+  return 'w-4 h-4';
+}
 
-const urgencyLabels: Record<number, string> = {
-  0: 'Info', 1: 'Media', 2: 'Alta', 3: 'Crítica'
-};
+function getRefreshButtonLabel(refreshing?: boolean): string {
+  if (refreshing) {
+    return 'Actualizando...';
+  }
+  return 'Actualizar';
+}
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [pqrAlertCount, setPqrAlertCount] = useState(0);
-
-  const fetchData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    setError('');
-    try {
-      const [result, pqrAlerts] = await Promise.all([
-        dashboardService.getDashboard(),
-        pqrService.getActiveAlerts().catch(() => [] as any[]),
-      ]);
-      setData(result);
-      setPqrAlertCount(pqrAlerts.length);
-    } catch {
-      setError('Error al cargar datos del dashboard.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchData(true);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-black tracking-tight">Dashboard</h1>
-        </div>
-        <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-4 py-3 rounded-lg text-sm">{error}</div>
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
   const role = user?.role || '';
 
   if (role === 'Resident') {
-    return <ResidentDashboard data={data} user={user} logout={logout} />;
+    return <ResidentDashboardView user={user} logout={logout} />;
   }
 
-  const isAdmin = role === 'SuperAdmin' || role === 'Admin';
-  const isCouncil = role === 'Council';
-  const isAccountant = role === 'Accountant';
-  const isAuditor = role === 'Auditor';
+  if (role === 'Auditor') {
+    return <AuditorDashboardView user={user} logout={logout} />;
+  }
 
-  return (
-    <div className="space-y-6">
-      <DashboardHeader user={user} logout={logout} onRefresh={handleRefresh} refreshing={refreshing} />
+  if (role === 'Accountant') {
+    return <AccountantDashboardView user={user} logout={logout} />;
+  }
 
-      {isAuditor && (
-        <Card>
-          <CardContent className="p-6 text-center text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            <p>Vista de solo lectura. Los reportes están disponibles en la sección de Reportes.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {(isAdmin || isCouncil) && (
-        <>
-          <KpiCards kpis={data.kpis} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <CollectionChart data={data.monthlyCollection} />
-            </div>
-            <div className="space-y-4">
-              <AlertsPanel alerts={data.alerts} />
-              <PqrAlertsCard alertCount={pqrAlertCount} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <UpcomingEventsPanel events={data.upcomingEvents} />
-            <RecentActivityPanel activities={data.recentActivity} />
-          </div>
-        </>
-      )}
-
-      {isAdmin && (
-        <>
-          <MoraMapSection units={data.moraMap} />
-          <UnitSummariesSection summaries={data.unitSummaries} />
-        </>
-      )}
-
-      {isCouncil && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ContingencyFundCard fund={data.contingencyFund} />
-          <PendingApprovalsCard approvals={data.pendingCouncilApprovals} />
-        </div>
-      )}
-
-      {isAccountant && (
-        <>
-          <KpiCards kpis={data.kpis} />
-          <CollectionChart data={data.monthlyCollection} />
-        </>
-      )}
-    </div>
-  );
+  return <OperationalDashboardView user={user} logout={logout} role={role} />;
 }
 
-function DashboardHeader({ user, logout, onRefresh, refreshing }: {
-  user: any; logout: () => void; onRefresh: () => void; refreshing: boolean;
+// ═══════════════════════════════════════════════════════════════════════
+// Encabezado común
+// ═══════════════════════════════════════════════════════════════════════
+
+function DashboardHeader({ title, subtitle, user, logout, onRefresh, refreshing }: {
+  title: string; subtitle: string; user: any; logout: () => void;
+  onRefresh?: () => void; refreshing?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between flex-wrap gap-4">
       <div>
-        <h1 className="text-2xl font-black tracking-tight">Bienvenido de nuevo, {user?.name}</h1>
-        <p className="text-muted-foreground">Resumen general del conjunto.</p>
+        <h1 className="text-2xl font-black tracking-tight">{title}</h1>
+        <p className="text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="secondary" onClick={onRefresh} disabled={refreshing} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? 'Actualizando...' : 'Actualizar'}
-        </Button>
+        {onRefresh && (
+          <Button variant="secondary" onClick={onRefresh} disabled={refreshing} className="gap-2">
+            <RefreshCw className={getRefreshIconClass(refreshing)} />
+            {getRefreshButtonLabel(refreshing)}
+          </Button>
+        )}
         <Button variant="secondary" onClick={logout} className="gap-2">
           <LogOut size={18} />
           <span className="hidden sm:inline">Cerrar Sesión</span>
@@ -201,42 +158,167 @@ function DashboardHeader({ user, logout, onRefresh, refreshing }: {
   );
 }
 
-function KpiCards({ kpis }: { kpis: DashboardData['kpis'] }) {
+// ═══════════════════════════════════════════════════════════════════════
+// Vista operativa: Administrador / Consejo
+// ═══════════════════════════════════════════════════════════════════════
+
+function OperationalDashboardView({ user, logout, role }: { user: any; logout: () => void; role: string }) {
+  const [kpis, setKpis] = useState<DashboardKpis | null>(null);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [chart, setChart] = useState<MonthlyCollectionItem[]>([]);
+  const [events, setEvents] = useState<UpcomingEventItem[]>([]);
+  const [activity, setActivity] = useState<RecentActivityItem[]>([]);
+  const [paymentMap, setPaymentMap] = useState<PaymentStatusMap | null>(null);
+  const [councilData, setCouncilData] = useState<CouncilDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const isAdmin = role === 'SuperAdmin' || role === 'Admin';
+  const isCouncil = role === 'Council';
+
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
+    setError('');
+    try {
+      const requests: Promise<any>[] = [
+        dashboardService.getKpis(),
+        dashboardService.getAlerts(),
+        dashboardService.getCollectionChart(),
+        dashboardService.getUpcomingEvents()
+      ];
+
+      const [kpisResult, alertsResult, chartResult, eventsResult] = await Promise.all(requests);
+      setKpis(kpisResult);
+      setAlerts(alertsResult);
+      setChart(chartResult);
+      setEvents(eventsResult);
+
+      if (isAdmin) {
+        const [mapResult, activityResult] = await Promise.all([
+          dashboardService.getPaymentStatusMap(),
+          dashboardService.getRecentActivity()
+        ]);
+        setPaymentMap(mapResult);
+        setActivity(activityResult);
+      }
+
+      if (isCouncil) {
+        const council = await dashboardService.getCouncilDashboard();
+        setCouncilData(council);
+      }
+    } catch {
+      setError('Error al cargar datos del dashboard.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [isAdmin, isCouncil]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchData(true);
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
+  }
+
+  if (error || !kpis) {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader title="Dashboard" subtitle="Resumen general del conjunto." user={user} logout={logout} />
+        <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-4 py-3 rounded-lg text-sm">
+          {error || 'No se pudo cargar el dashboard.'}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <DashboardHeader
+        title={`Bienvenido de nuevo, ${user?.name}`}
+        subtitle="Resumen operativo del conjunto."
+        user={user}
+        logout={logout}
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+      />
+
+      <KpiBar kpis={kpis} activeAlertCount={alerts.length} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <CollectionChartCard data={chart} />
+        </div>
+        <AlertsPanel alerts={alerts} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UpcomingEventsPanel events={events} />
+        {isAdmin && <RecentActivityPanel activities={activity} />}
+        {isCouncil && councilData && <CouncilApprovalsPanel data={councilData} />}
+      </div>
+
+      {isAdmin && <PaymentStatusMapSection map={paymentMap} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════════════════════════════
+
+function KpiBar({ kpis, activeAlertCount }: { kpis: DashboardKpis; activeAlertCount: number }) {
+  let periodContext = `${kpis.daysElapsedInPeriod} de ${kpis.totalDaysInPeriod} días transcurridos`;
+
   const kpiList = [
     {
       title: 'Recaudo del Mes',
       value: formatPercent(kpis.currentMonthCollectionPercentage),
-      subtitle: `${formatCurrency(kpis.currentMonthCollected)} / ${formatCurrency(kpis.currentMonthBilled)}`,
+      subtitle: `Mes anterior: ${formatPercent(kpis.previousMonthCollectionPercentage)} · ${periodContext}`,
       icon: <TrendingUp className="w-5 h-5 text-emerald-600" />,
-      color: kpis.currentMonthCollectionPercentage >= 70 ? 'text-emerald-600' : kpis.currentMonthCollectionPercentage >= 50 ? 'text-yellow-600' : 'text-rose-600'
+      color: getCollectionColorClass(kpis.currentMonthCollectionPercentage)
     },
     {
       title: 'Cartera Vencida',
       value: formatCurrency(kpis.totalOverduePortfolio),
-      subtitle: `${kpis.earlyOverdue > 0 ? `${formatCurrency(kpis.earlyOverdue)} temprana` : ''}`,
+      subtitle: `1 mes: ${formatCurrency(kpis.overdueOneMonth)} · 2 meses: ${formatCurrency(kpis.overdueTwoMonths)} · 3+ meses: ${formatCurrency(kpis.overdueThreeOrMoreMonths)}`,
       icon: <AlertTriangle className="w-5 h-5 text-rose-600" />,
-      color: kpis.totalOverduePortfolio > 0 ? 'text-rose-600' : 'text-emerald-600'
-    },
-    {
-      title: 'Efectivo Disponible',
-      value: formatCurrency(kpis.availableCash),
-      subtitle: `${formatPercent(kpis.budgetExecutionPercentage)} ejecutado`,
-      icon: <Wallet className="w-5 h-5 text-cyan-600" />,
-      color: 'text-cyan-600'
+      color: 'text-rose-600'
     },
     {
       title: 'Ejecución Presupuestal',
       value: formatPercent(kpis.budgetExecutionPercentage),
-      subtitle: `Año ${formatPercent(kpis.yearProgressPercentage)} transcurrido`,
+      subtitle: `Esperado a la fecha: ${formatPercent(kpis.budgetExpectedExecutionPercentage)}`,
       icon: <PiggyBank className="w-5 h-5 text-violet-600" />,
-      color: kpis.budgetExecutionPercentage <= 100 ? 'text-violet-600' : 'text-rose-600'
+      color: getBudgetColorClass(kpis.budgetExecutionPercentage, kpis.budgetExpectedExecutionPercentage)
+    },
+    {
+      title: 'PQR Abiertos',
+      value: `${kpis.openPqrCount}`,
+      subtitle: `${kpis.overduePqrCount} superaron el tiempo límite`,
+      icon: <MessageSquare className="w-5 h-5 text-blue-600" />,
+      color: 'text-blue-600'
+    },
+    {
+      title: 'Alertas Activas',
+      value: `${activeAlertCount}`,
+      subtitle: 'Requieren atención hoy',
+      icon: <Activity className="w-5 h-5 text-amber-600" />,
+      color: 'text-amber-600'
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {kpiList.map((kpi, idx) => (
-        <Card key={idx}>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {kpiList.map((kpi) => (
+        <Card key={kpi.title}>
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{kpi.title}</p>
@@ -251,7 +333,11 @@ function KpiCards({ kpis }: { kpis: DashboardData['kpis'] }) {
   );
 }
 
-function CollectionChart({ data }: { data: MonthlyCollectionDto[] }) {
+// ═══════════════════════════════════════════════════════════════════════
+// Gráfico de recaudo histórico
+// ═══════════════════════════════════════════════════════════════════════
+
+function CollectionChartCard({ data }: { data: MonthlyCollectionItem[] }) {
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -261,10 +347,10 @@ function CollectionChart({ data }: { data: MonthlyCollectionDto[] }) {
     );
   }
 
-  const chartData = data.map(d => ({
-    period: shortPeriodLabel(d.period),
-    Facturado: d.billed,
-    Recaudado: d.collected
+  const chartData = data.map((item) => ({
+    period: shortPeriodLabel(item.period),
+    Liquidado: item.billed,
+    Recaudado: item.collected
   }));
 
   return (
@@ -283,7 +369,7 @@ function CollectionChart({ data }: { data: MonthlyCollectionDto[] }) {
               <XAxis dataKey="period" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(Number(v) / 1000000).toFixed(0)}M`} />
               <Tooltip formatter={(value) => [formatCurrency(Number(value)), '']} />
-              <Bar dataKey="Facturado" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Liquidado" fill="#94a3b8" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Recaudado" fill="#059669" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -293,74 +379,62 @@ function CollectionChart({ data }: { data: MonthlyCollectionDto[] }) {
   );
 }
 
-function PqrAlertsCard({ alertCount }: { alertCount: number }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Alertas PQR</h3>
-          <MessageSquare className="w-5 h-5 text-emerald-600" />
-        </div>
-      </CardHeader>
-      <CardContent className="p-4">
-        {alertCount > 0 ? (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-rose-600" />
-            </div>
-            <div>
-              <p className="text-xl font-black text-rose-600">{alertCount}</p>
-              <p className="text-xs text-muted-foreground">alerta{alertCount !== 1 ? 's' : ''} activa{alertCount !== 1 ? 's' : ''}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-lg font-black text-emerald-600">Sin alertas</p>
-              <p className="text-xs text-muted-foreground">todas las PQR en término</p>
-            </div>
-          </div>
-        )}
-        <a href="/pqr" className="mt-3 block text-xs font-semibold text-emerald-600 hover:text-emerald-800 transition-colors">
-          Ir a Bandeja PQR →
-        </a>
-      </CardContent>
-    </Card>
-  );
-}
+// ═══════════════════════════════════════════════════════════════════════
+// Panel de alertas operativas
+// ═══════════════════════════════════════════════════════════════════════
 
-function AlertsPanel({ alerts }: { alerts: AlertDto[] }) {
+function AlertsPanel({ alerts }: { alerts: AlertItem[] }) {
+  const router = useRouter();
+  const [filter, setFilter] = useState('All');
+
+  let filteredAlerts = alerts;
+  if (filter !== 'All') {
+    filteredAlerts = alerts.filter((alert) => alert.urgency === filter);
+  }
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Alertas</h3>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-bold text-lg">Alertas Operativas</h3>
           <AlertTriangle className="w-5 h-5 text-amber-500" />
         </div>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="mt-2 bg-transparent border border-border rounded-lg px-2 py-1 text-xs font-semibold text-foreground outline-none"
+        >
+          <option value="All">Todas las urgencias</option>
+          <option value="Critical">Crítica</option>
+          <option value="High">Alta</option>
+          <option value="Medium">Media</option>
+        </select>
       </CardHeader>
       <CardContent className="p-0">
-        {alerts.length === 0 ? (
+        {filteredAlerts.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">
             <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500" />
             <p className="text-sm">No hay alertas activas</p>
           </div>
-        ) : (
+        )}
+        {filteredAlerts.length > 0 && (
           <div className="divide-y divide-border max-h-96 overflow-y-auto">
-            {alerts.map(alert => (
-              <a key={alert.id} href={alert.moduleLink} className="block p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors">
+            {filteredAlerts.map((alert) => (
+              <button
+                key={alert.id}
+                onClick={() => router.push(alert.moduleLink)}
+                className="w-full text-left block p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
+              >
                 <div className="flex items-start gap-3">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${urgencyColors[alert.urgency] || urgencyColors[1]}`}>
-                    {urgencyLabels[alert.urgency] || 'Media'}
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getUrgencyBadgeClass(alert.urgency)}`}>
+                    {getUrgencyLabel(alert.urgency)}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">{alert.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{alert.description}</p>
                   </div>
                 </div>
-              </a>
+              </button>
             ))}
           </div>
         )}
@@ -369,34 +443,45 @@ function AlertsPanel({ alerts }: { alerts: AlertDto[] }) {
   );
 }
 
-function UpcomingEventsPanel({ events }: { events: UpcomingEventDto[] }) {
+// ═══════════════════════════════════════════════════════════════════════
+// Próximos eventos y actividad reciente
+// ═══════════════════════════════════════════════════════════════════════
+
+function UpcomingEventsPanel({ events }: { events: UpcomingEventItem[] }) {
+  const router = useRouter();
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Próximos Eventos</h3>
+          <h3 className="font-bold text-lg">Próximos Eventos (30 días)</h3>
           <Calendar className="w-5 h-5 text-blue-500" />
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {events.length === 0 ? (
+        {events.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">
             <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-300" />
             <p className="text-sm">No hay eventos próximos</p>
           </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {events.map((evt, idx) => (
-              <a key={idx} href={evt.moduleLink} className="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors">
+        )}
+        {events.length > 0 && (
+          <div className="divide-y divide-border max-h-96 overflow-y-auto">
+            {events.map((event, idx) => (
+              <button
+                key={idx}
+                onClick={() => router.push(event.moduleLink)}
+                className="w-full text-left flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
+              >
                 <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center">
                   <Calendar className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{evt.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{evt.description}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{event.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{event.description}</p>
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(evt.eventDate)}</span>
-              </a>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(event.eventDate)}</span>
+              </button>
             ))}
           </div>
         )}
@@ -405,7 +490,7 @@ function UpcomingEventsPanel({ events }: { events: UpcomingEventDto[] }) {
   );
 }
 
-function RecentActivityPanel({ activities }: { activities: RecentActivityDto[] }) {
+function RecentActivityPanel({ activities }: { activities: RecentActivityItem[] }) {
   return (
     <Card>
       <CardHeader>
@@ -415,24 +500,25 @@ function RecentActivityPanel({ activities }: { activities: RecentActivityDto[] }
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {activities.length === 0 ? (
+        {activities.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">
             <Activity className="w-8 h-8 mx-auto mb-2 text-slate-300" />
             <p className="text-sm">Sin actividad reciente</p>
           </div>
-        ) : (
+        )}
+        {activities.length > 0 && (
           <div className="divide-y divide-border max-h-96 overflow-y-auto">
-            {activities.map((act, idx) => (
-              <a key={idx} href={act.moduleLink} className="flex items-start gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors">
+            {activities.map((activityItem, idx) => (
+              <div key={idx} className="flex items-start gap-3 p-4">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center">
                   <Activity className="w-4 h-4 text-slate-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{act.action}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{act.description}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{formatDateTime(act.timestamp)}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{activityItem.action}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{activityItem.description}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{formatDateTime(activityItem.timestamp)}</p>
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         )}
@@ -441,228 +527,364 @@ function RecentActivityPanel({ activities }: { activities: RecentActivityDto[] }
   );
 }
 
-function MoraMapSection({ units }: { units: UnitMoraDto[] }) {
-  const [search, setSearch] = useState('');
+// ═══════════════════════════════════════════════════════════════════════
+// Mapa interactivo de estado de pago
+// ═══════════════════════════════════════════════════════════════════════
 
-  const filtered = search
-    ? units.filter(u =>
-        u.identifier.toLowerCase().includes(search.toLowerCase()) ||
-        u.ownerName.toLowerCase().includes(search.toLowerCase()) ||
-        u.towerOrBlock.toLowerCase().includes(search.toLowerCase()))
-    : units;
+function PaymentStatusMapSection({ map }: { map: PaymentStatusMap | null }) {
+  const router = useRouter();
+  const [selectedUnit, setSelectedUnit] = useState<UnitPaymentStatus | null>(null);
 
-  const colorBg: Record<string, string> = {
-    green: 'bg-emerald-500',
-    yellow: 'bg-yellow-400',
-    orange: 'bg-orange-400',
-    red: 'bg-rose-500',
-    gray: 'bg-slate-300 dark:bg-slate-600'
-  };
-
-  const colorBorder: Record<string, string> = {
-    green: 'border-emerald-600',
-    yellow: 'border-yellow-500',
-    orange: 'border-orange-500',
-    red: 'border-rose-600',
-    gray: 'border-slate-400 dark:border-slate-500'
-  };
+  if (!map || map.towers.length === 0) {
+    return (
+      <Card>
+        <CardHeader><h3 className="font-bold text-lg">Mapa de Estado de Pago</h3></CardHeader>
+        <CardContent><p className="text-muted-foreground text-center py-8">No hay unidades registradas.</p></CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h3 className="font-bold text-lg">Mapa de Mora</h3>
-          <input
-            type="text"
-            placeholder="Buscar unidad, propietario o torre..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="input-standard text-sm w-64"
-          />
-        </div>
-        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Al día</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-yellow-400 inline-block" /> 1-30 días</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-400 inline-block" /> 31-90 días</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-500 inline-block" /> 90+ días</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-300 dark:bg-slate-600 inline-block" /> Desocupada</span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
-          {filtered.map(unit => (
-            <div
-              key={unit.unitId}
-              className={`relative p-2 rounded-lg border-2 ${colorBorder[unit.colorCode] || 'border-slate-200'} bg-white dark:bg-zinc-900 hover:shadow-md transition-shadow cursor-pointer`}
-              title={`${unit.identifier} - ${unit.ownerName} - ${formatCurrency(unit.overdueBalance)}`}
-            >
-              <div className={`absolute top-0 right-0 w-3 h-3 rounded-bl-lg ${colorBg[unit.colorCode] || 'bg-slate-300'}`} />
-              <p className="text-xs font-bold text-foreground truncate">{unit.identifier}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{unit.ownerName}</p>
-              {unit.overdueBalance > 0 && (
-                <p className="text-[10px] font-semibold text-rose-600 mt-1">{formatCurrency(unit.overdueBalance)}</p>
-              )}
-            </div>
-          ))}
-        </div>
-        {filtered.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">No se encontraron unidades.</p>
-        )}
-        <p className="text-xs text-muted-foreground mt-4 text-center">
-          Mostrando {filtered.length} de {units.length} unidades
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function UnitSummariesSection({ summaries }: { summaries: UnitSummaryDto[] }) {
-  const totalBalance = summaries.reduce((sum, u) => sum + u.currentBalance, 0);
-  const inDebt = summaries.filter(u => u.currentBalance > 0).length;
-  const clear = summaries.filter(u => u.currentBalance <= 0).length;
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Resumen de Unidades</h3>
+          <h3 className="font-bold text-lg">Mapa de Estado de Pago</h3>
           <Building2 className="w-5 h-5 text-emerald-600" />
         </div>
-        <div className="flex gap-6 text-sm text-muted-foreground mt-1">
-          <span><strong className="text-foreground">{summaries.length}</strong> total</span>
-          <span><strong className="text-emerald-600">{clear}</strong> al día</span>
-          <span><strong className="text-rose-600">{inDebt}</strong> en mora</span>
-          <span><strong className="text-foreground">{formatCurrency(totalBalance)}</strong> saldo total</span>
+        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Al día</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-yellow-400 inline-block" /> 1 mes</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-400 inline-block" /> 2 meses</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-500 inline-block" /> 3+ meses</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-300 dark:bg-slate-600 inline-block" /> Desocupada / Inactiva</span>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto max-h-80 overflow-y-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-muted/50 sticky top-0">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Unidad</th>
-                <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Propietario</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Saldo</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {summaries.map(u => (
-                <tr key={u.unitId} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground">{u.identifier}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">{u.ownerName}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-mono">
-                    <span className={u.currentBalance > 0 ? 'text-rose-600' : 'text-emerald-600'}>
-                      {formatCurrency(u.currentBalance)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
-                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${
-                      u.colorCode === 'green' ? 'bg-emerald-500' :
-                      u.colorCode === 'gray' ? 'bg-slate-300 dark:bg-slate-600' :
-                      'bg-rose-500'
-                    }`} />
-                    <span className="text-[10px] text-muted-foreground ml-1">{u.status}</span>
-                  </td>
-                </tr>
+      <CardContent className="space-y-6">
+        {map.towers.map((tower) => (
+          <div key={tower.towerOrBlock}>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{tower.towerOrBlock}</p>
+            <div className="space-y-2">
+              {tower.floors.map((floor) => (
+                <div key={floor.floorLevel} className="flex items-center gap-3 flex-wrap">
+                  <span className="text-[10px] font-bold text-muted-foreground w-16 flex-shrink-0">Piso {floor.floorLevel}</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {floor.units.map((unit) => (
+                      <button
+                        key={unit.unitId}
+                        onClick={() => setSelectedUnit(unit)}
+                        title={`${unit.identifier} — ${unit.ownerName}`}
+                        className={`w-11 h-11 rounded-lg text-[10px] font-bold text-white flex items-center justify-center hover:scale-105 transition-transform ${paymentColorBg[unit.colorCode] || 'bg-slate-300'}`}
+                      >
+                        {unit.identifier}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        ))}
       </CardContent>
-    </Card>
-  );
-}
 
-function ContingencyFundCard({ fund }: { fund: DashboardData['contingencyFund'] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Fondo de Imprevistos</h3>
-          <PiggyBank className="w-5 h-5 text-emerald-600" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        {fund ? (
-          <div className="space-y-4">
+      {selectedUnit && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setSelectedUnit(null)}>
+          <div
+            className="w-full max-w-sm h-full bg-card border-l border-border p-6 space-y-4 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-lg">Unidad {selectedUnit.identifier}</h4>
+              <button onClick={() => setSelectedUnit(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Saldo Actual</p>
-              <p className="text-3xl font-black text-emerald-600">{formatCurrency(fund.currentBalance)}</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Propietario</p>
+              <p className="text-sm font-medium text-foreground mt-1">{selectedUnit.ownerName}</p>
             </div>
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Último Aporte</p>
-                <p className="text-lg font-bold text-foreground">{formatCurrency(fund.lastContributionAmount)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Período</p>
-                <p className="text-lg font-bold text-foreground">{fund.lastContributionPeriod || 'N/A'}</p>
-              </div>
+            <div>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Saldo Pendiente</p>
+              <p className="text-2xl font-black text-rose-600 mt-1">{formatCurrency(selectedUnit.overdueBalance)}</p>
             </div>
+            <div>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado</p>
+              <p className="text-sm font-medium text-foreground mt-1">{selectedUnit.statusLabel}</p>
+            </div>
+            <Button onClick={() => router.push(`/units/${selectedUnit.unitId}`)} className="w-full">
+              Ver estado de cuenta completo
+            </Button>
           </div>
-        ) : (
-          <div className="text-center text-muted-foreground py-6">
-            <PiggyBank className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm">No hay fondo configurado</p>
-          </div>
-        )}
-      </CardContent>
+        </div>
+      )}
     </Card>
   );
 }
 
-function PendingApprovalsCard({ approvals }: { approvals: DashboardData['pendingCouncilApprovals'] }) {
+// ═══════════════════════════════════════════════════════════════════════
+// Vista de Consejo: aprobaciones pendientes + fondo de imprevistos
+// ═══════════════════════════════════════════════════════════════════════
+
+function CouncilApprovalsPanel({ data }: { data: CouncilDashboard }) {
+  const router = useRouter();
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Aprobaciones Pendientes</h3>
+          <h3 className="font-bold text-lg">Solicitudes Pendientes del Consejo</h3>
           <Clock className="w-5 h-5 text-amber-500" />
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {approvals.length === 0 ? (
+        {data.pendingApprovals.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">
             <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500" />
             <p className="text-sm">No hay solicitudes pendientes</p>
           </div>
-        ) : (
+        )}
+        {data.pendingApprovals.length > 0 && (
           <div className="divide-y divide-border">
-            {approvals.map((app, idx) => (
-              <a key={idx} href={app.moduleLink} className="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors">
+            {data.pendingApprovals.map((approval, idx) => (
+              <button
+                key={idx}
+                onClick={() => router.push(approval.moduleLink)}
+                className="w-full text-left flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
+              >
                 <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
                   <FileText className="w-5 h-5 text-amber-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{app.type}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{app.description}</p>
+                  <p className="text-sm font-semibold text-foreground line-clamp-1">{approval.description}</p>
+                  <p className="text-[10px] text-muted-foreground">{formatDate(approval.requestedAt)}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-foreground">{formatCurrency(app.amount)}</p>
-                  <p className="text-[10px] text-muted-foreground">{formatDate(app.requestedAt)}</p>
-                </div>
-              </a>
+                <p className="text-sm font-bold text-foreground whitespace-nowrap">{formatCurrency(approval.amount)}</p>
+              </button>
             ))}
           </div>
         )}
+        <div className="p-4 border-t border-border">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Fondo de Imprevistos (informativo)</p>
+          <p className="text-xl font-black text-emerald-600">{formatCurrency(data.contingencyFund.availableBalance)}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Contribuido: {formatCurrency(data.contingencyFund.totalContributed)} · Usado: {formatCurrency(data.contingencyFund.totalUsed)}
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function ResidentDashboard({ data, user, logout }: { data: DashboardData; user: any; logout: () => void }) {
-  const rd = data.residentData;
+// ═══════════════════════════════════════════════════════════════════════
+// Vista de Contador
+// ═══════════════════════════════════════════════════════════════════════
 
-  if (!rd) {
+function AccountantDashboardView({ user, logout }: { user: any; logout: () => void }) {
+  const [panel, setPanel] = useState<AccountantBudgetPanel | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await dashboardService.getAccountantPanel();
+        setPanel(data);
+      } catch {
+        setError('Error al cargar el panel presupuestal.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <DashboardHeader title="Panel Presupuestal" subtitle="Ejecución del presupuesto por rubro." user={user} logout={logout} />
+
+      {error && (
+        <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-4 py-3 rounded-lg text-sm">{error}</div>
+      )}
+
+      {panel && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card><CardContent className="p-5 text-center">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ejecución Total</p>
+              <p className="text-2xl font-black text-violet-600 mt-2">{formatPercent(panel.execution.overallExecutionPercentage)}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-5 text-center">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ejecutado</p>
+              <p className="text-2xl font-black text-foreground mt-2">{formatCurrency(panel.execution.totalExecutedExpense)}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-5 text-center">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Disponible</p>
+              <p className="text-2xl font-black text-emerald-600 mt-2">{formatCurrency(panel.execution.totalAvailable)}</p>
+            </CardContent></Card>
+          </div>
+
+          {panel.execution.alerts.length > 0 && (
+            <Card>
+              <CardHeader><h3 className="font-bold text-lg">Alertas de Ejecución (90% / 100%)</h3></CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-border">
+                  {panel.execution.alerts.map((alert, idx) => (
+                    <div key={idx} className="p-4">
+                      <p className="text-sm font-semibold text-foreground">{alert.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader><h3 className="font-bold text-lg">Gastos Ejecutados por Rubro</h3></CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Rubro</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Presupuestado</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Ejecutado</th>
+                      <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {panel.execution.expenseItems.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3 text-sm font-medium text-foreground">{item.name}</td>
+                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.annualValue)}</td>
+                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.executedValue)}</td>
+                        <td className="px-4 py-3 text-sm text-right font-semibold">{formatPercent(item.executionPercentage)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><h3 className="font-bold text-lg">Reportes Exportables</h3></CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {panel.reportLinks.map((link) => (
+                  <button
+                    key={link.reportTypeCode}
+                    onClick={() => router.push(link.moduleLink)}
+                    className="w-full text-left flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
+                  >
+                    <FileText className="w-5 h-5 text-emerald-600" />
+                    <p className="text-sm font-semibold text-foreground">{link.name}</p>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Vista de Auditor: solo lectura, acceso directo a reportes
+// ═══════════════════════════════════════════════════════════════════════
+
+function AuditorDashboardView({ user, logout }: { user: any; logout: () => void }) {
+  const [dashboard, setDashboard] = useState<AuditorDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await dashboardService.getAuditorDashboard();
+        setDashboard(data);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <DashboardHeader title="Acceso de Auditoría" subtitle="Vista de solo lectura." user={user} logout={logout} />
+
+      <Card>
+        <CardContent className="p-6 text-center text-muted-foreground">
+          <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+          <p>Acceso de solo lectura. No hay elementos operativos disponibles en este perfil.</p>
+        </CardContent>
+      </Card>
+
+      {dashboard && (
+        <Card>
+          <CardHeader><h3 className="font-bold text-lg">Reportes del Período {dashboard.currentFiscalYear}</h3></CardHeader>
+          <CardContent className="p-0">
+            {dashboard.availableReports.length === 0 && (
+              <p className="p-6 text-center text-muted-foreground text-sm">No hay reportes disponibles para este perfil.</p>
+            )}
+            {dashboard.availableReports.length > 0 && (
+              <div className="divide-y divide-border">
+                {dashboard.availableReports.map((link) => (
+                  <button
+                    key={link.reportTypeCode}
+                    onClick={() => router.push(link.moduleLink)}
+                    className="w-full text-left flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
+                  >
+                    <FileText className="w-5 h-5 text-emerald-600" />
+                    <p className="text-sm font-semibold text-foreground">{link.name}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Vista de Residente
+// ═══════════════════════════════════════════════════════════════════════
+
+function ResidentDashboardView({ user, logout }: { user: any; logout: () => void }) {
+  const [data, setData] = useState<ResidentDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const result = await dashboardService.getResidentDashboard();
+        setData(result);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
+  }
+
+  if (!data || !data.unitIdentifier) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-black tracking-tight">Mi Resumen</h1>
-          <Button variant="secondary" onClick={logout} className="gap-2">
-            <LogOut size={18} /> Cerrar Sesión
-          </Button>
-        </div>
+        <DashboardHeader title="Mi Resumen" subtitle="" user={user} logout={logout} />
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             <Building2 className="w-12 h-12 mx-auto mb-3 text-slate-300" />
@@ -673,57 +895,94 @@ function ResidentDashboard({ data, user, logout }: { data: DashboardData; user: 
     );
   }
 
-  const balanceColor = rd.currentBalance > 0 ? 'text-rose-600' : 'text-emerald-600';
+  let balanceMessage = 'No debes nada. Estás al día.';
+  let balanceColorClass = 'text-emerald-600';
+  if (data.currentBalance > 0) {
+    balanceColorClass = 'text-rose-600';
+    let sinceText = '';
+    if (data.oldestDebtDate) {
+      sinceText = ` desde el ${formatDate(data.oldestDebtDate)}`;
+    }
+    balanceMessage = `Debes ${formatCurrency(data.currentBalance)}${sinceText}.`;
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Mi Resumen</h1>
-          <p className="text-muted-foreground">Unidad {rd.unitIdentifier}</p>
-        </div>
-        <Button variant="secondary" onClick={logout} className="gap-2">
-          <LogOut size={18} /> Cerrar Sesión
-        </Button>
-      </div>
+      <DashboardHeader title="Mi Resumen" subtitle={`Unidad ${data.unitIdentifier}`} user={user} logout={logout} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Saldo Pendiente</p>
-            <p className={`text-2xl font-black mt-1 ${balanceColor}`}>{formatCurrency(rd.currentBalance)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Días en Mora</p>
-            <p className={`text-2xl font-black mt-1 ${rd.daysOverdue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-              {rd.daysOverdue}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado de Cuenta</p>
+          <p className={`text-xl font-black mt-2 ${balanceColorClass}`}>{balanceMessage}</p>
+        </CardContent>
+      </Card>
 
-      {data.upcomingEvents.length > 0 && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader>
-            <h3 className="font-bold text-lg">Próximos Eventos</h3>
-          </CardHeader>
+          <CardHeader><h3 className="font-bold text-lg">Mis PQR</h3></CardHeader>
           <CardContent className="p-0">
+            {data.openPqrs.length === 0 && (
+              <p className="p-6 text-center text-sm text-muted-foreground">No tienes PQR abiertos.</p>
+            )}
+            {data.openPqrs.length > 0 && (
+              <div className="divide-y divide-border">
+                {data.openPqrs.map((pqr) => (
+                  <div key={pqr.radicadoNumber} className="p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground">{pqr.radicadoNumber}</p>
+                      {pqr.isOverdue && <span className="badge-danger">Vencido</span>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{pqr.subject}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Estado: {pqr.status}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><h3 className="font-bold text-lg">Mis Reservas</h3></CardHeader>
+          <CardContent className="p-0">
+            {data.activeReservations.length === 0 && (
+              <p className="p-6 text-center text-sm text-muted-foreground">No tienes reservas activas.</p>
+            )}
+            {data.activeReservations.length > 0 && (
+              <div className="divide-y divide-border">
+                {data.activeReservations.map((reservation, idx) => (
+                  <div key={idx} className="p-4">
+                    <p className="text-sm font-semibold text-foreground">{reservation.spaceName}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{formatDateTime(reservation.startDateTime)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Estado: {reservation.status}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader><h3 className="font-bold text-lg">Últimas Circulares</h3></CardHeader>
+        <CardContent className="p-0">
+          {data.latestCirculars.length === 0 && (
+            <p className="p-6 text-center text-sm text-muted-foreground">No hay circulares recientes.</p>
+          )}
+          {data.latestCirculars.length > 0 && (
             <div className="divide-y divide-border">
-              {data.upcomingEvents.map((evt, idx) => (
+              {data.latestCirculars.map((circular, idx) => (
                 <div key={idx} className="flex items-center gap-3 p-4">
                   <Calendar className="w-5 h-5 text-blue-500 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-foreground">{evt.title}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(evt.eventDate)}</p>
+                    <p className="text-sm font-semibold text-foreground">{circular.title}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(circular.publishedAt)}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

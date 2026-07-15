@@ -5,7 +5,9 @@ public enum AlertRuleType
     ProviderContractExpiring,
     PreventiveMaintenanceDue,
     PqrOverdue,
-    BudgetAccountExceeded,
+    BudgetItemExecutionExceeded,
     AssetOutOfService,
-    WorkOrderUnassigned
+    WorkOrderUnassigned,
+    PaymentAgreementOverdue,
+    ReservationNotCheckedIn
 }

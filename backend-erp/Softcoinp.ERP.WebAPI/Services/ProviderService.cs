@@ -111,7 +111,7 @@ public class ProviderService
                         StartDate = c.StartDate,
                         EndDate = c.EndDate,
                         Status = c.Status.ToString(),
-                        DaysUntilExpiration = (int)(c.EndDate - DateTime.UtcNow).TotalDays
+                        DaysUntilExpiration = 0
                     })
                     .ToList(),
                 Invoices = p.Invoices
@@ -147,6 +147,12 @@ public class ProviderService
         if (provider == null)
         {
             throw new KeyNotFoundException("Proveedor no encontrado.");
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var contract in provider.Contracts)
+        {
+            contract.DaysUntilExpiration = (int)(contract.EndDate - now).TotalDays;
         }
 
         return provider;

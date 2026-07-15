@@ -95,6 +95,8 @@ builder.Services.AddScoped<BillingEngineService>();
 builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<StatementService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<DashboardAlertEngineService>();
+builder.Services.AddScoped<PaymentStatusMapService>();
 builder.Services.AddScoped<IndicatorCacheService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<PQRRadicationService>();

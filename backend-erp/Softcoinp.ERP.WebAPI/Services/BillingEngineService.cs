@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
@@ -15,18 +14,15 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class BillingEngineService
 {
     private readonly ApplicationDbContext _context;
-    private readonly IMemoryCache _cache;
     private readonly ILogger<BillingEngineService> _logger;
     private readonly IndicatorCacheService _indicatorCache;
 
     public BillingEngineService(
         ApplicationDbContext context,
-        IMemoryCache cache,
         ILogger<BillingEngineService> logger,
         IndicatorCacheService indicatorCache)
     {
         _context = context;
-        _cache = cache;
         _logger = logger;
         _indicatorCache = indicatorCache;
     }
@@ -283,8 +279,8 @@ public class BillingEngineService
             throw;
         }
 
-        _cache.Remove("mora_map_" + tenantId);
-        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
         return billingPeriod;
     }
 
@@ -341,8 +337,8 @@ public class BillingEngineService
         _context.BillingAdjustments.Add(adjustment);
         await _context.SaveChangesAsync();
 
-        _cache.Remove("mora_map_" + tenantId);
-        await _indicatorCache.InvalidateAsync(tenantId, "kpis_");
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
         return adjustment;
     }
 

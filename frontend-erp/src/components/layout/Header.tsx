@@ -1,14 +1,28 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext';
 import Link from 'next/link';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Building2 } from 'lucide-react';
 
 export const Header = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, availableTenants, switchTenant } = useAuth();
   const usuario = user?.name || "";
+  const [switching, setSwitching] = useState(false);
+
+  const handleTenantChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const targetTenantId = event.target.value;
+    if (!targetTenantId || targetTenantId === user?.tenantId) {
+      return;
+    }
+    setSwitching(true);
+    try {
+      await switchTenant(targetTenantId);
+    } catch {
+      setSwitching(false);
+    }
+  };
 
   // Iniciales del usuario para el avatar
   const initials = usuario
@@ -73,9 +87,28 @@ export const Header = () => {
         </div>
       </div>
 
-      {/* ── DERECHA: Habeas Data + Botón Salir ── */}
+      {/* ── DERECHA: Selector de Conjunto + Habeas Data + Botón Salir ── */}
       <div className="ml-auto flex items-center gap-3 lg:gap-6">
-        
+
+        {/* 🏢 Selector de Conjunto (solo si administra más de uno) */}
+        {availableTenants.length > 1 && (
+          <div className="hidden md:flex items-center gap-2 px-2.5 py-1.5 bg-background border border-border rounded-xl">
+            <Building2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+            <select
+              value={user?.tenantId || ''}
+              onChange={handleTenantChange}
+              disabled={switching}
+              className="bg-transparent text-xs font-bold text-foreground outline-none max-w-[160px] disabled:opacity-50"
+            >
+              {availableTenants.map((tenant) => (
+                <option key={tenant.tenantId} value={tenant.tenantId}>
+                  {tenant.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* ⚖️ Habeas Data Badge (Solo Desktop/Tablet) */}
         <Link 
           href="/politica-privacidad"

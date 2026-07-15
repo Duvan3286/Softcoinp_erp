@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, LoginCredentials } from '../lib/auth-service';
+import { User, LoginCredentials, TenantOption } from '../lib/auth-service';
 import authService from '../lib/auth-service';
 import { setAuthCookie, clearAuthCookie } from '../lib/api-client';
 import { useRouter } from 'next/navigation';
@@ -13,8 +13,10 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  availableTenants: TenantOption[];
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  switchTenant: (tenantId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,7 +24,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [availableTenants, setAvailableTenants] = useState<TenantOption[]>([]);
   const router = useRouter();
+
+  const loadAvailableTenants = async () => {
+    try {
+      const tenants = await authService.getMyTenants();
+      setAvailableTenants(tenants);
+    } catch {
+      setAvailableTenants([]);
+    }
+  };
 
   useEffect(() => {
     const initAuth = async () => {
@@ -46,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const currentUser = await authService.getCurrentUser();
           setUser(currentUser);
+          await loadAvailableTenants();
         } catch {
           if (!isSameOrigin && typeof window !== 'undefined') {
             sessionStorage.removeItem('auth_token');
@@ -65,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authService.login(credentials);
       setUser(response.user);
+      await loadAvailableTenants();
       router.push('/dashboard');
     } catch (error) {
       throw error;
@@ -85,6 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearAuthCookie();
       }
       setUser(null);
+      setAvailableTenants([]);
+    }
+  };
+
+  const switchTenant = async (tenantId: string) => {
+    await authService.switchTenant(tenantId);
+    // Recarga completa del contexto: todos los datos del dashboard y del resto
+    // de módulos deben volver a pedirse contra el nuevo conjunto, sin cerrar sesión.
+    if (typeof window !== 'undefined') {
+      window.location.href = '/dashboard';
     }
   };
 
@@ -94,8 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        availableTenants,
         login,
         logout,
+        switchTenant,
       }}
     >
       {children}

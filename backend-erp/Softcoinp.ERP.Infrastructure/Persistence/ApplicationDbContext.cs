@@ -253,6 +253,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.ExpenseDate });
             entity.HasIndex(e => new { e.ExpenseItemId, e.ExpenseDate });
+            entity.HasIndex(e => new { e.TenantId, e.CouncilApproved });
         });
 
         modelBuilder.Entity<BudgetModification>(entity =>
@@ -1263,6 +1264,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.ContractNumber }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.ApprovalLevel });
             entity.HasIndex(e => new { e.TenantId, e.ProviderId });
             entity.HasIndex(e => new { e.TenantId, e.EndDate });
         });
@@ -1508,6 +1510,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.AssetId });
             entity.HasIndex(e => new { e.TenantId, e.ScheduledDate });
             entity.HasIndex(e => new { e.TenantId, e.AssignedProviderId });
+            entity.HasIndex(e => new { e.TenantId, e.OrderType, e.Status, e.ScheduledDate });
         });
 
         modelBuilder.Entity<WorkOrderEvidence>(entity =>
@@ -1966,6 +1969,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.SpaceId, e.StartDateTime, e.EndDateTime });
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.ReservationNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.OwnerId, e.StartDateTime });
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.StartDateTime });
         });
 
         modelBuilder.Entity<ReservationDeposit>(entity =>
