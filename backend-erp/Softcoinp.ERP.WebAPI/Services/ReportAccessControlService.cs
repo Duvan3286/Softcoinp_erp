@@ -34,23 +34,6 @@ public class ReportAccessControlService
             "BudgetExecution", "ActiveContracts", "PQRReport",
             "MaintenanceReport", "AssemblyReport", "AnnualManagementReport",
             "AccountantExport"
-        },
-        ["Council"] = new List<string>
-        {
-            "PortfolioReport", "BudgetExecution", "ActiveContracts", "AnnualManagementReport"
-        },
-        ["Accountant"] = new List<string>
-        {
-            "CollectionReport", "ExpenseReport", "BudgetExecution",
-            "PortfolioReport", "AccountantExport"
-        },
-        ["Auditor"] = new List<string>
-        {
-            "CollectionReport", "ExpenseReport", "BudgetExecution",
-            "PortfolioReport", "AccountantExport"
-        },
-        ["Resident"] = new List<string>
-        {
         }
     };
 
@@ -78,7 +61,7 @@ public class ReportAccessControlService
 
     public bool CanAccessPersonalData(string role)
     {
-        return role == "SuperAdmin" || role == "Admin" || role == "Accountant" || role == "Auditor";
+        return role == "SuperAdmin" || role == "Admin";
     }
 
     public async Task<List<ReportTypeDto>> GetFilteredCatalogAsync(string tenantId, string role)
@@ -100,7 +83,6 @@ public class ReportAccessControlService
                 Description = r.Description,
                 Category = r.Category.ToString(),
                 SourceModules = r.SourceModules,
-                AllowedRoles = r.AllowedRoles,
                 ContainsPersonalData = r.ContainsPersonalData,
                 IsActive = r.IsActive
             })

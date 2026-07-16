@@ -13,7 +13,6 @@ public class ReportType
     public string Description { get; set; } = string.Empty;
     public ReportCategory Category { get; set; }
     public string SourceModules { get; set; } = string.Empty;
-    public string AllowedRoles { get; set; } = string.Empty;
     public bool ContainsPersonalData { get; set; }
     public bool IsActive { get; set; } = true;
 

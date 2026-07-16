@@ -21,7 +21,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("assets")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<CommonAssetListDto>>> GetAssets(
         [FromQuery] string? category = null,
         [FromQuery] string? status = null,
@@ -34,7 +34,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("assets/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<CommonAssetDetailDto>> GetAsset(Guid id)
     {
         var tenantId = GetTenantId();
@@ -130,7 +130,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("work-orders")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<WorkOrderListDto>>> GetWorkOrders(
         [FromQuery] string? orderType = null,
         [FromQuery] string? status = null,
@@ -144,7 +144,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("work-orders/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<WorkOrderDetailDto>> GetWorkOrder(Guid id)
     {
         var tenantId = GetTenantId();
@@ -198,7 +198,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("incidents")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<IncidentListDto>>> GetIncidents([FromQuery] string? status = null)
     {
         var tenantId = GetTenantId();
@@ -207,7 +207,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("incidents/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<IncidentDetailDto>> GetIncident(Guid id)
     {
         var tenantId = GetTenantId();
@@ -247,7 +247,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("reports/scheduled")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<MaintenanceReportDto>> GetScheduledReport(
         [FromQuery] int daysAhead = 30)
     {
@@ -257,7 +257,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("indicators")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<MaintenanceIndicatorsDto>> GetIndicators()
     {
         var tenantId = GetTenantId();
@@ -266,7 +266,7 @@ public class MaintenanceController : BaseController
     }
 
     [HttpGet("out-of-service")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<OutOfServiceAssetDto>>> GetOutOfServiceAssets()
     {
         var tenantId = GetTenantId();

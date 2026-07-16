@@ -1,9 +1,5 @@
 import apiClient from './api-client';
 
-// ═══════════════════════════════════════════════════════════════════════
-// KPIs
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface DashboardKpis {
   currentMonthCollectionPercentage: number;
   previousMonthCollectionPercentage: number;
@@ -20,10 +16,6 @@ export interface DashboardKpis {
   openPqrCount: number;
   overduePqrCount: number;
 }
-
-// ═══════════════════════════════════════════════════════════════════════
-// Alertas operativas
-// ═══════════════════════════════════════════════════════════════════════
 
 export interface AlertItem {
   id: string;
@@ -52,19 +44,11 @@ export interface UpdateAlertConfigurationRequest {
   defaultUrgency: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Recaudo histórico
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface MonthlyCollectionItem {
   period: string;
   billed: number;
   collected: number;
 }
-
-// ═══════════════════════════════════════════════════════════════════════
-// Mapa de estado de pago
-// ═══════════════════════════════════════════════════════════════════════
 
 export interface UnitPaymentStatus {
   unitId: string;
@@ -91,10 +75,6 @@ export interface PaymentStatusMap {
   towers: TowerGroup[];
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Próximos eventos y actividad reciente
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface UpcomingEventItem {
   title: string;
   description: string;
@@ -111,41 +91,6 @@ export interface RecentActivityItem {
   moduleLink: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Vista de Consejo
-// ═══════════════════════════════════════════════════════════════════════
-
-export interface CouncilApprovalItem {
-  type: string;
-  description: string;
-  amount: number;
-  requestedAt: string;
-  moduleLink: string;
-}
-
-export interface ContingencyFundUsageSummary {
-  justification: string;
-  amount: number;
-  councilApprovalActNumber: string;
-  createdAt: string;
-}
-
-export interface ContingencyFundInfo {
-  availableBalance: number;
-  totalContributed: number;
-  totalUsed: number;
-  recentUsages: ContingencyFundUsageSummary[];
-}
-
-export interface CouncilDashboard {
-  pendingApprovals: CouncilApprovalItem[];
-  contingencyFund: ContingencyFundInfo;
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Vista de Contador y Auditor
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface ExpenseExecutionItem {
   id: string;
   name: string;
@@ -158,7 +103,6 @@ export interface ExpenseExecutionItem {
   trafficLight: string;
   isContingencyFund: boolean;
   contingencyPercentage: number;
-  requiresCouncilApproval: boolean;
   approvalThreshold: number;
 }
 
@@ -183,60 +127,6 @@ export interface BudgetExecutionDashboard {
   expenseItems: ExpenseExecutionItem[];
   alerts: BudgetAlertItem[];
 }
-
-export interface ReportLinkItem {
-  reportTypeCode: string;
-  name: string;
-  moduleLink: string;
-}
-
-export interface AccountantBudgetPanel {
-  execution: BudgetExecutionDashboard;
-  reportLinks: ReportLinkItem[];
-}
-
-export interface AuditorDashboard {
-  currentFiscalYear: number;
-  availableReports: ReportLinkItem[];
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Vista de Residente
-// ═══════════════════════════════════════════════════════════════════════
-
-export interface ResidentOpenPqr {
-  radicadoNumber: string;
-  subject: string;
-  status: string;
-  createdAt: string;
-  isOverdue: boolean;
-}
-
-export interface ResidentReservationItem {
-  spaceName: string;
-  startDateTime: string;
-  endDateTime: string;
-  status: string;
-}
-
-export interface ResidentCircularItem {
-  title: string;
-  publishedAt: string;
-}
-
-export interface ResidentDashboard {
-  unitIdentifier: string;
-  currentBalance: number;
-  daysOverdue: number;
-  oldestDebtDate: string | null;
-  openPqrs: ResidentOpenPqr[];
-  activeReservations: ResidentReservationItem[];
-  latestCirculars: ResidentCircularItem[];
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// SERVICE
-// ═══════════════════════════════════════════════════════════════════════
 
 const dashboardService = {
   async getKpis(): Promise<DashboardKpis> {
@@ -280,26 +170,6 @@ const dashboardService = {
 
   async getRecentActivity(): Promise<RecentActivityItem[]> {
     const response = await apiClient.get<RecentActivityItem[]>('/dashboard/recent-activity');
-    return response.data;
-  },
-
-  async getCouncilDashboard(): Promise<CouncilDashboard> {
-    const response = await apiClient.get<CouncilDashboard>('/dashboard/council');
-    return response.data;
-  },
-
-  async getAccountantPanel(): Promise<AccountantBudgetPanel> {
-    const response = await apiClient.get<AccountantBudgetPanel>('/dashboard/accountant');
-    return response.data;
-  },
-
-  async getAuditorDashboard(): Promise<AuditorDashboard> {
-    const response = await apiClient.get<AuditorDashboard>('/dashboard/auditor');
-    return response.data;
-  },
-
-  async getResidentDashboard(): Promise<ResidentDashboard> {
-    const response = await apiClient.get<ResidentDashboard>('/dashboard/resident');
     return response.data;
   },
 

@@ -35,7 +35,7 @@ public class PQRController : BaseController
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreatePqr([FromBody] CreatePqrRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -53,7 +53,7 @@ public class PQRController : BaseController
     }
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetPqrList(
         [FromQuery] string? status = null,
         [FromQuery] string? type = null,
@@ -120,7 +120,7 @@ public class PQRController : BaseController
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetPqrDetail(Guid id)
     {
         var tenantId = GetTenantId();
@@ -143,7 +143,7 @@ public class PQRController : BaseController
 
         var now = DateTime.UtcNow;
         var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
-        var isAdminRole = userRole == "SuperAdmin" || userRole == "Admin" || userRole == "Accountant" || userRole == "Council";
+        var isAdminRole = userRole == "SuperAdmin" || userRole == "Admin";
 
         var detail = new PqrDetailDto
         {
@@ -221,7 +221,7 @@ public class PQRController : BaseController
                     AuthorName = n.AuthorName,
                     CreatedAt = n.CreatedAt
                 }).ToList()
-                : new List<PqrInternalNoteDto>(),
+                : new System.Collections.Generic.List<PqrInternalNoteDto>(),
             Files = pqr.Files.Select(f => new PqrFileDto
             {
                 Id = f.Id,
@@ -257,7 +257,7 @@ public class PQRController : BaseController
             .Where(c => c.TenantId == tenantId)
             .ToListAsync();
 
-        var defaultConfigs = new List<PqrTimeConfigDto>
+        var defaultConfigs = new System.Collections.Generic.List<PqrTimeConfigDto>
         {
             new() { PQRType = "Request", BusinessDays = 5 },
             new() { PQRType = "Complaint", BusinessDays = 3 },
@@ -321,37 +321,8 @@ public class PQRController : BaseController
         return Ok(new { message = "Configuración actualizada exitosamente." });
     }
 
-    [HttpGet("resident/{ownerId}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
-    public async Task<IActionResult> GetResidentPqrs(Guid ownerId)
-    {
-        var tenantId = GetTenantId();
-
-        var pqrs = await _context.PqrRecords
-            .Include(p => p.Unit)
-            .Where(p => p.TenantId == tenantId && p.OwnerId == ownerId && !p.IsInternal)
-            .OrderByDescending(p => p.FiledAt)
-            .Select(p => new PqrListDto
-            {
-                Id = p.Id,
-                RadicadoNumber = p.RadicadoNumber,
-                PQRType = p.PQRType.ToString(),
-                Category = p.Category.ToString(),
-                Status = p.Status.ToString(),
-                Priority = p.Priority.ToString(),
-                Subject = p.Subject,
-                UnitIdentifier = p.Unit!.Identifier,
-                FiledAt = p.FiledAt,
-                Deadline = p.Deadline,
-                IsInternal = p.IsInternal
-            })
-            .ToListAsync();
-
-        return Ok(pqrs);
-    }
-
     [HttpGet("alerts/active")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetActiveAlerts()
     {
         var tenantId = GetTenantId();
@@ -389,7 +360,7 @@ public class PQRController : BaseController
     }
 
     [HttpPost("alerts/{alertId}/resolve")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> ResolveAlert(Guid alertId)
     {
         var tenantId = GetTenantId();
@@ -411,7 +382,7 @@ public class PQRController : BaseController
     }
 
     [HttpGet("indicators")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetPQRIndicators()
     {
         var tenantId = GetTenantId();
@@ -534,7 +505,7 @@ public class PQRController : BaseController
     }
 
     [HttpPost("{id}/resolve-claim")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> ResolveClaim(Guid id, [FromBody] ResolveClaimRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -562,7 +533,7 @@ public class PQRController : BaseController
     }
 
     [HttpPut("{id}/status")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangePqrStatusRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -617,7 +588,7 @@ public class PQRController : BaseController
     }
 
     [HttpPut("{id}/assign")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> AssignPqr(Guid id, [FromBody] AssignPqrRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -666,7 +637,7 @@ public class PQRController : BaseController
     }
 
     [HttpPut("{id}/priority")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdatePriority(Guid id, [FromBody] UpdatePqrPriorityRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -692,7 +663,7 @@ public class PQRController : BaseController
     }
 
     [HttpPost("{id}/responses")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> AddResponse(Guid id, [FromBody] AddPqrResponseRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -775,43 +746,8 @@ public class PQRController : BaseController
         });
     }
 
-    [HttpPost("{id}/responses/{responseId}/confirm")]
-    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
-    public async Task<IActionResult> ConfirmResponse(Guid id, Guid responseId, [FromBody] ConfirmResponseRequestDto request)
-    {
-        var tenantId = GetTenantId();
-
-        var response = await _context.PqrResponses
-            .Include(r => r.PQR)
-            .FirstOrDefaultAsync(r => r.Id == responseId && r.PQRId == id && r.PQR!.TenantId == tenantId);
-
-        if (response == null)
-        {
-            return NotFound("Respuesta no encontrada.");
-        }
-
-        response.ConfirmedByRadiador = request.Confirmed;
-        response.ConfirmedAt = DateTime.UtcNow;
-
-        if (request.Confirmed && response.IsDefinitive)
-        {
-            response.PQR!.Status = PQRStatus.Closed;
-            response.PQR.ClosedAt = DateTime.UtcNow;
-            response.PQR.ClosedDefinitivelyAt = DateTime.UtcNow.AddDays(10);
-            response.PQR.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await _context.SaveChangesAsync();
-
-        var message = request.Confirmed
-            ? "Respuesta confirmada. PQR cerrada exitosamente."
-            : "Respuesta marcada como no conforme.";
-
-        return Ok(new { message });
-    }
-
     [HttpPost("{id}/internal-notes")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> AddInternalNote(Guid id, [FromBody] AddPqrInternalNoteRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -845,58 +781,5 @@ public class PQRController : BaseController
         await _context.SaveChangesAsync();
 
         return Ok(new { id = note.Id, message = "Nota interna agregada exitosamente." });
-    }
-
-    [HttpPost("{id}/reopen")]
-    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
-    public async Task<IActionResult> ReopenPqr(Guid id, [FromBody] ReopenPqrRequestDto request)
-    {
-        var tenantId = GetTenantId();
-
-        if (string.IsNullOrWhiteSpace(request.Justification))
-        {
-            return BadRequest("La justificación es obligatoria para reabrir la PQR.");
-        }
-
-        var pqr = await _context.PqrRecords
-            .FirstOrDefaultAsync(p => p.Id == id && p.TenantId == tenantId);
-
-        if (pqr == null)
-        {
-            return NotFound("PQR no encontrada.");
-        }
-
-        if (pqr.Status != PQRStatus.Closed)
-        {
-            return BadRequest("Solo las PQR en estado Cerrado pueden ser reabiertas.");
-        }
-
-        if (pqr.ClosedDefinitivelyAt.HasValue && pqr.ClosedDefinitivelyAt.Value < DateTime.UtcNow)
-        {
-            return BadRequest("El plazo de 10 días para reabrir la PQR ha vencido. Debe radicar una nueva PQR.");
-        }
-
-        var previousStatus = pqr.Status;
-        pqr.Status = PQRStatus.Reopened;
-        pqr.ClosedAt = null;
-        pqr.UpdatedAt = DateTime.UtcNow;
-
-        var followUp = new PqrFollowUp
-        {
-            Id = Guid.NewGuid(),
-            PQRId = pqr.Id,
-            PreviousStatus = previousStatus,
-            NewStatus = PQRStatus.Reopened,
-            ChangedAt = DateTime.UtcNow,
-            ChangedByUserId = GetUserId(),
-            ChangedByUserName = User.Identity?.Name ?? "Radicante",
-            Justification = request.Justification,
-            IsAutomatic = false
-        };
-
-        _context.PqrFollowUps.Add(followUp);
-        await _context.SaveChangesAsync();
-
-        return Ok(new { message = "PQR reabierta exitosamente. La administración revisará su caso." });
     }
 }

@@ -26,7 +26,6 @@ const typeLabels: Record<string, string> = {
 
 const approvalLabels: Record<string, string> = {
   Administrator: 'Administrador',
-  Council: 'Consejo',
 };
 
 export default function ContractsPage() {
@@ -91,7 +90,7 @@ export default function ContractsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Contratos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestión de contratos con proveedores y contratistas.</p>
+          <p className="text-sm text-muted-foreground mt-1">Gestion de contratos con proveedores y contratistas.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => router.push('/contracts/payments-pending')}>
@@ -141,7 +140,7 @@ export default function ContractsPage() {
             </select>
             <div className="flex-1 min-w-[200px] relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type="text" placeholder="Buscar número, objeto, proveedor..."
+              <input type="text" placeholder="Buscar numero, objeto, proveedor..."
                 value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-transparent border border-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500" />
             </div>
@@ -159,7 +158,7 @@ export default function ContractsPage() {
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor Total</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Mensual</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Vigencia</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Aprobación</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Aprobacion</th>
                   <th className="px-5 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado</th>
                   <th className="px-5 py-3.5 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -197,11 +196,11 @@ export default function ContractsPage() {
                       <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {formatDate(c.startDate)} — {formatDate(c.endDate)}
+                          {formatDate(c.startDate)} - {formatDate(c.endDate)}
                         </div>
                         {c.status === 'Active' && (
                           <p className={`text-xs font-bold mt-0.5 ${c.daysUntilExpiration <= 30 ? 'text-rose-600' : c.daysUntilExpiration <= 90 ? 'text-orange-500' : 'text-muted-foreground'}`}>
-                            {c.daysUntilExpiration > 0 ? `${c.daysUntilExpiration} días restantes` : 'Vencido'}
+                            {c.daysUntilExpiration > 0 ? `${c.daysUntilExpiration} dias restantes` : 'Vencido'}
                           </p>
                         )}
                       </td>

@@ -42,7 +42,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("checklist")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetBillingChecklist([FromQuery] string period)
     {
         var tenantId = GetTenantId();
@@ -51,7 +51,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("execute")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> ExecuteMonthlyBilling([FromBody] ExecuteBillingRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -88,7 +88,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetBillingPeriods()
     {
         var tenantId = GetTenantId();
@@ -97,7 +97,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetBillingPeriodDetail(Guid id)
     {
         var tenantId = GetTenantId();
@@ -114,7 +114,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPut("{id}/notes")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateBillingNotes(Guid id, [FromBody] string notes)
     {
         var tenantId = GetTenantId();
@@ -134,7 +134,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("adjustments")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateAdjustment([FromBody] CreateBillingAdjustmentRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -163,7 +163,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("units/{unitId}/adjustments")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetUnitAdjustments(Guid unitId)
     {
         var tenantId = GetTenantId();
@@ -172,7 +172,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("portfolio-summary")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetPortfolioSummary()
     {
         var tenantId = GetTenantId();
@@ -257,7 +257,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("units/{unitId}/debt")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetUnitDebtSummary(Guid unitId)
     {
         var tenantId = GetTenantId();
@@ -274,7 +274,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("payment/preview")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> PreviewPayment([FromBody] RegisterPaymentRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -284,7 +284,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("payment/register")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> RegisterPayment([FromBody] RegisterPaymentRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -310,7 +310,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("units/{unitId}/payments")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetUnitPayments(Guid unitId)
     {
         var tenantId = GetTenantId();
@@ -319,7 +319,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("payments/{paymentId}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetPaymentDetail(Guid paymentId)
     {
         var tenantId = GetTenantId();
@@ -336,7 +336,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("statement")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetUnitStatement([FromBody] StatementRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -354,7 +354,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("clearance-certificate/issue")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> IssueClearanceCertificate(
         [FromBody] IssueClearanceCertificateRequestDto request)
     {
@@ -385,7 +385,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("units/{unitId}/clearance-certificates")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetUnitCertificates(Guid unitId)
     {
         var tenantId = GetTenantId();
@@ -394,7 +394,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("clearance-certificates/{certificateId}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetCertificateDetail(Guid certificateId)
     {
         var tenantId = GetTenantId();
@@ -411,7 +411,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("clearance-certificates/{certificateId}/pdf")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> DownloadCertificatePdf(Guid certificateId)
     {
         var tenantId = GetTenantId();
@@ -449,7 +449,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("extraordinary-fees")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateExtraordinaryFee(
         [FromBody] CreateExtraordinaryFeeRequestDto request)
     {
@@ -549,7 +549,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("extraordinary-fees")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetExtraordinaryFees()
     {
         var tenantId = GetTenantId();
@@ -580,7 +580,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("extraordinary-fees/{feeId}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetExtraordinaryFeeDetail(Guid feeId)
     {
         var tenantId = GetTenantId();
@@ -623,7 +623,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPut("extraordinary-fees/{feeId}/status")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateExtraordinaryFeeStatus(
         Guid feeId, [FromBody] UpdateExtraordinaryFeeStatusRequestDto request)
     {
@@ -645,7 +645,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPost("individual-charges")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateIndividualCharge(
         [FromBody] CreateIndividualChargeRequestDto request)
     {
@@ -696,7 +696,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("individual-charges")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetIndividualCharges(
         [FromQuery] string? status = null)
     {
@@ -734,7 +734,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("units/{unitId}/individual-charges")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetUnitIndividualCharges(Guid unitId)
     {
         var tenantId = GetTenantId();
@@ -763,7 +763,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpPut("individual-charges/{chargeId}/status")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateIndividualChargeStatus(
         Guid chargeId, [FromBody] UpdateIndividualChargeStatusRequestDto request)
     {
@@ -799,7 +799,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("portfolio/collection-stages")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetCollectionStages()
     {
         var tenantId = GetTenantId();
@@ -930,7 +930,7 @@ public class FeesAndPortfolioController : BaseController
     }
 
     [HttpGet("units/{unitId}/portfolio-detail")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetUnitPortfolioDetail(Guid unitId)
     {
         var tenantId = GetTenantId();

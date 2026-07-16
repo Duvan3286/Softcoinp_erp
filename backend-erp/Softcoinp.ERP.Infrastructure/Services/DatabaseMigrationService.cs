@@ -50,6 +50,7 @@ public class DatabaseMigrationService
         try
         {
             await _masterDbContext.Database.EnsureCreatedAsync();
+            await EnsureMasterSchemaAsync();
             results.Add("MasterDB", "Success");
             _logger.LogInformation("Master database initialized successfully.");
         }
@@ -212,5 +213,50 @@ public class DatabaseMigrationService
         }
 
         _logger.LogInformation("Migration history baselined with {Count} entries for a fresh legacy schema.", allMigrations.Count);
+    }
+
+    private async Task EnsureMasterSchemaAsync()
+    {
+        var connection = _masterDbContext.Database.GetDbConnection();
+        var wasClosed = connection.State != System.Data.ConnectionState.Open;
+        if (wasClosed)
+        {
+            await connection.OpenAsync();
+        }
+
+        var dbName = connection.Database;
+
+        // Check if SessionTimeout column exists
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = '{dbName}' AND table_name = 'erp_master_tenants' AND column_name = 'SessionTimeout'";
+            var exists = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+            if (!exists)
+            {
+                _logger.LogInformation("Adding SessionTimeout column to erp_master_tenants...");
+                using var alter = connection.CreateCommand();
+                alter.CommandText = "ALTER TABLE erp_master_tenants ADD COLUMN SessionTimeout int NOT NULL DEFAULT 480";
+                await alter.ExecuteNonQueryAsync();
+            }
+        }
+
+        // Check if MaxLoginAttempts column exists
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = '{dbName}' AND table_name = 'erp_master_tenants' AND column_name = 'MaxLoginAttempts'";
+            var exists = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+            if (!exists)
+            {
+                _logger.LogInformation("Adding MaxLoginAttempts column to erp_master_tenants...");
+                using var alter = connection.CreateCommand();
+                alter.CommandText = "ALTER TABLE erp_master_tenants ADD COLUMN MaxLoginAttempts int NOT NULL DEFAULT 5";
+                await alter.ExecuteNonQueryAsync();
+            }
+        }
+
+        if (wasClosed)
+        {
+            await connection.CloseAsync();
+        }
     }
 }

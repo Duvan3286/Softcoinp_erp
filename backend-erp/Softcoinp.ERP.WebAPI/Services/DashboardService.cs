@@ -12,9 +12,9 @@ namespace Softcoinp.ERP.WebAPI.Services;
 
 /// <summary>
 /// Orquesta el Dashboard Principal: información operativa del conjunto para que el
-/// administrador, el consejo, el contador, el auditor y el residente decidan sin
-/// tener que navegar cada módulo por separado. Ningún método de esta clase consulta
-/// datos del módulo de Contabilidad, que fue eliminado del sistema.
+/// administrador decida sin tener que navegar cada módulo por separado. Ningún método
+/// de esta clase consulta datos del módulo de Contabilidad, que fue eliminado del
+/// sistema.
 /// Todos los indicadores se calculan en tiempo real, excepto el gráfico de recaudo
 /// histórico y el mapa de estado de pago, que usan caché con invalidación por eventos
 /// (ver PaymentStatusMapService y los puntos de invalidación en PaymentService y
@@ -27,7 +27,6 @@ public class DashboardService
     private readonly ExecutionEngineService _executionEngineService;
     private readonly DashboardAlertEngineService _alertEngineService;
     private readonly PaymentStatusMapService _paymentStatusMapService;
-    private readonly ReportAccessControlService _reportAccessControlService;
     private readonly PortfolioAgingService _portfolioAgingService;
 
     public const string CollectionChartCacheKeyPrefix = "collection_chart_";
@@ -38,7 +37,6 @@ public class DashboardService
         ExecutionEngineService executionEngineService,
         DashboardAlertEngineService alertEngineService,
         PaymentStatusMapService paymentStatusMapService,
-        ReportAccessControlService reportAccessControlService,
         PortfolioAgingService portfolioAgingService)
     {
         _context = context;
@@ -46,7 +44,6 @@ public class DashboardService
         _executionEngineService = executionEngineService;
         _alertEngineService = alertEngineService;
         _paymentStatusMapService = paymentStatusMapService;
-        _reportAccessControlService = reportAccessControlService;
         _portfolioAgingService = portfolioAgingService;
     }
 
@@ -466,279 +463,6 @@ public class DashboardService
         }
 
         return activities.OrderByDescending(a => a.Timestamp).Take(20).ToList();
-    }
-
-    // ── Vista de Consejo ──────────────────────────────────────────────
-
-    public async Task<CouncilDashboardDto> GetCouncilDashboardAsync(string tenantId)
-    {
-        var dashboard = new CouncilDashboardDto();
-        var now = DateTime.UtcNow;
-
-        var contractsRequiringAct = await _context.Contracts
-            .Where(c => c.TenantId == tenantId
-                && c.Status == ContractStatus.Draft
-                && c.ApprovalLevel == ApprovalLevel.Council
-                && c.CouncilMeetingActNumber == string.Empty)
-            .ToListAsync();
-
-        foreach (var contract in contractsRequiringAct)
-        {
-            dashboard.PendingApprovals.Add(new CouncilApprovalDto
-            {
-                Type = "ContractRequiresAct",
-                Description = $"Contrato {contract.ContractNumber}: {contract.ObjectDescription}",
-                Amount = contract.TotalValue,
-                RequestedAt = contract.CreatedAt,
-                ModuleLink = $"/contracts/{contract.Id}"
-            });
-        }
-
-        var expensesRequiringApproval = await _context.ExecutedExpenses
-            .Include(e => e.ExpenseItem)
-            .Where(e => e.TenantId == tenantId
-                && !e.CouncilApproved
-                && e.ExpenseItem != null
-                && e.ExpenseItem.RequiresCouncilApproval
-                && e.Amount > e.ExpenseItem.ApprovalThreshold)
-            .ToListAsync();
-
-        foreach (var expense in expensesRequiringApproval)
-        {
-            var itemName = string.Empty;
-            if (expense.ExpenseItem != null)
-            {
-                itemName = expense.ExpenseItem.Name;
-            }
-
-            dashboard.PendingApprovals.Add(new CouncilApprovalDto
-            {
-                Type = "ExpenseRequiresApproval",
-                Description = $"Gasto en {itemName}: {expense.Description}",
-                Amount = expense.Amount,
-                RequestedAt = expense.CreatedAt,
-                ModuleLink = "/budgets"
-            });
-        }
-
-        dashboard.PendingApprovals = dashboard.PendingApprovals.OrderBy(a => a.RequestedAt).ToList();
-
-        try
-        {
-            var contingencyStatus = await _executionEngineService.GetContingencyFundStatusAsync(tenantId);
-            dashboard.ContingencyFund.AvailableBalance = contingencyStatus.AvailableBalance;
-            dashboard.ContingencyFund.TotalContributed = contingencyStatus.TotalContributed;
-            dashboard.ContingencyFund.TotalUsed = contingencyStatus.TotalUsed;
-            dashboard.ContingencyFund.RecentUsages = contingencyStatus.Usages
-                .Take(5)
-                .Select(u => new ContingencyFundUsageSummaryDto
-                {
-                    Justification = u.Justification,
-                    Amount = u.Amount,
-                    CouncilApprovalActNumber = u.CouncilApprovalActNumber,
-                    CreatedAt = u.CreatedAt
-                }).ToList();
-        }
-        catch (KeyNotFoundException)
-        {
-            _ = now;
-        }
-
-        return dashboard;
-    }
-
-    // ── Vista de Contador ─────────────────────────────────────────────
-
-    public async Task<AccountantBudgetPanelDto> GetAccountantBudgetPanelAsync(string tenantId)
-    {
-        var panel = new AccountantBudgetPanelDto();
-        var currentYear = DateTime.UtcNow.Year;
-
-        try
-        {
-            panel.Execution = await _executionEngineService.GetExecutionDashboardAsync(tenantId, currentYear);
-        }
-        catch (KeyNotFoundException)
-        {
-            panel.Execution = new BudgetExecutionDashboardDto { FiscalYear = currentYear };
-        }
-
-        var catalog = await _reportAccessControlService.GetFilteredCatalogAsync(tenantId, AppRole.Accountant.ToString());
-        panel.ReportLinks = catalog
-            .Where(r => r.IsActive)
-            .Select(r => new AuditorReportLinkDto
-            {
-                ReportTypeCode = r.ReportTypeCode,
-                Name = r.Name,
-                ModuleLink = "/reports"
-            }).ToList();
-
-        return panel;
-    }
-
-    // ── Vista de Auditor ──────────────────────────────────────────────
-
-    public async Task<AuditorDashboardDto> GetAuditorDashboardAsync(string tenantId)
-    {
-        var dashboard = new AuditorDashboardDto
-        {
-            CurrentFiscalYear = DateTime.UtcNow.Year
-        };
-
-        var catalog = await _reportAccessControlService.GetFilteredCatalogAsync(tenantId, AppRole.Auditor.ToString());
-        dashboard.AvailableReports = catalog
-            .Where(r => r.IsActive)
-            .Select(r => new AuditorReportLinkDto
-            {
-                ReportTypeCode = r.ReportTypeCode,
-                Name = r.Name,
-                ModuleLink = "/reports"
-            }).ToList();
-
-        return dashboard;
-    }
-
-    // ── Vista de Residente ────────────────────────────────────────────
-
-    public async Task<ResidentDashboardDto> GetResidentDashboardAsync(string tenantId, string userId)
-    {
-        var data = new ResidentDashboardDto();
-
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user == null)
-        {
-            return data;
-        }
-
-        var owner = await _context.Owners
-            .FirstOrDefaultAsync(o => o.TenantId == tenantId && o.Email == user.Email);
-        if (owner == null)
-        {
-            return data;
-        }
-
-        var unitOwner = await _context.UnitOwners
-            .Where(uo => uo.TenantId == tenantId && uo.OwnerId == owner.Id && uo.IsActive)
-            .Join(_context.Units, uo => uo.UnitId, u => u.Id, (uo, u) => new { uo.UnitId, u.Identifier })
-            .FirstOrDefaultAsync();
-
-        if (unitOwner == null)
-        {
-            return data;
-        }
-
-        data.UnitIdentifier = unitOwner.Identifier;
-
-        var overdueFees = await _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId && uf.UnitId == unitOwner.UnitId && uf.BalanceAmount > 0)
-            .ToListAsync();
-
-        var overdueExtra = await _context.ExtraordinaryFeeDistributions
-            .Where(efd => efd.TenantId == tenantId && efd.UnitId == unitOwner.UnitId && efd.BalanceAmount > 0)
-            .ToListAsync();
-
-        var overdueCharges = await _context.IndividualCharges
-            .Where(ic => ic.TenantId == tenantId && ic.UnitId == unitOwner.UnitId && ic.BalanceAmount > 0)
-            .ToListAsync();
-
-        var adjustmentTotal = await _context.BillingAdjustments
-            .Where(a => a.TenantId == tenantId && a.UnitId == unitOwner.UnitId)
-            .SumAsync(a => a.Amount);
-
-        data.CurrentBalance = overdueFees.Sum(f => f.BalanceAmount)
-            + overdueExtra.Sum(f => f.BalanceAmount)
-            + overdueCharges.Sum(f => f.BalanceAmount)
-            + adjustmentTotal;
-
-        var allDueDates = overdueFees.Select(f => f.DueDate)
-            .Concat(overdueExtra.Select(f => f.DueDate))
-            .Concat(overdueCharges.Select(f => f.ChargeDate))
-            .ToList();
-
-        if (allDueDates.Count > 0)
-        {
-            var oldestDate = allDueDates.Min();
-            data.OldestDebtDate = oldestDate;
-            data.DaysOverdue = Math.Max(0, (int)(DateTime.UtcNow - oldestDate).TotalDays);
-        }
-
-        var openPqrs = await _context.PqrRecords
-            .Where(p => p.TenantId == tenantId && p.OwnerId == owner.Id && p.Status != PQRStatus.Closed)
-            .OrderByDescending(p => p.CreatedAt)
-            .Take(5)
-            .ToListAsync();
-
-        var now = DateTime.UtcNow;
-
-        foreach (var pqr in openPqrs)
-        {
-            var isOverdue = false;
-            if (pqr.Deadline.HasValue && pqr.Deadline.Value < now && pqr.Status != PQRStatus.Responded)
-            {
-                isOverdue = true;
-            }
-
-            data.OpenPqrs.Add(new ResidentOpenPqrDto
-            {
-                RadicadoNumber = pqr.RadicadoNumber,
-                Subject = pqr.Subject,
-                Status = pqr.Status.ToString(),
-                CreatedAt = pqr.CreatedAt,
-                IsOverdue = isOverdue
-            });
-        }
-
-        var activeReservations = await _context.Reservations
-            .Include(r => r.Space)
-            .Where(r => r.TenantId == tenantId
-                && r.OwnerId == owner.Id
-                && r.EndDateTime >= now
-                && (r.Status == ReservationStatus.Requested || r.Status == ReservationStatus.Approved || r.Status == ReservationStatus.InUse))
-            .OrderBy(r => r.StartDateTime)
-            .Take(5)
-            .ToListAsync();
-
-        foreach (var reservation in activeReservations)
-        {
-            var spaceName = string.Empty;
-            if (reservation.Space != null)
-            {
-                spaceName = reservation.Space.Name;
-            }
-
-            data.ActiveReservations.Add(new ResidentReservationDto
-            {
-                SpaceName = spaceName,
-                StartDateTime = reservation.StartDateTime,
-                EndDateTime = reservation.EndDateTime,
-                Status = reservation.Status.ToString()
-            });
-        }
-
-        var latestCirculars = await _context.Communications
-            .Where(c => c.TenantId == tenantId
-                && c.Status == CommunicationStatus.Sent
-                && (c.AudienceType == AudienceType.AllOwners || c.AudienceType == AudienceType.AllResidents))
-            .OrderByDescending(c => c.SentAt)
-            .Take(5)
-            .ToListAsync();
-
-        foreach (var circular in latestCirculars)
-        {
-            var publishedAt = circular.CreatedAt;
-            if (circular.SentAt.HasValue)
-            {
-                publishedAt = circular.SentAt.Value;
-            }
-
-            data.LatestCirculars.Add(new ResidentCircularDto
-            {
-                Title = circular.Subject,
-                PublishedAt = publishedAt
-            });
-        }
-
-        return data;
     }
 
     // ── Invalidación de caché ─────────────────────────────────────────

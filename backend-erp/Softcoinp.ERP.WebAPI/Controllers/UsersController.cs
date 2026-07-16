@@ -69,7 +69,6 @@ public class UsersController : ControllerBase
             isSuspended = r.User.IsSuspended,
             suspendedReason = r.User.SuspendedReason,
             assignedAt = r.AssignedAt,
-            expiresAt = r.ExpiresAt
         }).ToListAsync();
 
         return Ok(users);

@@ -23,7 +23,7 @@ public class ReservationController : BaseController
     // ── Reservable Spaces ────────────────────────────────────────
 
     [HttpGet("spaces")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ReservableSpaceListDto>>> GetSpaces(
         [FromQuery] bool? isActive = null)
     {
@@ -33,7 +33,7 @@ public class ReservationController : BaseController
     }
 
     [HttpGet("spaces/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ReservableSpaceDetailDto>> GetSpace(Guid id)
     {
         var tenantId = GetTenantId();
@@ -80,7 +80,7 @@ public class ReservationController : BaseController
     // ── Schedules ────────────────────────────────────────────────
 
     [HttpGet("spaces/{spaceId:guid}/schedules")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<SpaceScheduleDto>>> GetSchedules(Guid spaceId)
     {
         var tenantId = GetTenantId();
@@ -110,7 +110,7 @@ public class ReservationController : BaseController
     // ── Space Blocks ─────────────────────────────────────────────
 
     [HttpGet("blocks")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<SpaceBlockDto>>> GetBlocks(
         [FromQuery] Guid? spaceId = null)
     {
@@ -133,7 +133,7 @@ public class ReservationController : BaseController
     // ── Reservations ─────────────────────────────────────────────
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ReservationListDto>>> GetReservations(
         [FromQuery] string? status = null,
         [FromQuery] Guid? spaceId = null,
@@ -148,7 +148,7 @@ public class ReservationController : BaseController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ReservationDetailDto>> GetReservation(Guid id)
     {
         var tenantId = GetTenantId();
@@ -157,7 +157,7 @@ public class ReservationController : BaseController
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ReservationDetailDto>> CreateReservation(
         [FromBody] CreateReservationRequestDto request)
     {
@@ -190,7 +190,7 @@ public class ReservationController : BaseController
     }
 
     [HttpPost("{id:guid}/cancel")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CancelReservation(Guid id)
     {
         var tenantId = GetTenantId();
@@ -235,7 +235,7 @@ public class ReservationController : BaseController
     // ── Deposits ─────────────────────────────────────────────────
 
     [HttpPost("{reservationId:guid}/deposits/pay")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> ProcessDepositPayment(
         Guid reservationId, [FromBody] ProcessDepositPaymentRequestDto request)
     {
@@ -246,7 +246,7 @@ public class ReservationController : BaseController
     }
 
     [HttpPost("{reservationId:guid}/deposits/return")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> ProcessDepositReturn(
         Guid reservationId, [FromBody] ProcessDepositReturnRequestDto request)
     {
@@ -270,7 +270,7 @@ public class ReservationController : BaseController
     // ── Availability ─────────────────────────────────────────────
 
     [HttpGet("availability")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<AvailabilityCheckDto>> CheckAvailability(
         [FromQuery] Guid spaceId,
         [FromQuery] DateTime start,
@@ -283,7 +283,7 @@ public class ReservationController : BaseController
     }
 
     [HttpGet("availability/slots")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AvailableSlotDto>>> GetAvailableSlots(
         [FromQuery] Guid spaceId,
         [FromQuery] DateTime date)
@@ -294,7 +294,7 @@ public class ReservationController : BaseController
     }
 
     [HttpGet("availability/alternatives")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AlternativeSlotDto>>> GetAlternatives(
         [FromQuery] Guid spaceId,
         [FromQuery] DateTime start,
@@ -308,7 +308,7 @@ public class ReservationController : BaseController
     // ── Calendar ─────────────────────────────────────────────────
 
     [HttpGet("calendar/{spaceId:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<CalendarEventDto>>> GetCalendarEvents(
         Guid spaceId,
         [FromQuery] DateTime monthStart,
@@ -322,7 +322,7 @@ public class ReservationController : BaseController
     // ── Reports ──────────────────────────────────────────────────
 
     [HttpGet("reports/{spaceId:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ReservationReportDto>> GetReport(
         Guid spaceId,
         [FromQuery] DateTime fromDate,

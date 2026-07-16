@@ -49,7 +49,6 @@ public class ExpenseItemDto
     public decimal MonthlyValue => Math.Round(AnnualValue / 12m, 2);
     public bool IsContingencyFund { get; set; }
     public decimal ContingencyPercentage { get; set; }
-    public bool RequiresCouncilApproval { get; set; }
     public decimal ApprovalThreshold { get; set; }
 }
 
@@ -80,7 +79,6 @@ public class CreateExpenseItemDto
     public decimal AnnualValue { get; set; }
     public bool IsContingencyFund { get; set; }
     public decimal ContingencyPercentage { get; set; }
-    public bool RequiresCouncilApproval { get; set; }
     public decimal ApprovalThreshold { get; set; }
 }
 
@@ -120,7 +118,6 @@ public class ExpenseExecutionItemDto
     public string TrafficLight { get; set; } = "Green";
     public bool IsContingencyFund { get; set; }
     public decimal ContingencyPercentage { get; set; }
-    public bool RequiresCouncilApproval { get; set; }
     public decimal ApprovalThreshold { get; set; }
 }
 
@@ -155,8 +152,6 @@ public class ExecutedExpenseDto
     public Guid? ProviderId { get; set; }
     public string ProviderName { get; set; } = string.Empty;
     public string InvoiceReference { get; set; } = string.Empty;
-    public bool CouncilApproved { get; set; }
-    public bool RequiresCouncilApproval { get; set; }
 }
 
 public class CreateModificationRequestDto
@@ -205,7 +200,6 @@ public class ContingencyFundUsageDto
     public Guid Id { get; set; }
     public string Justification { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public string CouncilApprovalActNumber { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
 
@@ -214,6 +208,5 @@ public class RecordContingencyFundUsageRequestDto
     public Guid BudgetId { get; set; }
     public string Justification { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public string CouncilApprovalActNumber { get; set; } = string.Empty;
     public Guid? ExecutedExpenseId { get; set; }
 }

@@ -558,7 +558,7 @@ public class ExcelGenerationEngine
         ws.Column(4).Width = 16; ws.Column(5).Width = 14; ws.Column(6).Width = 22;
     }
 
-    public async Task<GeneratedReport> GenerateAccountantExportAsync(
+    public async Task<GeneratedReport> GenerateFinancialExportAsync(
         string tenantId, string userId, DateTime periodFrom, DateTime periodTo)
     {
         var reportType = await _context.ReportTypes
@@ -571,10 +571,10 @@ public class ExcelGenerationEngine
         workbook.Style.Font.FontName = "Calibri";
 
         var incomeSheet = workbook.Worksheets.Add("Ingresos");
-        FillAccountantIncomeSheet(incomeSheet, tenantId, periodFrom, periodTo);
+        FillIncomeSheet(incomeSheet, tenantId, periodFrom, periodTo);
 
         var expenseSheet = workbook.Worksheets.Add("Egresos");
-        FillAccountantExpenseSheet(expenseSheet, tenantId, periodFrom, periodTo);
+        FillExpenseSheet(expenseSheet, tenantId, periodFrom, periodTo);
 
         var periodLabel = BuildPeriodLabel(periodFrom, periodTo);
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
@@ -608,7 +608,7 @@ public class ExcelGenerationEngine
         return generated;
     }
 
-    private void FillAccountantIncomeSheet(IXLWorksheet ws, string tenantId, DateTime from, DateTime to)
+    private void FillIncomeSheet(IXLWorksheet ws, string tenantId, DateTime from, DateTime to)
     {
         var headers = new[] {
             "Fecha", "Unidad", "Propietario", "Identificacion Propietario",
@@ -711,7 +711,7 @@ public class ExcelGenerationEngine
         ws.Column(7).Width = 20; ws.Column(8).Width = 24; ws.Column(9).Width = 10;
     }
 
-    private void FillAccountantExpenseSheet(IXLWorksheet ws, string tenantId, DateTime from, DateTime to)
+    private void FillExpenseSheet(IXLWorksheet ws, string tenantId, DateTime from, DateTime to)
     {
         var headers = new[] {
             "Fecha", "Proveedor", "Identificacion Proveedor", "Descripcion",

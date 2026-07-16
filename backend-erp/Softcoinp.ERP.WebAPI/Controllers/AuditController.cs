@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Domain.Interfaces;
 using Softcoinp.ERP.Infrastructure.Persistence;
 using System.Security.Claims;
@@ -10,7 +9,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/audit")]
-[Authorize]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class AuditController : ControllerBase
 {
     private readonly ApplicationDbContext _db;
@@ -32,14 +31,6 @@ public class AuditController : ControllerBase
     {
         var tenant = await _tenantResolver.GetCurrentTenantAsync();
         if (tenant == null) return BadRequest("No tenant active.");
-
-        // Solo Admin o SuperAdmin pueden ver la auditoría
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var tenantRole = await _db.UserTenantRoles
-            .FirstOrDefaultAsync(r => r.UserId == userId && r.TenantId == tenant.Id.ToString() && r.IsActive);
-
-        if (tenantRole?.Role != AppRole.Admin && !User.IsInRole(nameof(AppRole.SuperAdmin)))
-            return Forbid();
 
         var query = _db.AccessAuditLogs
             .Where(l => l.TenantId == tenant.Id.ToString())

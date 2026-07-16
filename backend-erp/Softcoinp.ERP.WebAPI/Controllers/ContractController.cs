@@ -22,7 +22,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ContractListDto>>> GetContracts(
         [FromQuery] string? status = null,
         [FromQuery] string? contractType = null,
@@ -35,7 +35,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ContractDetailDto>> GetContract(Guid id)
     {
         var tenantId = GetTenantId();
@@ -104,7 +104,7 @@ public class ContractController : BaseController
     }
 
     [HttpPut("{id:guid}/status")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ContractDetailDto>> ChangeContractStatus(Guid id, [FromBody] ChangeContractStatusRequestDto request)
     {
         var tenantId = GetTenantId();
@@ -233,7 +233,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("payments-pending")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<PendingPaymentDto>>> GetPendingPayments()
     {
         var tenantId = GetTenantId();
@@ -242,7 +242,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("expiring-report")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ContractExpirationReportDto>>> GetExpiringContractsReport(
         [FromQuery] int daysAhead = 90)
     {
@@ -252,7 +252,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("alerts/active")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ContractAlertDto>>> GetActiveAlerts()
     {
         var tenantId = GetTenantId();
@@ -279,7 +279,7 @@ public class ContractController : BaseController
     }
 
     [HttpGet("approval-thresholds")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ApprovalThresholdDto>>> GetApprovalThresholds()
     {
         var tenantId = GetTenantId();

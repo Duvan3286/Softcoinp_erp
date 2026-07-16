@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -35,8 +36,6 @@ public class CommunicationController : BaseController
         _delinquencySequenceEngine = delinquencySequenceEngine;
         _notificationEngine = notificationEngine;
     }
-
-    // ── Communications ────────────────────────────────────────────
 
     [HttpGet]
     [Authorize(Roles = "SuperAdmin,Admin")]
@@ -176,8 +175,6 @@ public class CommunicationController : BaseController
         }
     }
 
-    // ── Notification Templates ────────────────────────────────────
-
     [HttpGet("templates")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<NotificationTemplateDto>>> GetTemplates(
@@ -255,10 +252,8 @@ public class CommunicationController : BaseController
         return Ok(new { message = "Plantilla eliminada exitosamente" });
     }
 
-    // ── Bulletin Board ────────────────────────────────────────────
-
     [HttpGet("bulletin-board")]
-    [Authorize(Roles = "SuperAdmin,Admin,Owner,Tenant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<BulletinBoardPostDto>>> GetActiveBulletinPosts()
     {
         var tenantId = GetTenantId();
@@ -277,7 +272,7 @@ public class CommunicationController : BaseController
     }
 
     [HttpGet("bulletin-board/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Owner,Tenant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<BulletinBoardPostAdminDto>> GetBulletinPost(Guid id)
     {
         var tenantId = GetTenantId();
@@ -343,8 +338,6 @@ public class CommunicationController : BaseController
         return Ok(new { message = "Publicación archivada exitosamente" });
     }
 
-    // ── Communication Preferences ─────────────────────────────────
-
     [HttpGet("preferences")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<CommunicationPreferenceDto>>> GetAllPreferences()
@@ -355,7 +348,7 @@ public class CommunicationController : BaseController
     }
 
     [HttpGet("preferences/owner/{ownerId:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Owner")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<CommunicationPreferenceDto>> GetOwnerPreferences(Guid ownerId)
     {
         var tenantId = GetTenantId();
@@ -368,7 +361,7 @@ public class CommunicationController : BaseController
     }
 
     [HttpGet("preferences/tenant/{tenantResidentId:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Tenant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<CommunicationPreferenceDto>> GetTenantPreferences(Guid tenantResidentId)
     {
         var tenantId = GetTenantId();
@@ -381,7 +374,7 @@ public class CommunicationController : BaseController
     }
 
     [HttpPut("preferences/owner/{ownerId:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Owner")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<CommunicationPreferenceDto>> UpdateOwnerPreferences(
         Guid ownerId, [FromBody] UpdateCommunicationPreferenceRequest request)
     {
@@ -401,7 +394,7 @@ public class CommunicationController : BaseController
     }
 
     [HttpPut("preferences/tenant/{tenantResidentId:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Tenant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<CommunicationPreferenceDto>> UpdateTenantPreferences(
         Guid tenantResidentId, [FromBody] UpdateCommunicationPreferenceRequest request)
     {
@@ -419,8 +412,6 @@ public class CommunicationController : BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
-
-    // ── Delinquency Sequence ──────────────────────────────────────
 
     [HttpGet("delinquency-config")]
     [Authorize(Roles = "SuperAdmin,Admin")]
@@ -533,8 +524,6 @@ public class CommunicationController : BaseController
         }
     }
 
-    // ── Notification Engine (event trigger) ───────────────────────
-
     [HttpPost("notify")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult> TriggerNotification(
@@ -558,8 +547,6 @@ public class CommunicationController : BaseController
             return BadRequest(new { message = ex.Message });
         }
     }
-
-    // ── Reports ───────────────────────────────────────────────────
 
     [HttpGet("reports/effectiveness")]
     [Authorize(Roles = "SuperAdmin,Admin")]

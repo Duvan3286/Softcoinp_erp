@@ -73,7 +73,6 @@ public class ExpenseService
             ExpenseDate = request.ExpenseDate,
             ProviderId = request.ProviderId,
             InvoiceReference = request.InvoiceReference,
-            CouncilApproved = false,
             CreatedByUserId = userId
         };
 
@@ -82,47 +81,6 @@ public class ExpenseService
 
         return await GetExpenseAsync(tenantId, expense.Id)
             ?? throw new InvalidOperationException("Error al registrar el gasto.");
-    }
-
-    public async Task<ExecutedExpenseDto> ApproveCouncilExpenseAsync(string tenantId, Guid executedExpenseId)
-    {
-        var expense = await _context.ExecutedExpenses
-            .Include(e => e.ExpenseItem)
-            .Include(e => e.Provider)
-            .FirstOrDefaultAsync(e => e.Id == executedExpenseId && e.TenantId == tenantId);
-
-        if (expense == null)
-        {
-            throw new KeyNotFoundException("Gasto ejecutado no encontrado.");
-        }
-
-        if (expense.ExpenseItem == null || !expense.ExpenseItem.RequiresCouncilApproval)
-        {
-            throw new InvalidOperationException("Este gasto no requiere aprobacion del consejo.");
-        }
-
-        if (expense.CouncilApproved)
-        {
-            throw new InvalidOperationException("Este gasto ya fue aprobado por el consejo.");
-        }
-
-        expense.CouncilApproved = true;
-        await _context.SaveChangesAsync();
-
-        return new ExecutedExpenseDto
-        {
-            Id = expense.Id,
-            ExpenseItemId = expense.ExpenseItemId,
-            ExpenseItemName = expense.ExpenseItem.Name,
-            Description = expense.Description,
-            Amount = expense.Amount,
-            ExpenseDate = expense.ExpenseDate,
-            ProviderId = expense.ProviderId,
-            ProviderName = expense.Provider != null ? expense.Provider.BusinessName : string.Empty,
-            InvoiceReference = expense.InvoiceReference,
-            CouncilApproved = expense.CouncilApproved,
-            RequiresCouncilApproval = expense.ExpenseItem.RequiresCouncilApproval
-        };
     }
 
     public async Task<ExecutedExpenseDto?> GetExpenseAsync(string tenantId, Guid expenseId)
@@ -141,9 +99,7 @@ public class ExpenseService
                 ExpenseDate = e.ExpenseDate,
                 ProviderId = e.ProviderId,
                 ProviderName = e.Provider != null ? e.Provider.BusinessName : string.Empty,
-                InvoiceReference = e.InvoiceReference,
-                CouncilApproved = e.CouncilApproved,
-                RequiresCouncilApproval = e.ExpenseItem != null && e.ExpenseItem.RequiresCouncilApproval
+                InvoiceReference = e.InvoiceReference
             })
             .FirstOrDefaultAsync();
     }
@@ -183,9 +139,7 @@ public class ExpenseService
                 ExpenseDate = e.ExpenseDate,
                 ProviderId = e.ProviderId,
                 ProviderName = e.Provider != null ? e.Provider.BusinessName : string.Empty,
-                InvoiceReference = e.InvoiceReference,
-                CouncilApproved = e.CouncilApproved,
-                RequiresCouncilApproval = e.ExpenseItem != null && e.ExpenseItem.RequiresCouncilApproval
+                InvoiceReference = e.InvoiceReference
             })
             .ToListAsync();
     }
@@ -228,10 +182,7 @@ public class ExpenseService
             throw new ArgumentException("Tipo de modificacion invalido (Increase o Reduction).");
         }
 
-        if (!Enum.TryParse<ApprovalType>(request.ApprovalType, true, out var approvalType))
-        {
-            throw new ArgumentException("Tipo de aprobacion invalido (Council o Assembly).");
-        }
+        var approvalType = ApprovalType.Assembly;
 
         ExpenseItem? expenseItem = null;
         IncomeItem? incomeItem = null;
@@ -353,11 +304,6 @@ public class ExpenseService
             throw new ArgumentException("El monto debe ser mayor a cero.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.CouncilApprovalActNumber))
-        {
-            throw new ArgumentException("La aprobacion del consejo (numero de acta) es obligatoria para usar el fondo de imprevistos.");
-        }
-
         var budget = await _context.Budgets
             .Include(b => b.ExpenseItems)
             .FirstOrDefaultAsync(b => b.Id == request.BudgetId && b.TenantId == tenantId);
@@ -397,7 +343,6 @@ public class ExpenseService
             BudgetId = request.BudgetId,
             Justification = request.Justification,
             Amount = Math.Round(request.Amount, 2),
-            CouncilApprovalActNumber = request.CouncilApprovalActNumber,
             ExecutedExpenseId = request.ExecutedExpenseId,
             CreatedByUserId = userId
         };
@@ -410,7 +355,6 @@ public class ExpenseService
             Id = usage.Id,
             Justification = usage.Justification,
             Amount = usage.Amount,
-            CouncilApprovalActNumber = usage.CouncilApprovalActNumber,
             CreatedAt = usage.CreatedAt
         };
     }

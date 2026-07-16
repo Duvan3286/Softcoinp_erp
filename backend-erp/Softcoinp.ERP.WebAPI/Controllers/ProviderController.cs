@@ -21,7 +21,7 @@ public class ProviderController : BaseController
     }
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ProviderListDto>>> GetProviders(
         [FromQuery] string? status = null,
         [FromQuery] string? providerType = null,
@@ -34,7 +34,7 @@ public class ProviderController : BaseController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ProviderDetailDto>> GetProvider(Guid id)
     {
         var tenantId = GetTenantId();
@@ -116,7 +116,7 @@ public class ProviderController : BaseController
     }
 
     [HttpGet("{providerId:guid}/evaluations")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<ProviderEvaluationSummaryDto>>> GetProviderEvaluations(Guid providerId)
     {
         var tenantId = GetTenantId();
@@ -157,7 +157,7 @@ public class ProviderController : BaseController
     }
 
     [HttpGet("indicators")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ProviderIndicatorsDto>> GetIndicators()
     {
         var tenantId = GetTenantId();

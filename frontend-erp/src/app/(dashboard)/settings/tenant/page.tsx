@@ -32,34 +32,19 @@ export default function TenantConfigPage() {
   const [reps, setReps] = useState<LegalRepresentativeHistory[]>([]);
   const [docs, setDocs] = useState<TenantDocument[]>([]);
 
-  const [uploadRole, setUploadRole] = useState<number>(1);
   const [uploadSelection, setUploadSelection] = useState<string>('Reglamento (RPH)');
   const [uploadCustomTitle, setUploadCustomTitle] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
-  const documentOptions: Record<number, { label: string, type: number, value: string }[]> = {
-    1: [
-      { label: 'Reglamento (RPH)', type: 0, value: 'Reglamento (RPH)' },
-      { label: 'Certificado Representación', type: 1, value: 'Certificado Representación' },
-      { label: 'RUT', type: 2, value: 'RUT' },
-      { label: 'Otro Documento...', type: 3, value: 'OTRO' }
-    ],
-    2: [
-      { label: 'Acta de Nombramiento del Consejo', type: 3, value: 'Acta de Nombramiento del Consejo' },
-      { label: 'Reglamento Interno del Consejo', type: 3, value: 'Reglamento Interno del Consejo' },
-      { label: 'Documento de Identidad', type: 3, value: 'Documento de Identidad' },
-      { label: 'Otro Documento...', type: 3, value: 'OTRO' }
-    ],
-    4: [
-      { label: 'Acta de Nombramiento de Revisor Fiscal', type: 3, value: 'Acta de Nombramiento de Revisor Fiscal' },
-      { label: 'Tarjeta Profesional', type: 3, value: 'Tarjeta Profesional' },
-      { label: 'Certificado de Antecedentes', type: 3, value: 'Certificado de Antecedentes' },
-      { label: 'Documento de Identidad', type: 3, value: 'Documento de Identidad' },
-      { label: 'Otro Documento...', type: 3, value: 'OTRO' }
-    ]
-  };
+  const documentOptions: { label: string, type: number, value: string }[] = [
+    { label: 'Reglamento (RPH)', type: 0, value: 'Reglamento (RPH)' },
+    { label: 'Certificado Representacion', type: 1, value: 'Certificado Representacion' },
+    { label: 'RUT', type: 2, value: 'RUT' },
+    { label: 'Acta de Nombramiento', type: 3, value: 'Acta de Nombramiento' },
+    { label: 'Documento de Identidad', type: 3, value: 'Documento de Identidad' },
+    { label: 'Otro Documento...', type: 3, value: 'OTRO' }
+  ];
 
-  // Permissions
   const canEdit = user?.role === 'SuperAdmin' || user?.role === 'Admin';
 
   useEffect(() => {
@@ -123,7 +108,6 @@ export default function TenantConfigPage() {
   const handleChange = (field: keyof TenantConfiguration, value: any) => {
     if (!config || !canEdit) return;
     
-    
     setConfig({ ...config, [field]: value });
   };
 
@@ -131,7 +115,6 @@ export default function TenantConfigPage() {
     if (!config || !canEdit) return;
     const nit = val.replace(/\D/g, '').slice(0, 10);
     
-    // Calculate DV
     let dv = '';
     if (nit.length > 0) {
       const vpri = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
@@ -191,13 +174,12 @@ export default function TenantConfigPage() {
     setError('');
     setSuccess('');
 
-    // Client side validations
     if (config.billingCycleDay < 1 || config.billingCycleDay > 28) {
-      setError('El día de corte debe estar entre 1 y 28.');
+      setError('El dia de corte debe estar entre 1 y 28.');
       return;
     }
     if (config.hasContingencyFund && config.contingencyFundPercentage < 1) {
-      setError('Según la Ley 675, el fondo de imprevistos debe ser mínimo el 1% del presupuesto.');
+      setError('Segun la Ley 675, el fondo de imprevistos debe ser minimo el 1% del presupuesto.');
       return;
     }
 
@@ -205,9 +187,8 @@ export default function TenantConfigPage() {
     try {
       const updated = await tenantConfigService.updateConfig(config);
       setConfig(updated);
-      setSuccess('Configuración guardada exitosamente.');
+      setSuccess('Configuracion guardada exitosamente.');
       
-      // Refresh audit logs and reps history
       const alogs = await tenantConfigService.getAuditLogs().catch(() => []);
       setAuditLogs(alogs);
       const repHist = await tenantConfigService.getRepresentatives().catch(() => []);
@@ -215,7 +196,7 @@ export default function TenantConfigPage() {
 
     } catch (err: any) {
       console.error("Save error:", err);
-      let errorMessage = 'Error al guardar la configuración';
+      let errorMessage = 'Error al guardar la configuracion';
       if (err.response?.data) {
         if (typeof err.response.data === 'string') {
           errorMessage = err.response.data;
@@ -244,7 +225,7 @@ export default function TenantConfigPage() {
     const file = e.target.files[0];
     
     if (file.size > 2 * 1024 * 1024) {
-      setError('El logo excede el tamaño máximo de 2MB.');
+      setError('El logo excede el tamano maximo de 2MB.');
       return;
     }
     
@@ -255,7 +236,7 @@ export default function TenantConfigPage() {
       setSuccess('Logo actualizado.');
     } catch (err: any) {
       console.error("Logo upload error:", err);
-      let errorMessage = 'Error al subir el logo. Asegúrate de guardar primero la configuración básica.';
+      let errorMessage = 'Error al subir el logo. Asegurate de guardar primero la configuracion basica.';
       if (err.response?.data) {
         if (typeof err.response.data === 'string') {
           errorMessage = err.response.data;
@@ -277,7 +258,7 @@ export default function TenantConfigPage() {
     { id: 'operativo', label: 'Operativo', icon: <Settings className="w-4 h-4" /> },
     { id: 'notificaciones', label: 'Notificaciones', icon: <BellRing className="w-4 h-4" /> },
     { id: 'documentos', label: 'Documentos', icon: <FileText className="w-4 h-4" /> },
-    { id: 'historial', label: 'Historial / Auditoría', icon: <History className="w-4 h-4" /> }
+    { id: 'historial', label: 'Historial / Auditoria', icon: <History className="w-4 h-4" /> }
   ];
 
   if (isLoading) {
@@ -292,8 +273,8 @@ export default function TenantConfigPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Configuración del Conjunto</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestiona la identidad legal y parámetros operativos de la copropiedad.</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Configuracion del Conjunto</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gestiona la identidad legal y parametros operativos de la copropiedad.</p>
         </div>
         {canEdit && (
           <Button onClick={handleSave} disabled={isSaving || !config} className="bg-emerald-600 hover:bg-emerald-700">
@@ -319,13 +300,12 @@ export default function TenantConfigPage() {
 
       {!canEdit && (
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-400">
-          <strong>Modo Solo Lectura:</strong> No tienes permisos para modificar la configuración.
+          <strong>Modo Solo Lectura:</strong> No tienes permisos para modificar la configuracion.
         </div>
       )}
 
       <div className="bg-card rounded-xl shadow-sm border border-border flex flex-col md:flex-row overflow-hidden">
 
-        {/* Tabs sidebar */}
         <div className="w-full md:w-64 bg-muted/50 border-b md:border-b-0 md:border-r border-border flex flex-col p-4 gap-2">
           {tabs.map(tab => (
             <button
@@ -343,12 +323,10 @@ export default function TenantConfigPage() {
           ))}
         </div>
 
-        {/* Tab Content */}
         <div className="flex-1 p-6 md:p-8">
           {config && (
             <form onSubmit={handleSave} className="space-y-6">
               
-              {/* LEGAL */}
               {activeTab === 'legal' && (
                 <div className="animate-in fade-in space-y-6">
                   <h2 className="text-lg font-bold text-foreground border-b border-border pb-2">Identidad Legal</h2>
@@ -373,7 +351,7 @@ export default function TenantConfigPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Dirección</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Direccion</label>
                       <input disabled={!canEdit} value={config.address} onChange={e => handleChange('address', e.target.value)} required maxLength={200}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
@@ -391,7 +369,7 @@ export default function TenantConfigPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Teléfono Admin</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Telefono Admin</label>
                       <input type="tel" disabled={!canEdit} value={config.phone} onChange={e => handlePhoneChange(e.target.value)} required maxLength={20}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
@@ -402,12 +380,12 @@ export default function TenantConfigPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Matrícula Inmobiliaria</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Matricula Inmobiliaria</label>
                       <input disabled={!canEdit} value={config.realEstateRegistration} onChange={e => handleChange('realEstateRegistration', e.target.value)} required maxLength={50}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Fecha Constitución</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Fecha Constitucion</label>
                       <input type="date" disabled={!canEdit} value={config.constitutionDate.split('T')[0]} onChange={e => handleChange('constitutionDate', e.target.value)} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
@@ -421,8 +399,8 @@ export default function TenantConfigPage() {
                       <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo de Documento</label>
                       <select disabled={!canEdit} value={config.legalRepresentativeDocumentType} onChange={e => handleLegalDocTypeChange(e.target.value)} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50">
-                        <option value="CC">Cédula de Ciudadanía (CC)</option>
-                        <option value="CE">Cédula de Extranjería (CE)</option>
+                        <option value="CC">Cedula de Ciudadania (CC)</option>
+                        <option value="CE">Cedula de Extranjeria (CE)</option>
                         <option value="NIT">NIT</option>
                         <option value="PASAPORTE">Pasaporte</option>
                         <option value="PEP">Permiso Especial de Permanencia (PEP)</option>
@@ -432,7 +410,7 @@ export default function TenantConfigPage() {
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                          {config.legalRepresentativeDocumentType === 'NIT' ? 'NIT Rep. Legal' : 'Número de Documento'}
+                          {config.legalRepresentativeDocumentType === 'NIT' ? 'NIT Rep. Legal' : 'Numero de Documento'}
                         </label>
                         <input type="text" inputMode={['CC', 'NIT'].includes(config.legalRepresentativeDocumentType) ? 'numeric' : 'text'}
                           disabled={!canEdit} value={config.legalRepresentativeId} onChange={e => handleLegalDocChange(e.target.value)} required
@@ -466,7 +444,7 @@ export default function TenantConfigPage() {
                           <label htmlFor="logoUpload" className="cursor-pointer bg-muted hover:bg-muted/70 text-foreground px-4 py-2 rounded text-sm font-semibold flex items-center gap-2 transition-colors">
                             <UploadCloud className="w-4 h-4" /> Subir Logo (PNG/SVG)
                           </label>
-                          <p className="text-xs text-muted-foreground mt-2">Máximo 2MB.</p>
+                          <p className="text-xs text-muted-foreground mt-2">Maximo 2MB.</p>
                         </div>
                       )}
                     </div>
@@ -474,36 +452,35 @@ export default function TenantConfigPage() {
                 </div>
               )}
 
-              {/* FINANCIERO */}
               {activeTab === 'financiero' && (
                 <div className="animate-in fade-in space-y-6">
                   <h2 className="text-lg font-bold text-foreground border-b border-border pb-2 flex items-center gap-2">
-                    <BadgeDollarSign className="w-5 h-5 text-emerald-600" /> Parámetros Financieros
+                    <BadgeDollarSign className="w-5 h-5 text-emerald-600" /> Parametros Financieros
                   </h2>
                   <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 text-xs text-amber-700 font-medium">
-                    Nota: Los cambios realizados aquí se registrarán en la Auditoría.
+                    Nota: Los cambios realizados aqui se registraran en la Auditoria.
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Día de Corte (1-28)</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Dia de Corte (1-28)</label>
                       <input type="number" min={1} max={28} disabled={!canEdit} value={config.billingCycleDay} onChange={e => handleChange('billingCycleDay', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días de gracia para pago sin mora</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Dias de gracia para pago sin mora</label>
                       <input type="number" min={0} disabled={!canEdit} value={config.gracePeriodDays} onChange={e => handleChange('gracePeriodDays', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Inicio Año Fiscal (Mes)</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Inicio Ano Fiscal (Mes)</label>
                         <input type="number" min={1} max={12} disabled={!canEdit} value={config.fiscalYearStartMonth} onChange={e => handleChange('fiscalYearStartMonth', Number(e.target.value))} required
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Inicio (Día)</label>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Inicio (Dia)</label>
                         <input type="number" min={1} max={31} disabled={!canEdit} value={config.fiscalYearStartDay} onChange={e => handleChange('fiscalYearStartDay', Number(e.target.value))} required
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                       </div>
@@ -518,10 +495,9 @@ export default function TenantConfigPage() {
                 </div>
               )}
 
-              {/* OPERATIVO */}
               {activeTab === 'operativo' && (
                 <div className="animate-in fade-in space-y-6">
-                  <h2 className="text-lg font-bold text-foreground border-b border-border pb-2">Parámetros Operativos</h2>
+                  <h2 className="text-lg font-bold text-foreground border-b border-border pb-2">Parametros Operativos</h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -536,16 +512,16 @@ export default function TenantConfigPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Política de Redondeo Financiero</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Politica de Redondeo Financiero</label>
                       <select disabled={!canEdit} value={config.roundingPolicy} onChange={e => handleChange('roundingPolicy', Number(e.target.value))}
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50">
-                        <option value={0}>Al peso más cercano</option>
+                        <option value={0}>Al peso mas cercano</option>
                         <option value={1}>Siempre hacia arriba</option>
                         <option value={2}>Siempre hacia abajo</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Máx Cuotas Extra Activas</label>
+                      <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Max Cuotas Extra Activas</label>
                       <input type="number" disabled={!canEdit} value={config.maxActiveExtraordinaryQuotas} onChange={e => handleChange('maxActiveExtraordinaryQuotas', Number(e.target.value))} required
                         className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                     </div>
@@ -560,7 +536,7 @@ export default function TenantConfigPage() {
                         <input type="number" step="0.01" disabled={!canEdit || !config.hasContingencyFund} value={config.contingencyFundPercentage} onChange={e => handleChange('contingencyFundPercentage', Number(e.target.value))} required={config.hasContingencyFund}
                           className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                         {config.hasContingencyFund && config.contingencyFundPercentage < 1 && (
-                          <p className="text-[10px] text-rose-500 mt-1 font-bold">Según Ley 675, debe ser mínimo 1%.</p>
+                          <p className="text-[10px] text-rose-500 mt-1 font-bold">Segun Ley 675, debe ser minimo 1%.</p>
                         )}
                       </div>
                     </div>
@@ -568,7 +544,6 @@ export default function TenantConfigPage() {
                 </div>
               )}
 
-              {/* NOTIFICACIONES */}
               {activeTab === 'notificaciones' && (
                 <div className="animate-in fade-in space-y-6">
                   <h2 className="text-lg font-bold text-foreground border-b border-border pb-2">Notificaciones y Correos</h2>
@@ -588,12 +563,12 @@ export default function TenantConfigPage() {
 
                     <div className="flex items-center gap-3">
                       <input type="checkbox" id="autoMora" disabled={!canEdit} checked={config.autoSendLatePaymentNotifications} onChange={e => handleChange('autoSendLatePaymentNotifications', e.target.checked)} className="w-5 h-5 text-emerald-600" />
-                      <label htmlFor="autoMora" className="text-sm font-bold text-foreground">Enviar notificaciones automáticas a morosos</label>
+                      <label htmlFor="autoMora" className="text-sm font-bold text-foreground">Enviar notificaciones automaticas a morosos</label>
                     </div>
 
                     {config.autoSendLatePaymentNotifications && (
                        <div>
-                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Frecuencia de Notificación (Días)</label>
+                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Frecuencia de Notificacion (Dias)</label>
                          <input type="number" min={1} max={365} disabled={!canEdit} value={config.latePaymentNotificationFrequencyDays} onChange={e => handleChange('latePaymentNotificationFrequencyDays', Number(e.target.value))} required
                            className="w-64 bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none disabled:opacity-50" />
                        </div>
@@ -602,7 +577,6 @@ export default function TenantConfigPage() {
                 </div>
               )}
 
-              {/* HISTORIAL */}
               {activeTab === 'historial' && (
                 <div className="animate-in fade-in space-y-8">
                   
@@ -611,7 +585,7 @@ export default function TenantConfigPage() {
                        <History className="w-5 h-5 text-muted-foreground" /> Historial de Cambios Financieros
                     </h2>
                     {auditLogs.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No hay registros de auditoría.</p>
+                      <p className="text-sm text-muted-foreground">No hay registros de auditoria.</p>
                     ) : (
                       <div className="overflow-x-auto border border-border rounded-lg">
                         <table className="w-full text-left text-sm whitespace-nowrap">
@@ -619,7 +593,7 @@ export default function TenantConfigPage() {
                             <tr>
                               <th className="px-4 py-3">Fecha</th>
                               <th className="px-4 py-3">Usuario ID</th>
-                              <th className="px-4 py-3">Parámetro</th>
+                              <th className="px-4 py-3">Parametro</th>
                               <th className="px-4 py-3 text-rose-600">Valor Anterior</th>
                               <th className="px-4 py-3 text-emerald-600">Nuevo Valor</th>
                             </tr>
@@ -642,17 +616,17 @@ export default function TenantConfigPage() {
 
                   <div>
                     <h2 className="text-lg font-bold text-foreground border-b border-border pb-2 mb-4 flex items-center gap-2">
-                       <Users className="w-5 h-5 text-muted-foreground" /> Histórico de Representantes Legales
+                       <Users className="w-5 h-5 text-muted-foreground" /> Historico de Representantes Legales
                     </h2>
                     {reps.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No hay históricos.</p>
+                      <p className="text-sm text-muted-foreground">No hay historicos.</p>
                     ) : (
                       <div className="overflow-x-auto border border-border rounded-lg">
                         <table className="w-full text-left text-sm whitespace-nowrap">
                           <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                             <tr>
                               <th className="px-4 py-3">Nombre Completo</th>
-                              <th className="px-4 py-3">Identificación</th>
+                              <th className="px-4 py-3">Identificacion</th>
                               <th className="px-4 py-3">Desde</th>
                               <th className="px-4 py-3">Hasta</th>
                             </tr>
@@ -675,37 +649,29 @@ export default function TenantConfigPage() {
                 </div>
               )}
 
-              {/* DOCUMENTOS */}
               {activeTab === 'documentos' && (
                 <div className="animate-in fade-in space-y-6">
                   <h2 className="text-lg font-bold text-foreground border-b border-border pb-2 flex items-center gap-2">
                     <FileText className="w-5 h-5" /> Documentos Oficiales
                   </h2>
 
-                  {/* Tabla de Documentos */}
                   <div className="overflow-x-auto border border-border rounded-lg">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead className="bg-muted/50 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
                         <tr>
-                          <th className="px-4 py-3">Título</th>
+                          <th className="px-4 py-3">Titulo</th>
                           <th className="px-4 py-3">Fecha</th>
-                          <th className="px-4 py-3">Rol Mínimo</th>
-                          <th className="px-4 py-3 text-right">Acción</th>
+                          <th className="px-4 py-3 text-right">Accion</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {docs.length === 0 ? (
-                          <tr><td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">No hay documentos cargados.</td></tr>
+                          <tr><td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">No hay documentos cargados.</td></tr>
                         ) : (
                           docs.map(doc => (
                             <tr key={doc.id} className="hover:bg-muted/30">
                               <td className="px-4 py-3 font-semibold text-emerald-700">{doc.title}</td>
                               <td className="px-4 py-3 text-muted-foreground">{new Date(doc.uploadedAt).toLocaleDateString()}</td>
-                              <td className="px-4 py-3">
-                                <span className="bg-muted text-muted-foreground px-2 py-1 rounded text-[10px] font-bold uppercase">
-                                  {doc.minimumRoleRequired === 0 ? 'SuperAdmin' : doc.minimumRoleRequired === 1 ? 'Admin' : doc.minimumRoleRequired === 2 ? 'Consejo' : doc.minimumRoleRequired === 4 ? 'Auditor' : 'Todos'}
-                                </span>
-                              </td>
                               <td className="px-4 py-3 text-right">
                                 <button 
                                   onClick={() => tenantConfigService.downloadDocument(doc.id, `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`).catch(() => setError('Error al descargar el documento.'))}
@@ -722,29 +688,11 @@ export default function TenantConfigPage() {
                     </table>
                   </div>
 
-                  {/* Formulario de Carga */}
                   {canEdit && (
                     <div className="bg-muted/30 p-6 rounded-lg border border-dashed border-border mt-6">
                       <h3 className="text-sm font-bold text-foreground mb-4">Subir Nuevo Documento (PDF)</h3>
                       <div className="mt-4">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 items-end">
-                          <div className="md:col-span-3 flex flex-col gap-2">
-                            <label className="text-[10px] font-bold text-muted-foreground uppercase">Perfil / Rol</label>
-                            <select 
-                              value={uploadRole} 
-                              onChange={(e) => {
-                                const newRole = parseInt(e.target.value);
-                                setUploadRole(newRole);
-                                setUploadSelection(documentOptions[newRole][0].value);
-                              }}
-                              className="bg-input border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
-                            >
-                              <option value={1}>Administración</option>
-                              <option value={2}>Consejo (Council)</option>
-                              <option value={4}>Revisoría Fiscal / Auditor</option>
-                            </select>
-                          </div>
-
                           <div className="md:col-span-4 flex flex-col gap-2">
                             <label className="text-[10px] font-bold text-muted-foreground uppercase">Tipo de Documento</label>
                             <select 
@@ -752,20 +700,20 @@ export default function TenantConfigPage() {
                               onChange={(e) => setUploadSelection(e.target.value)}
                               className="bg-input border border-border p-2 text-sm rounded outline-none focus:border-emerald-600"
                             >
-                              {documentOptions[uploadRole].map(opt => (
+                              {documentOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
                             </select>
                           </div>
 
                           {uploadSelection === 'OTRO' && (
-                            <div className="md:col-span-5 flex flex-col gap-2">
-                              <label className="text-[10px] font-bold text-muted-foreground uppercase">Título del Documento</label>
-                              <input type="text" value={uploadCustomTitle} onChange={e => setUploadCustomTitle(e.target.value)} placeholder="Escriba un título..." className="bg-input border border-border p-2 text-sm rounded outline-none focus:border-emerald-600" />
+                            <div className="md:col-span-4 flex flex-col gap-2">
+                              <label className="text-[10px] font-bold text-muted-foreground uppercase">Titulo del Documento</label>
+                              <input type="text" value={uploadCustomTitle} onChange={e => setUploadCustomTitle(e.target.value)} placeholder="Escriba un titulo..." className="bg-input border border-border p-2 text-sm rounded outline-none focus:border-emerald-600" />
                             </div>
                           )}
 
-                          <div className={`flex flex-col gap-2 ${uploadSelection === 'OTRO' ? 'md:col-span-12' : 'md:col-span-5'}`}>
+                          <div className={`flex flex-col gap-2 ${uploadSelection === 'OTRO' ? 'md:col-span-4' : 'md:col-span-8'}`}>
                             <label className="text-[10px] font-bold text-muted-foreground uppercase">Archivo (PDF)</label>
                             <input 
                               id="doc-file-input"
@@ -782,31 +730,28 @@ export default function TenantConfigPage() {
                           onClick={async () => {
                             const title = uploadSelection === 'OTRO' ? uploadCustomTitle : uploadSelection;
                             
-                            const selectedOption = documentOptions[uploadRole].find(o => o.value === uploadSelection) || documentOptions[uploadRole][0];
+                            const selectedOption = documentOptions.find(o => o.value === uploadSelection) || documentOptions[0];
                             const type = selectedOption.type;
-                            const role = uploadRole;
 
                             if (!uploadFile || !title) {
-                              setError('El título y el archivo son obligatorios para subir un documento.');
+                              setError('El titulo y el archivo son obligatorios para subir un documento.');
                               return;
                             }
 
                             if (uploadFile.size > 10 * 1024 * 1024) {
-                              setError('El archivo excede el tamaño máximo permitido de 10MB.');
+                              setError('El archivo excede el tamano maximo permitido de 10MB.');
                               return;
                             }
 
                             setIsSaving(true);
                             try {
-                              await tenantConfigService.uploadDocument(uploadFile, type, title, role);
+                              await tenantConfigService.uploadDocument(uploadFile, type, title);
                               setSuccess('Documento subido correctamente.');
                               const dcs = await tenantConfigService.getDocuments();
                               setDocs(dcs);
                               
-                              // Limpiar formulario
                               setUploadCustomTitle('');
                               setUploadFile(null);
-                              // Reset the file input visually
                               const fileInput = document.getElementById('doc-file-input') as HTMLInputElement;
                               if (fileInput) fileInput.value = '';
                               

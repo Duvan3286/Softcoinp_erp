@@ -47,9 +47,6 @@ public class AuthController : ControllerBase
         _tenantResolver = tenantResolver;
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // POST /api/auth/login
-    // ─────────────────────────────────────────────────────────────────
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
@@ -62,7 +59,6 @@ public class AuthController : ControllerBase
 
         var user = await _userManager.FindByEmailAsync(request.Email);
 
-        // ── Usuario no existe: respuesta idéntica para no revelar emails ──
         if (user == null)
         {
             await WriteAuditAsync(null, request.Email, tenant?.Id, AuditEventType.LoginFailed, ip, userAgent,
@@ -70,7 +66,6 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Usuario o contraseña incorrectos." });
         }
 
-        // ── Cuenta suspendida permanentemente ──
         if (user.IsSuspended)
         {
             await WriteAuditAsync(user.Id, user.Email!, tenant?.Id, AuditEventType.LoginFailed, ip, userAgent,
@@ -78,7 +73,6 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Tu cuenta ha sido suspendida. Contacta al administrador del conjunto." });
         }
 
-        // ── Cuenta inactiva ──
         if (!user.IsActive)
         {
             await WriteAuditAsync(user.Id, user.Email!, tenant?.Id, AuditEventType.LoginFailed, ip, userAgent,
@@ -86,7 +80,6 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Tu cuenta está inactiva. Contacta al administrador." });
         }
 
-        // ── Bloqueo temporal ──
         if (user.LockoutUntil.HasValue && user.LockoutUntil > DateTime.UtcNow)
         {
             var remaining = (int)Math.Ceiling((user.LockoutUntil.Value - DateTime.UtcNow).TotalMinutes);
@@ -95,7 +88,6 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = $"Cuenta bloqueada temporalmente. Intenta de nuevo en {remaining} minuto(s)." });
         }
 
-        // ── Verificar contraseña ──
         var passwordOk = await _userManager.CheckPasswordAsync(user, request.Password);
 
         if (!passwordOk)
@@ -104,48 +96,23 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Usuario o contraseña incorrectos." });
         }
 
-        // ── Login exitoso: resetear contadores ──
         user.FailedLoginCount = 0;
         user.LockoutUntil = null;
         user.DailyLockoutCount = 0;
         user.LastLogin = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
 
-        // ── Obtener rol en el tenant actual ──
         var tenantRole = tenant != null
             ? await _db.UserTenantRoles
                 .Where(r => r.UserId == user.Id && r.TenantId == tenant.Id.ToString() && r.IsActive)
                 .FirstOrDefaultAsync()
             : null;
 
-        // Verificar expiración de rol (Council/Auditor)
-        if (tenantRole?.ExpiresAt.HasValue == true && tenantRole.ExpiresAt < DateTime.UtcNow)
-        {
-            // Council expirado → degradar a Resident automáticamente
-            if (tenantRole.Role == AppRole.Council)
-            {
-                tenantRole.Role = AppRole.Resident;
-                tenantRole.ExpiresAt = null;
-                _db.UserTenantRoles.Update(tenantRole);
-                await _db.SaveChangesAsync();
-            }
-            // Auditor expirado → desactivar
-            else if (tenantRole.Role == AppRole.Auditor)
-            {
-                tenantRole.IsActive = false;
-                _db.UserTenantRoles.Update(tenantRole);
-                await _db.SaveChangesAsync();
-                tenantRole = null;
-            }
-        }
-
-        // Rol final: prioridad UserTenantRole, luego IdentityRole (para SuperAdmin)
         var identityRoles = await _userManager.GetRolesAsync(user);
         var effectiveRole = tenantRole?.Role.ToString()
                             ?? identityRoles.FirstOrDefault()
-                            ?? AppRole.Resident.ToString();
+                            ?? string.Empty;
 
-        // ── Generar JWT + Refresh Token ──
         var (jwt, jwtExpiry) = GenerateJwtToken(user, effectiveRole, tenant?.Id);
         var (rawRefresh, hashedRefresh) = GenerateRefreshToken();
 
@@ -181,9 +148,6 @@ public class AuthController : ControllerBase
         });
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // POST /api/auth/refresh
-    // ─────────────────────────────────────────────────────────────────
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest? request)
     {
@@ -226,9 +190,8 @@ public class AuthController : ControllerBase
                 .FirstOrDefaultAsync()
             : null;
 
-        var effectiveRole = tenantRole?.Role.ToString() ?? identityRoles.FirstOrDefault() ?? AppRole.Resident.ToString();
+        var effectiveRole = tenantRole?.Role.ToString() ?? identityRoles.FirstOrDefault() ?? string.Empty;
 
-        // Rotar: revocar el anterior y emitir uno nuevo
         var (rawNew, hashedNew) = GenerateRefreshToken();
         stored.IsRevoked = true;
         stored.RevokedAt = DateTime.UtcNow;
@@ -255,9 +218,6 @@ public class AuthController : ControllerBase
         return Ok(new { token = jwt, tokenExpiry = jwtExpiry, refreshToken = rawNew });
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // POST /api/auth/logout
-    // ─────────────────────────────────────────────────────────────────
     [HttpPost("logout")]
     [Authorize]
     public async Task<IActionResult> Logout([FromBody] LogoutRequest? request)
@@ -288,9 +248,6 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Sesión cerrada correctamente." });
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // GET /api/auth/me
-    // ─────────────────────────────────────────────────────────────────
     [HttpGet("me")]
     [Authorize]
     public async Task<IActionResult> GetCurrentUser()
@@ -309,7 +266,7 @@ public class AuthController : ControllerBase
                 .FirstOrDefaultAsync()
             : null;
 
-        var effectiveRole = tenantRole?.Role.ToString() ?? identityRoles.FirstOrDefault() ?? AppRole.Resident.ToString();
+        var effectiveRole = tenantRole?.Role.ToString() ?? identityRoles.FirstOrDefault() ?? string.Empty;
 
         return Ok(new
         {
@@ -324,9 +281,6 @@ public class AuthController : ControllerBase
         });
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // GET /api/auth/my-tenants
-    // ─────────────────────────────────────────────────────────────────
     [HttpGet("my-tenants")]
     [Authorize]
     public async Task<IActionResult> GetMyTenants()
@@ -342,8 +296,7 @@ public class AuthController : ControllerBase
 
         var roles = await _db.UserTenantRoles
             .Where(r => r.UserId == userId
-                && r.IsActive
-                && (!r.ExpiresAt.HasValue || r.ExpiresAt.Value >= now))
+                && r.IsActive)
             .ToListAsync();
 
         var options = new List<MyTenantOption>();
@@ -376,9 +329,6 @@ public class AuthController : ControllerBase
         return Ok(options.OrderBy(o => o.Name));
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // POST /api/auth/switch-tenant
-    // ─────────────────────────────────────────────────────────────────
     [HttpPost("switch-tenant")]
     [Authorize]
     public async Task<IActionResult> SwitchTenant([FromBody] SwitchTenantRequest request)
@@ -388,16 +338,11 @@ public class AuthController : ControllerBase
         var user = await _userManager.FindByIdAsync(userId!);
         if (user == null) return Unauthorized();
 
-        // Verificar que el usuario tiene acceso al tenant destino
         var tenantRole = await _db.UserTenantRoles
             .Where(r => r.UserId == userId && r.TenantId == request.TenantId.ToString() && r.IsActive)
             .FirstOrDefaultAsync();
 
         if (tenantRole == null)
-            return Forbid();
-
-        // Verificar expiración
-        if (tenantRole.ExpiresAt.HasValue && tenantRole.ExpiresAt < DateTime.UtcNow)
             return Forbid();
 
         var identityRoles = await _userManager.GetRolesAsync(user);
@@ -433,9 +378,6 @@ public class AuthController : ControllerBase
         });
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // POST /api/auth/change-password
-    // ─────────────────────────────────────────────────────────────────
     [HttpPost("change-password")]
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
@@ -458,13 +400,8 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Contraseña actualizada correctamente." });
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // MÉTODOS PRIVADOS
-    // ─────────────────────────────────────────────────────────────────
-
     private async Task HandleFailedAttemptAsync(User user, Guid? tenantId, string? ip, string? userAgent)
     {
-        // Resetear el contador diario si es un nuevo día
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (user.DailyLockoutResetDate != today)
         {
@@ -621,9 +558,6 @@ public class AuthController : ControllerBase
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// DTOs (Request Models)
-// ─────────────────────────────────────────────────────────────────────
 public record LoginRequest(string Email, string Password);
 public record RefreshRequest(string RefreshToken);
 public record LogoutRequest(string? RefreshToken);

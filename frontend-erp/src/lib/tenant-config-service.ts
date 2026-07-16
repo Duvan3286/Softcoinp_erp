@@ -24,7 +24,7 @@ export interface TenantConfiguration {
   
   totalUnits: number;
   totalTowers: number;
-  roundingPolicy: number; // 0 = Nearest, 1 = Up, 2 = Down
+  roundingPolicy: number;
   maxActiveExtraordinaryQuotas: number;
   hasContingencyFund: boolean;
   contingencyFundPercentage: number;
@@ -59,10 +59,9 @@ export interface TenantDocument {
   id: string;
   title: string;
   type: number;
-  filePath?: string; // Solo backend
-  contentType?: string; // Solo backend
+  filePath?: string;
+  contentType?: string;
   fileSize: number;
-  minimumRoleRequired: number;
   uploadedAt: string;
 }
 
@@ -101,12 +100,11 @@ const tenantConfigService = {
     return response.data;
   },
 
-  async uploadDocument(file: File, type: number, title: string, minRole: number): Promise<TenantDocument> {
+  async uploadDocument(file: File, type: number, title: string): Promise<TenantDocument> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type.toString());
     formData.append('title', title);
-    formData.append('minRole', minRole.toString());
     
     const response = await apiClient.post<TenantDocument>('/tenant-config/documents', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }

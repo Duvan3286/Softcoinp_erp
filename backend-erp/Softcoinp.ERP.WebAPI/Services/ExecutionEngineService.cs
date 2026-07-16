@@ -92,7 +92,6 @@ public class ExecutionEngineService
                 TrafficLight = trafficLight,
                 IsContingencyFund = expenseItem.IsContingencyFund,
                 ContingencyPercentage = expenseItem.ContingencyPercentage,
-                RequiresCouncilApproval = expenseItem.RequiresCouncilApproval,
                 ApprovalThreshold = expenseItem.ApprovalThreshold
             });
 
@@ -186,7 +185,6 @@ public class ExecutionEngineService
                 Id = u.Id,
                 Justification = u.Justification,
                 Amount = u.Amount,
-                CouncilApprovalActNumber = u.CouncilApprovalActNumber,
                 CreatedAt = u.CreatedAt
             })
             .ToListAsync();

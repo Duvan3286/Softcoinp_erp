@@ -104,7 +104,6 @@ public class BudgetService
                     AnnualValue = adjustedValue,
                     IsContingencyFund = prev.IsContingencyFund,
                     ContingencyPercentage = prev.ContingencyPercentage,
-                    RequiresCouncilApproval = prev.RequiresCouncilApproval,
                     ApprovalThreshold = prev.ApprovalThreshold
                 });
             }
@@ -140,7 +139,6 @@ public class BudgetService
                         AnnualValue = Math.Round(item.AnnualValue, 2),
                         IsContingencyFund = item.IsContingencyFund,
                         ContingencyPercentage = item.ContingencyPercentage,
-                        RequiresCouncilApproval = item.RequiresCouncilApproval,
                         ApprovalThreshold = item.ApprovalThreshold
                     });
                 }
@@ -215,7 +213,6 @@ public class BudgetService
                     AnnualValue = e.AnnualValue,
                     IsContingencyFund = e.IsContingencyFund,
                     ContingencyPercentage = e.ContingencyPercentage,
-                    RequiresCouncilApproval = e.RequiresCouncilApproval,
                     ApprovalThreshold = e.ApprovalThreshold
                 }).ToList()
             })
@@ -272,7 +269,6 @@ public class BudgetService
                 AnnualValue = Math.Round(item.AnnualValue, 2),
                 IsContingencyFund = item.IsContingencyFund,
                 ContingencyPercentage = item.ContingencyPercentage,
-                RequiresCouncilApproval = item.RequiresCouncilApproval,
                 ApprovalThreshold = item.ApprovalThreshold
             });
         }

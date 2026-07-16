@@ -16,7 +16,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class ReportController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -46,18 +46,11 @@ public class ReportController : ControllerBase
         return User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     }
 
-    private string GetUserRole()
-    {
-        return User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
-    }
-
-    // ── Catalog ────────────────────────────────────────
-
     [HttpGet("catalog")]
     public async Task<ActionResult<List<ReportCatalogItemDto>>> GetCatalog()
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 
         var types = await _accessControl.GetFilteredCatalogAsync(tenantId, role);
 
@@ -84,8 +77,6 @@ public class ReportController : ControllerBase
         return new List<string> { "Pdf", "Excel" };
     }
 
-    // ── Generate Report ────────────────────────────────
-
     private static readonly Dictionary<string, List<string>> RestrictedFormatsByType = new()
     {
         ["AssemblyReport"] = new List<string> { "Pdf" },
@@ -98,7 +89,7 @@ public class ReportController : ControllerBase
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
-        var role = GetUserRole();
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 
         if (!_accessControl.CanAccessReport(role, request.ReportTypeCode))
             return Forbid();
@@ -165,7 +156,7 @@ public class ReportController : ControllerBase
         string reportTypeCode, [FromQuery] DateTime? periodFrom, [FromQuery] DateTime? periodTo)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 
         if (!_accessControl.CanAccessReport(role, reportTypeCode))
             return Forbid();
@@ -177,8 +168,6 @@ public class ReportController : ControllerBase
         return File(pdfBytes, "application/pdf");
     }
 
-    // ── History ────────────────────────────────────────
-
     [HttpGet("history")]
     public async Task<ActionResult<List<GeneratedReportDto>>> GetHistory(
         [FromQuery] string? reportTypeCode = null,
@@ -186,7 +175,7 @@ public class ReportController : ControllerBase
         [FromQuery] DateTime? to = null)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 
         var history = await _accessControl.GetFilteredHistoryAsync(tenantId, role);
 
@@ -206,7 +195,7 @@ public class ReportController : ControllerBase
     public async Task<IActionResult> DownloadReport(Guid id)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 
         var report = await _context.GeneratedReports
             .Include(r => r.ReportType)
@@ -232,16 +221,10 @@ public class ReportController : ControllerBase
         return File(fileBytes, contentType, report.FileName);
     }
 
-    // ── Recurring Reports ──────────────────────────────
-
     [HttpGet("recurring")]
     public async Task<ActionResult<List<RecurringReportConfigDto>>> GetRecurringConfigs()
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var configs = await _context.RecurringReportConfigs
             .Where(c => c.TenantId == tenantId)
@@ -275,10 +258,6 @@ public class ReportController : ControllerBase
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         if (!Enum.TryParse<ReportTypeEnum>(request.ReportTypeCode, out var reportTypeCode))
             return BadRequest("Codigo de tipo de reporte invalido.");
@@ -344,10 +323,6 @@ public class ReportController : ControllerBase
     public async Task<IActionResult> PauseRecurringConfig(Guid id)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var config = await _context.RecurringReportConfigs
             .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId);
@@ -366,10 +341,6 @@ public class ReportController : ControllerBase
     public async Task<IActionResult> ResumeRecurringConfig(Guid id)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var config = await _context.RecurringReportConfigs
             .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId);
@@ -385,16 +356,10 @@ public class ReportController : ControllerBase
         return Ok();
     }
 
-    // ── Annual Management Report Sections ──────────────
-
     [HttpGet("annual/sections")]
     public async Task<ActionResult<List<ManagementReportSectionDto>>> GetAnnualReportSections()
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var sections = await _context.ManagementReportSections
             .Where(s => s.TenantId == tenantId)
@@ -422,11 +387,7 @@ public class ReportController : ControllerBase
         Guid id, [FromBody] UpdateManagementReportSectionDto request)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
         var userId = GetUserId();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var section = await _context.ManagementReportSections
             .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
@@ -471,10 +432,6 @@ public class ReportController : ControllerBase
     public async Task<IActionResult> RegenerateSection(Guid id)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var section = await _context.ManagementReportSections
             .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
@@ -608,10 +565,6 @@ public class ReportController : ControllerBase
     public async Task<ActionResult<AnnualReportStatusDto>> GetAnnualReportStatus()
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var sections = await _context.ManagementReportSections
             .Where(s => s.TenantId == tenantId)
@@ -645,10 +598,6 @@ public class ReportController : ControllerBase
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var reportType = await _context.ReportTypes
             .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.ReportTypeCode == ReportTypeEnum.AnnualManagementReport);
@@ -679,35 +628,27 @@ public class ReportController : ControllerBase
         });
     }
 
-    // ── Accountant Export ──────────────────────────────
-
     [HttpPost("accountant-export")]
     public async Task<IActionResult> GenerateAccountantExport([FromBody] AccountantExportRequestDto request)
     {
         var tenantId = GetTenantId();
         var userId = GetUserId();
-        var role = GetUserRole();
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
 
         if (!_accessControl.CanAccessReport(role, "AccountantExport"))
             return Forbid();
 
-        var result = await _excelEngine.GenerateAccountantExportAsync(tenantId, userId, request.PeriodFrom, request.PeriodTo);
+        var result = await _excelEngine.GenerateFinancialExportAsync(tenantId, userId, request.PeriodFrom, request.PeriodTo);
 
         var fileBytes = await System.IO.File.ReadAllBytesAsync(result.FilePath);
 
         return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", result.FileName);
     }
 
-    // ── PDF Template (Global Config) ───────────────────
-
     [HttpGet("template")]
     public async Task<ActionResult> GetGlobalTemplate()
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var template = await _context.PDFTemplates
             .Where(t => t.TenantId == tenantId && t.IsGlobal)
@@ -745,11 +686,7 @@ public class ReportController : ControllerBase
     public async Task<IActionResult> UpdateGlobalTemplate([FromBody] UpdateGlobalTemplateDto request)
     {
         var tenantId = GetTenantId();
-        var role = GetUserRole();
         var userId = GetUserId();
-
-        if (role != "Admin" && role != "SuperAdmin")
-            return Forbid();
 
         var template = await _context.PDFTemplates
             .Where(t => t.TenantId == tenantId && t.IsGlobal)
@@ -800,8 +737,6 @@ public class ReportController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok();
     }
-
-    // ── Helper ─────────────────────────────────────────
 
     private static DateTime CalculateNextExecution(ReportFrequency frequency, DateTime from)
     {

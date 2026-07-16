@@ -20,10 +20,8 @@ public class AssemblyController : BaseController
         _assemblyService = assemblyService;
     }
 
-    // ── Assembly CRUD ─────────────────────────────────────────────
-
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AssemblyListDto>>> GetAssemblies(
         [FromQuery] string? status = null,
         [FromQuery] string? type = null,
@@ -37,7 +35,7 @@ public class AssemblyController : BaseController
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<AssemblyDetailDto>> GetAssembly(Guid id)
     {
         var tenantId = GetTenantId();
@@ -84,8 +82,6 @@ public class AssemblyController : BaseController
         return NoContent();
     }
 
-    // ── Session Flow ──────────────────────────────────────────────
-
     [HttpPost("{id:guid}/convocate")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> Convocate(Guid id)
@@ -116,10 +112,8 @@ public class AssemblyController : BaseController
         return Ok(new { message = "Session ended successfully" });
     }
 
-    // ── Convocation ───────────────────────────────────────────────
-
     [HttpGet("{id:guid}/convocations")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AssemblyConvocationDto>>> GetConvocations(Guid id)
     {
         var tenantId = GetTenantId();
@@ -148,10 +142,8 @@ public class AssemblyController : BaseController
         return Ok(new { message = "Convocation sent successfully" });
     }
 
-    // ── Attendance ────────────────────────────────────────────────
-
     [HttpGet("{id:guid}/attendances")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AssemblyAttendanceDto>>> GetAttendances(Guid id)
     {
         var tenantId = GetTenantId();
@@ -192,10 +184,8 @@ public class AssemblyController : BaseController
         return Ok(new { message = "Voting restriction lifted successfully" });
     }
 
-    // ── Agenda Items ──────────────────────────────────────────────
-
     [HttpGet("{id:guid}/agenda-items")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AssemblyAgendaItemDto>>> GetAgendaItems(Guid id)
     {
         var tenantId = GetTenantId();
@@ -234,8 +224,6 @@ public class AssemblyController : BaseController
         return NoContent();
     }
 
-    // ── Voting ────────────────────────────────────────────────────
-
     [HttpPost("agenda-items/{itemId:guid}/vote")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<AssemblyAgendaItemDto>> RegisterVote(
@@ -247,10 +235,8 @@ public class AssemblyController : BaseController
         return Ok(item);
     }
 
-    // ── Constancies ───────────────────────────────────────────────
-
     [HttpGet("{id:guid}/constancies")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AssemblyConstancyDto>>> GetConstancies(Guid id)
     {
         var tenantId = GetTenantId();
@@ -268,8 +254,6 @@ public class AssemblyController : BaseController
         var constancy = await _assemblyService.CreateConstancyAsync(id, request, tenantId, userId);
         return Ok(constancy);
     }
-
-    // ── Minutes ───────────────────────────────────────────────────
 
     [HttpPost("{id:guid}/minutes/generate")]
     [Authorize(Roles = "SuperAdmin,Admin")]
@@ -303,10 +287,8 @@ public class AssemblyController : BaseController
         return Ok(new { message = "Minutes published successfully" });
     }
 
-    // ── Decision Propagation ──────────────────────────────────────
-
     [HttpGet("{id:guid}/propagations")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<List<AssemblyDecisionPropagationDto>>> GetPropagations(Guid id)
     {
         var tenantId = GetTenantId();
@@ -325,10 +307,8 @@ public class AssemblyController : BaseController
         return Ok(propagation);
     }
 
-    // ── Quorum ────────────────────────────────────────────────────
-
     [HttpGet("{id:guid}/quorum")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<QuorumStatusDto>> GetQuorumStatus(Guid id)
     {
         var tenantId = GetTenantId();
@@ -345,10 +325,8 @@ public class AssemblyController : BaseController
         return Ok(units);
     }
 
-    // ── Reports ───────────────────────────────────────────────────
-
     [HttpGet("report")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<AssemblyReportDto>> GetReport()
     {
         var tenantId = GetTenantId();

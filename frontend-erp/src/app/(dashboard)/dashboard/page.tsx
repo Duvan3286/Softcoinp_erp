@@ -10,8 +10,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import dashboardService, {
   DashboardKpis, AlertItem, UpcomingEventItem, RecentActivityItem,
-  PaymentStatusMap, UnitPaymentStatus, MonthlyCollectionItem,
-  CouncilDashboard, AccountantBudgetPanel, AuditorDashboard, ResidentDashboard
+  PaymentStatusMap, UnitPaymentStatus, MonthlyCollectionItem
 } from '@/lib/dashboard-service';
 import {
   Loader2, AlertTriangle, DollarSign, Calendar, Activity,
@@ -82,7 +81,7 @@ function getUrgencyBadgeClass(urgency: string): string {
 
 function getUrgencyLabel(urgency: string): string {
   if (urgency === 'Critical') {
-    return 'Crítica';
+    return 'Critica';
   }
   if (urgency === 'High') {
     return 'Alta';
@@ -111,26 +110,8 @@ function getRefreshButtonLabel(refreshing?: boolean): string {
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
-  const role = user?.role || '';
-
-  if (role === 'Resident') {
-    return <ResidentDashboardView user={user} logout={logout} />;
-  }
-
-  if (role === 'Auditor') {
-    return <AuditorDashboardView user={user} logout={logout} />;
-  }
-
-  if (role === 'Accountant') {
-    return <AccountantDashboardView user={user} logout={logout} />;
-  }
-
-  return <OperationalDashboardView user={user} logout={logout} role={role} />;
+  return <DashboardView user={user} logout={logout} />;
 }
-
-// ═══════════════════════════════════════════════════════════════════════
-// Encabezado común
-// ═══════════════════════════════════════════════════════════════════════
 
 function DashboardHeader({ title, subtitle, user, logout, onRefresh, refreshing }: {
   title: string; subtitle: string; user: any; logout: () => void;
@@ -151,31 +132,23 @@ function DashboardHeader({ title, subtitle, user, logout, onRefresh, refreshing 
         )}
         <Button variant="secondary" onClick={logout} className="gap-2">
           <LogOut size={18} />
-          <span className="hidden sm:inline">Cerrar Sesión</span>
+          <span className="hidden sm:inline">Cerrar Sesion</span>
         </Button>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Vista operativa: Administrador / Consejo
-// ═══════════════════════════════════════════════════════════════════════
-
-function OperationalDashboardView({ user, logout, role }: { user: any; logout: () => void; role: string }) {
+function DashboardView({ user, logout }: { user: any; logout: () => void }) {
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [chart, setChart] = useState<MonthlyCollectionItem[]>([]);
   const [events, setEvents] = useState<UpcomingEventItem[]>([]);
   const [activity, setActivity] = useState<RecentActivityItem[]>([]);
   const [paymentMap, setPaymentMap] = useState<PaymentStatusMap | null>(null);
-  const [councilData, setCouncilData] = useState<CouncilDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-
-  const isAdmin = role === 'SuperAdmin' || role === 'Admin';
-  const isCouncil = role === 'Council';
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) {
@@ -196,26 +169,19 @@ function OperationalDashboardView({ user, logout, role }: { user: any; logout: (
       setChart(chartResult);
       setEvents(eventsResult);
 
-      if (isAdmin) {
-        const [mapResult, activityResult] = await Promise.all([
-          dashboardService.getPaymentStatusMap(),
-          dashboardService.getRecentActivity()
-        ]);
-        setPaymentMap(mapResult);
-        setActivity(activityResult);
-      }
-
-      if (isCouncil) {
-        const council = await dashboardService.getCouncilDashboard();
-        setCouncilData(council);
-      }
+      const [mapResult, activityResult] = await Promise.all([
+        dashboardService.getPaymentStatusMap(),
+        dashboardService.getRecentActivity()
+      ]);
+      setPaymentMap(mapResult);
+      setActivity(activityResult);
     } catch {
       setError('Error al cargar datos del dashboard.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isAdmin, isCouncil]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -261,39 +227,34 @@ function OperationalDashboardView({ user, logout, role }: { user: any; logout: (
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingEventsPanel events={events} />
-        {isAdmin && <RecentActivityPanel activities={activity} />}
-        {isCouncil && councilData && <CouncilApprovalsPanel data={councilData} />}
+        <RecentActivityPanel activities={activity} />
       </div>
 
-      {isAdmin && <PaymentStatusMapSection map={paymentMap} />}
+      <PaymentStatusMapSection map={paymentMap} />
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// KPIs
-// ═══════════════════════════════════════════════════════════════════════
-
 function KpiBar({ kpis, activeAlertCount }: { kpis: DashboardKpis; activeAlertCount: number }) {
-  let periodContext = `${kpis.daysElapsedInPeriod} de ${kpis.totalDaysInPeriod} días transcurridos`;
+  let periodContext = `${kpis.daysElapsedInPeriod} de ${kpis.totalDaysInPeriod} dias transcurridos`;
 
   const kpiList = [
     {
       title: 'Recaudo del Mes',
       value: formatPercent(kpis.currentMonthCollectionPercentage),
-      subtitle: `Mes anterior: ${formatPercent(kpis.previousMonthCollectionPercentage)} · ${periodContext}`,
+      subtitle: `Mes anterior: ${formatPercent(kpis.previousMonthCollectionPercentage)} . ${periodContext}`,
       icon: <TrendingUp className="w-5 h-5 text-emerald-600" />,
       color: getCollectionColorClass(kpis.currentMonthCollectionPercentage)
     },
     {
       title: 'Cartera Vencida',
       value: formatCurrency(kpis.totalOverduePortfolio),
-      subtitle: `1 mes: ${formatCurrency(kpis.overdueOneMonth)} · 2 meses: ${formatCurrency(kpis.overdueTwoMonths)} · 3+ meses: ${formatCurrency(kpis.overdueThreeOrMoreMonths)}`,
+      subtitle: `1 mes: ${formatCurrency(kpis.overdueOneMonth)} . 2 meses: ${formatCurrency(kpis.overdueTwoMonths)} . 3+ meses: ${formatCurrency(kpis.overdueThreeOrMoreMonths)}`,
       icon: <AlertTriangle className="w-5 h-5 text-rose-600" />,
       color: 'text-rose-600'
     },
     {
-      title: 'Ejecución Presupuestal',
+      title: 'Ejecucion Presupuestal',
       value: formatPercent(kpis.budgetExecutionPercentage),
       subtitle: `Esperado a la fecha: ${formatPercent(kpis.budgetExpectedExecutionPercentage)}`,
       icon: <PiggyBank className="w-5 h-5 text-violet-600" />,
@@ -302,14 +263,14 @@ function KpiBar({ kpis, activeAlertCount }: { kpis: DashboardKpis; activeAlertCo
     {
       title: 'PQR Abiertos',
       value: `${kpis.openPqrCount}`,
-      subtitle: `${kpis.overduePqrCount} superaron el tiempo límite`,
+      subtitle: `${kpis.overduePqrCount} superaron el tiempo limite`,
       icon: <MessageSquare className="w-5 h-5 text-blue-600" />,
       color: 'text-blue-600'
     },
     {
       title: 'Alertas Activas',
       value: `${activeAlertCount}`,
-      subtitle: 'Requieren atención hoy',
+      subtitle: 'Requieren atencion hoy',
       icon: <Activity className="w-5 h-5 text-amber-600" />,
       color: 'text-amber-600'
     }
@@ -332,10 +293,6 @@ function KpiBar({ kpis, activeAlertCount }: { kpis: DashboardKpis; activeAlertCo
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════
-// Gráfico de recaudo histórico
-// ═══════════════════════════════════════════════════════════════════════
 
 function CollectionChartCard({ data }: { data: MonthlyCollectionItem[] }) {
   if (!data || data.length === 0) {
@@ -379,10 +336,6 @@ function CollectionChartCard({ data }: { data: MonthlyCollectionItem[] }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Panel de alertas operativas
-// ═══════════════════════════════════════════════════════════════════════
-
 function AlertsPanel({ alerts }: { alerts: AlertItem[] }) {
   const router = useRouter();
   const [filter, setFilter] = useState('All');
@@ -405,7 +358,7 @@ function AlertsPanel({ alerts }: { alerts: AlertItem[] }) {
           className="mt-2 bg-transparent border border-border rounded-lg px-2 py-1 text-xs font-semibold text-foreground outline-none"
         >
           <option value="All">Todas las urgencias</option>
-          <option value="Critical">Crítica</option>
+          <option value="Critical">Critica</option>
           <option value="High">Alta</option>
           <option value="Medium">Media</option>
         </select>
@@ -443,10 +396,6 @@ function AlertsPanel({ alerts }: { alerts: AlertItem[] }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Próximos eventos y actividad reciente
-// ═══════════════════════════════════════════════════════════════════════
-
 function UpcomingEventsPanel({ events }: { events: UpcomingEventItem[] }) {
   const router = useRouter();
 
@@ -454,7 +403,7 @@ function UpcomingEventsPanel({ events }: { events: UpcomingEventItem[] }) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Próximos Eventos (30 días)</h3>
+          <h3 className="font-bold text-lg">Proximos Eventos (30 dias)</h3>
           <Calendar className="w-5 h-5 text-blue-500" />
         </div>
       </CardHeader>
@@ -462,7 +411,7 @@ function UpcomingEventsPanel({ events }: { events: UpcomingEventItem[] }) {
         {events.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">
             <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm">No hay eventos próximos</p>
+            <p className="text-sm">No hay eventos proximos</p>
           </div>
         )}
         {events.length > 0 && (
@@ -527,10 +476,6 @@ function RecentActivityPanel({ activities }: { activities: RecentActivityItem[] 
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Mapa interactivo de estado de pago
-// ═══════════════════════════════════════════════════════════════════════
-
 function PaymentStatusMapSection({ map }: { map: PaymentStatusMap | null }) {
   const router = useRouter();
   const [selectedUnit, setSelectedUnit] = useState<UnitPaymentStatus | null>(null);
@@ -552,7 +497,7 @@ function PaymentStatusMapSection({ map }: { map: PaymentStatusMap | null }) {
           <Building2 className="w-5 h-5 text-emerald-600" />
         </div>
         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Al día</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Al dia</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-yellow-400 inline-block" /> 1 mes</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-400 inline-block" /> 2 meses</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-500 inline-block" /> 3+ meses</span>
@@ -572,7 +517,7 @@ function PaymentStatusMapSection({ map }: { map: PaymentStatusMap | null }) {
                       <button
                         key={unit.unitId}
                         onClick={() => setSelectedUnit(unit)}
-                        title={`${unit.identifier} — ${unit.ownerName}`}
+                        title={`${unit.identifier} - ${unit.ownerName}`}
                         className={`w-11 h-11 rounded-lg text-[10px] font-bold text-white flex items-center justify-center hover:scale-105 transition-transform ${paymentColorBg[unit.colorCode] || 'bg-slate-300'}`}
                       >
                         {unit.identifier}
@@ -617,372 +562,5 @@ function PaymentStatusMapSection({ map }: { map: PaymentStatusMap | null }) {
         </div>
       )}
     </Card>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Vista de Consejo: aprobaciones pendientes + fondo de imprevistos
-// ═══════════════════════════════════════════════════════════════════════
-
-function CouncilApprovalsPanel({ data }: { data: CouncilDashboard }) {
-  const router = useRouter();
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg">Solicitudes Pendientes del Consejo</h3>
-          <Clock className="w-5 h-5 text-amber-500" />
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {data.pendingApprovals.length === 0 && (
-          <div className="p-6 text-center text-muted-foreground">
-            <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500" />
-            <p className="text-sm">No hay solicitudes pendientes</p>
-          </div>
-        )}
-        {data.pendingApprovals.length > 0 && (
-          <div className="divide-y divide-border">
-            {data.pendingApprovals.map((approval, idx) => (
-              <button
-                key={idx}
-                onClick={() => router.push(approval.moduleLink)}
-                className="w-full text-left flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-amber-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground line-clamp-1">{approval.description}</p>
-                  <p className="text-[10px] text-muted-foreground">{formatDate(approval.requestedAt)}</p>
-                </div>
-                <p className="text-sm font-bold text-foreground whitespace-nowrap">{formatCurrency(approval.amount)}</p>
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="p-4 border-t border-border">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Fondo de Imprevistos (informativo)</p>
-          <p className="text-xl font-black text-emerald-600">{formatCurrency(data.contingencyFund.availableBalance)}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Contribuido: {formatCurrency(data.contingencyFund.totalContributed)} · Usado: {formatCurrency(data.contingencyFund.totalUsed)}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Vista de Contador
-// ═══════════════════════════════════════════════════════════════════════
-
-function AccountantDashboardView({ user, logout }: { user: any; logout: () => void }) {
-  const [panel, setPanel] = useState<AccountantBudgetPanel | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const router = useRouter();
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await dashboardService.getAccountantPanel();
-        setPanel(data);
-      } catch {
-        setError('Error al cargar el panel presupuestal.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
-  }
-
-  return (
-    <div className="space-y-6">
-      <DashboardHeader title="Panel Presupuestal" subtitle="Ejecución del presupuesto por rubro." user={user} logout={logout} />
-
-      {error && (
-        <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 px-4 py-3 rounded-lg text-sm">{error}</div>
-      )}
-
-      {panel && (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card><CardContent className="p-5 text-center">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ejecución Total</p>
-              <p className="text-2xl font-black text-violet-600 mt-2">{formatPercent(panel.execution.overallExecutionPercentage)}</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-5 text-center">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Ejecutado</p>
-              <p className="text-2xl font-black text-foreground mt-2">{formatCurrency(panel.execution.totalExecutedExpense)}</p>
-            </CardContent></Card>
-            <Card><CardContent className="p-5 text-center">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Disponible</p>
-              <p className="text-2xl font-black text-emerald-600 mt-2">{formatCurrency(panel.execution.totalAvailable)}</p>
-            </CardContent></Card>
-          </div>
-
-          {panel.execution.alerts.length > 0 && (
-            <Card>
-              <CardHeader><h3 className="font-bold text-lg">Alertas de Ejecución (90% / 100%)</h3></CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-border">
-                  {panel.execution.alerts.map((alert, idx) => (
-                    <div key={idx} className="p-4">
-                      <p className="text-sm font-semibold text-foreground">{alert.message}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader><h3 className="font-bold text-lg">Gastos Ejecutados por Rubro</h3></CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-border">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Rubro</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Presupuestado</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Ejecutado</th>
-                      <th className="px-4 py-3 text-right text-xs font-bold text-muted-foreground uppercase">%</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {panel.execution.expenseItems.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">{item.name}</td>
-                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.annualValue)}</td>
-                        <td className="px-4 py-3 text-sm text-right">{formatCurrency(item.executedValue)}</td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold">{formatPercent(item.executionPercentage)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><h3 className="font-bold text-lg">Reportes Exportables</h3></CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-border">
-                {panel.reportLinks.map((link) => (
-                  <button
-                    key={link.reportTypeCode}
-                    onClick={() => router.push(link.moduleLink)}
-                    className="w-full text-left flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
-                  >
-                    <FileText className="w-5 h-5 text-emerald-600" />
-                    <p className="text-sm font-semibold text-foreground">{link.name}</p>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Vista de Auditor: solo lectura, acceso directo a reportes
-// ═══════════════════════════════════════════════════════════════════════
-
-function AuditorDashboardView({ user, logout }: { user: any; logout: () => void }) {
-  const [dashboard, setDashboard] = useState<AuditorDashboard | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await dashboardService.getAuditorDashboard();
-        setDashboard(data);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
-  }
-
-  return (
-    <div className="space-y-6">
-      <DashboardHeader title="Acceso de Auditoría" subtitle="Vista de solo lectura." user={user} logout={logout} />
-
-      <Card>
-        <CardContent className="p-6 text-center text-muted-foreground">
-          <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-          <p>Acceso de solo lectura. No hay elementos operativos disponibles en este perfil.</p>
-        </CardContent>
-      </Card>
-
-      {dashboard && (
-        <Card>
-          <CardHeader><h3 className="font-bold text-lg">Reportes del Período {dashboard.currentFiscalYear}</h3></CardHeader>
-          <CardContent className="p-0">
-            {dashboard.availableReports.length === 0 && (
-              <p className="p-6 text-center text-muted-foreground text-sm">No hay reportes disponibles para este perfil.</p>
-            )}
-            {dashboard.availableReports.length > 0 && (
-              <div className="divide-y divide-border">
-                {dashboard.availableReports.map((link) => (
-                  <button
-                    key={link.reportTypeCode}
-                    onClick={() => router.push(link.moduleLink)}
-                    className="w-full text-left flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors"
-                  >
-                    <FileText className="w-5 h-5 text-emerald-600" />
-                    <p className="text-sm font-semibold text-foreground">{link.name}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Vista de Residente
-// ═══════════════════════════════════════════════════════════════════════
-
-function ResidentDashboardView({ user, logout }: { user: any; logout: () => void }) {
-  const [data, setData] = useState<ResidentDashboard | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const result = await dashboardService.getResidentDashboard();
-        setData(result);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 animate-spin text-emerald-600" /></div>;
-  }
-
-  if (!data || !data.unitIdentifier) {
-    return (
-      <div className="space-y-6">
-        <DashboardHeader title="Mi Resumen" subtitle="" user={user} logout={logout} />
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <Building2 className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            <p>No se encontró información para tu unidad. Contacta a la administración.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  let balanceMessage = 'No debes nada. Estás al día.';
-  let balanceColorClass = 'text-emerald-600';
-  if (data.currentBalance > 0) {
-    balanceColorClass = 'text-rose-600';
-    let sinceText = '';
-    if (data.oldestDebtDate) {
-      sinceText = ` desde el ${formatDate(data.oldestDebtDate)}`;
-    }
-    balanceMessage = `Debes ${formatCurrency(data.currentBalance)}${sinceText}.`;
-  }
-
-  return (
-    <div className="space-y-6">
-      <DashboardHeader title="Mi Resumen" subtitle={`Unidad ${data.unitIdentifier}`} user={user} logout={logout} />
-
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Estado de Cuenta</p>
-          <p className={`text-xl font-black mt-2 ${balanceColorClass}`}>{balanceMessage}</p>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader><h3 className="font-bold text-lg">Mis PQR</h3></CardHeader>
-          <CardContent className="p-0">
-            {data.openPqrs.length === 0 && (
-              <p className="p-6 text-center text-sm text-muted-foreground">No tienes PQR abiertos.</p>
-            )}
-            {data.openPqrs.length > 0 && (
-              <div className="divide-y divide-border">
-                {data.openPqrs.map((pqr) => (
-                  <div key={pqr.radicadoNumber} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-foreground">{pqr.radicadoNumber}</p>
-                      {pqr.isOverdue && <span className="badge-danger">Vencido</span>}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{pqr.subject}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Estado: {pqr.status}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><h3 className="font-bold text-lg">Mis Reservas</h3></CardHeader>
-          <CardContent className="p-0">
-            {data.activeReservations.length === 0 && (
-              <p className="p-6 text-center text-sm text-muted-foreground">No tienes reservas activas.</p>
-            )}
-            {data.activeReservations.length > 0 && (
-              <div className="divide-y divide-border">
-                {data.activeReservations.map((reservation, idx) => (
-                  <div key={idx} className="p-4">
-                    <p className="text-sm font-semibold text-foreground">{reservation.spaceName}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{formatDateTime(reservation.startDateTime)}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Estado: {reservation.status}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader><h3 className="font-bold text-lg">Últimas Circulares</h3></CardHeader>
-        <CardContent className="p-0">
-          {data.latestCirculars.length === 0 && (
-            <p className="p-6 text-center text-sm text-muted-foreground">No hay circulares recientes.</p>
-          )}
-          {data.latestCirculars.length > 0 && (
-            <div className="divide-y divide-border">
-              {data.latestCirculars.map((circular, idx) => (
-                <div key={idx} className="flex items-center gap-3 p-4">
-                  <Calendar className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{circular.title}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(circular.publishedAt)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
   );
 }

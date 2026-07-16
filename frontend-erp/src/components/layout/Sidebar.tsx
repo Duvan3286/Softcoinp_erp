@@ -19,9 +19,6 @@ import {
   FileText,
 } from 'lucide-react';
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
 interface NavItemProps {
   icon?: React.ReactNode;
   text: string;
@@ -42,9 +39,6 @@ interface NavGroupProps {
   children: React.ReactNode;
 }
 
-// ─────────────────────────────────────────────
-// Sidebar
-// ─────────────────────────────────────────────
 export const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -52,7 +46,6 @@ export const Sidebar = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
 
-  // Auto-open groups based on current path
   useEffect(() => {
     if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('budgets')) setOpenGroup('finanzas');
 
@@ -63,7 +56,6 @@ export const Sidebar = () => {
     else if (pathname.startsWith('/reservation')) setOpenGroup('reservas');
     else if (pathname.startsWith('/communications')) setOpenGroup('comunicaciones');
     else if (pathname.startsWith('/reports')) setOpenGroup('reportes');
-    // Close sidebar on mobile when navigating
     setIsOpen(false);
   }, [pathname, setIsOpen]);
 
@@ -73,7 +65,6 @@ export const Sidebar = () => {
 
   return (
     <>
-      {/* 🌑 BACKDROP (Solo móvil) */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[115] lg:hidden animate-in fade-in duration-300"
@@ -90,10 +81,8 @@ export const Sidebar = () => {
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
       >
-        {/* Spacer */}
         <div className="h-1" />
 
-        {/* Navigation */}
         <nav className="flex flex-col gap-1.5 flex-grow px-3 overflow-y-auto overflow-x-hidden custom-scrollbar pb-4">
 
           <NavItem
@@ -161,7 +150,7 @@ export const Sidebar = () => {
             <NavItem text="Inventario Bienes" path="/maintenance" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Nuevo Bien" path="/maintenance/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Calendario" path="/maintenance/calendar" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Órdenes de Trabajo" path="/maintenance/work-orders" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Ordenes de Trabajo" path="/maintenance/work-orders" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Nueva Orden" path="/maintenance/work-orders/new" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Fuera de Servicio" path="/maintenance/out-of-service" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Siniestros" path="/maintenance/incidents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
@@ -190,7 +179,7 @@ export const Sidebar = () => {
             <NavItem text="Espacios" path="/reservation/spaces" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Calendario" path="/reservation/calendar" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Reservas" path="/reservation" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Bandeja Admin" path="/reservation/admin" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Aprobaciones" path="/reservation/admin" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup
@@ -215,11 +204,10 @@ export const Sidebar = () => {
             isExpanded={isExpanded}
             onToggle={() => toggleGroup('reportes')}
           >
-            <NavItem text="Catálogo" path="/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Catalogo" path="/reports" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Historial" path="/reports/history" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Recurrentes" path="/reports/recurring" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Informe Anual" path="/reports/annual" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Exportar Contador" path="/reports/accountant" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Membrete PDF" path="/reports/templates" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
@@ -231,14 +219,14 @@ export const Sidebar = () => {
             onToggle={() => toggleGroup('finanzas')}
           >
             <NavItem text="Cartera" path="/portfolio" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Facturación" path="/billing" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Facturacion" path="/billing" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Presupuesto" path="/budgets" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
 
           </NavGroup>
 
           <NavItem
             icon={<Settings className="w-5 h-5" />}
-            text="Configuración"
+            text="Configuracion"
             path="/settings/tenant"
             currentPath={pathname}
             isExpanded={isExpanded}
@@ -247,7 +235,6 @@ export const Sidebar = () => {
 
         </nav>
 
-        {/* Footer */}
         <div className="mt-auto pt-4 border-t border-border text-center overflow-hidden flex flex-col items-center justify-center min-h-[40px]">
           {isExpanded ? (
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold tracking-widest whitespace-nowrap animate-in fade-in duration-300 uppercase">
@@ -264,9 +251,6 @@ export const Sidebar = () => {
   );
 };
 
-// ─────────────────────────────────────────────
-// NavGroup
-// ─────────────────────────────────────────────
 function NavGroup({ icon, text, isOpen, isExpanded, onToggle, children }: NavGroupProps) {
   return (
     <div className="flex flex-col">
@@ -303,9 +287,6 @@ function NavGroup({ icon, text, isOpen, isExpanded, onToggle, children }: NavGro
   );
 }
 
-// ─────────────────────────────────────────────
-// NavItem
-// ─────────────────────────────────────────────
 function NavItem({ icon, text, path, currentPath, isExpanded, router, isSubItem = false, highlightRed = false }: NavItemProps) {
   const isActive = currentPath === path || currentPath.startsWith(path + '/');
 
@@ -351,5 +332,3 @@ function NavItem({ icon, text, path, currentPath, isExpanded, router, isSubItem 
     </button>
   );
 }
-
-// Trigger refresh

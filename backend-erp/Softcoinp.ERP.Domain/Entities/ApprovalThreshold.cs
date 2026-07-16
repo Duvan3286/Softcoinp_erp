@@ -7,14 +7,9 @@ public class ApprovalThreshold
     public Guid Id { get; set; } = Guid.NewGuid();
     public string TenantId { get; set; } = string.Empty;
 
-    public ApprovalLevel ApprovalLevel { get; set; }
-
     public decimal MinValue { get; set; }
-
     public decimal MaxValue { get; set; }
-
     public string Description { get; set; } = string.Empty;
-
     public bool IsActive { get; set; } = true;
 
     public string CreatedByUserId { get; set; } = string.Empty;

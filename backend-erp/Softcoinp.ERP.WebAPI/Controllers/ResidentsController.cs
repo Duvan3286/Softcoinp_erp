@@ -15,7 +15,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/residents")]
-[Authorize(Roles = "SuperAdmin,Admin,Council,Auditor")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class ResidentsController : BaseController
 {
     private readonly ApplicationDbContext _context;
@@ -28,8 +28,6 @@ public class ResidentsController : BaseController
         _indicatorCache = indicatorCache;
         _notificationService = notificationService;
     }
-
-    // ── PROPIETARIOS — LISTADO Y DETALLE ─────────────────────────────────────
 
     [HttpGet("owners")]
     public async Task<IActionResult> GetOwners(
@@ -162,8 +160,6 @@ public class ResidentsController : BaseController
         return Ok(owner);
     }
 
-    // ── PROPIETARIOS — PERSONA NATURAL ───────────────────────────────────────
-
     [HttpPost("owners/natural-person")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateNaturalPersonOwner([FromBody] CreateNaturalPersonOwnerDto dto)
@@ -239,8 +235,6 @@ public class ResidentsController : BaseController
 
         return NoContent();
     }
-
-    // ── PROPIETARIOS — PERSONA JURÍDICA ──────────────────────────────────────
 
     [HttpPost("owners/legal-entity")]
     [Authorize(Roles = "SuperAdmin,Admin")]
@@ -367,8 +361,6 @@ public class ResidentsController : BaseController
         await _context.SaveChangesAsync();
         return NoContent();
     }
-
-    // ── VINCULACIÓN UNIDAD-PROPIETARIO ────────────────────────────────────────
 
     [HttpGet("units/{unitId:guid}/owners")]
     public async Task<IActionResult> GetUnitOwners(Guid unitId)
@@ -608,8 +600,6 @@ public class ResidentsController : BaseController
         return NoContent();
     }
 
-    // ── ARRENDATARIOS ─────────────────────────────────────────────────────────
-
     [HttpGet("units/{unitId:guid}/tenant")]
     public async Task<IActionResult> GetActiveTenant(Guid unitId)
     {
@@ -796,8 +786,6 @@ public class ResidentsController : BaseController
         return NoContent();
     }
 
-    // ── GRUPO DE CONVIVENCIA ──────────────────────────────────────────────────
-
     [HttpGet("units/{unitId:guid}/cohabitation")]
     public async Task<IActionResult> GetCohabitationMembers(Guid unitId)
     {
@@ -894,8 +882,6 @@ public class ResidentsController : BaseController
         await _context.SaveChangesAsync();
         return NoContent();
     }
-
-    // ── VISTAS CONSOLIDADAS ───────────────────────────────────────────────────
 
     [HttpGet("units/{unitId:guid}/occupants")]
     public async Task<IActionResult> GetUnitOccupants(Guid unitId)
@@ -1047,8 +1033,6 @@ public class ResidentsController : BaseController
 
         return Ok(history);
     }
-
-    // ── TRANSFERENCIA DE PROPIEDAD ────────────────────────────────────────────
 
     [HttpPost("units/{unitId:guid}/transfer")]
     [Authorize(Roles = "SuperAdmin,Admin")]
@@ -1215,10 +1199,8 @@ public class ResidentsController : BaseController
         });
     }
 
-    // ── LISTADO GLOBAL DE ARRENDATARIOS ──────────────────────────────────────
-
     [HttpGet("tenants")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetTenants(
         [FromQuery] string? search,
         [FromQuery] bool includeInactive = false)
@@ -1287,7 +1269,7 @@ public class ResidentsController : BaseController
     }
 
     [HttpGet("tenants/{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetTenantDetail(Guid id)
     {
         var tenantId = GetTenantId();
@@ -1348,11 +1330,8 @@ public class ResidentsController : BaseController
         tenant.AuthorizedToPayAdmin = dto.AuthorizedToPayAdmin;
 
         await _context.SaveChangesAsync();
-
         return Ok(new { message = "Arrendatario actualizado exitosamente." });
     }
-
-    // ── HELPERS PRIVADOS ──────────────────────────────────────────────────────
 
     private System.Collections.Generic.List<ContactHistory> BuildContactChanges(
         Owner current, UpdateNaturalPersonOwnerDto updated, string userId, string tenantId)

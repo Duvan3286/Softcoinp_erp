@@ -251,7 +251,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.ExpenseDate });
             entity.HasIndex(e => new { e.ExpenseItemId, e.ExpenseDate });
-            entity.HasIndex(e => new { e.TenantId, e.CouncilApproved });
+
         });
 
         modelBuilder.Entity<BudgetModification>(entity =>
@@ -293,7 +293,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
             entity.Property(e => e.Justification).IsRequired().HasMaxLength(1000);
             entity.Property(e => e.Amount).HasPrecision(18, 2);
-            entity.Property(e => e.CouncilApprovalActNumber).IsRequired().HasMaxLength(100);
+
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
 
             entity.HasOne(e => e.Budget)
@@ -1226,8 +1226,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.ObjectDescription).IsRequired().HasMaxLength(2000);
             entity.Property(e => e.TotalValue).HasPrecision(18, 2);
             entity.Property(e => e.MonthlyValue).HasPrecision(18, 2);
-            entity.Property(e => e.ApprovalLevel).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.Property(e => e.CouncilMeetingActNumber).HasMaxLength(100);
+
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.SignedContractFilePath).HasMaxLength(1000);
             entity.Property(e => e.Observations).HasMaxLength(2000);
@@ -1246,7 +1245,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
 
             entity.HasIndex(e => new { e.TenantId, e.ContractNumber }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Status });
-            entity.HasIndex(e => new { e.TenantId, e.Status, e.ApprovalLevel });
             entity.HasIndex(e => new { e.TenantId, e.ProviderId });
             entity.HasIndex(e => new { e.TenantId, e.EndDate });
         });
@@ -1355,14 +1353,11 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.ApprovalLevel).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.MinValue).HasPrecision(18, 2);
             entity.Property(e => e.MaxValue).HasPrecision(18, 2);
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
-
-            entity.HasIndex(e => new { e.TenantId, e.ApprovalLevel }).IsUnique();
         });
 
         // ── Módulo de Mantenimiento y Zonas Comunes ──────────────────
@@ -2036,7 +2031,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
             entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.SourceModules).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.AllowedRoles).IsRequired().HasMaxLength(500);
+
 
             entity.HasIndex(e => new { e.TenantId, e.ReportTypeCode }).IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Category });

@@ -52,7 +52,7 @@ export default function ReportsPage() {
       const data = await reportService.getCatalog();
       setCatalog(data);
     } catch {
-      setError('Error al cargar el catálogo de reportes.');
+      setError('Error al cargar el catalogo de reportes.');
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,6 @@ export default function ReportsPage() {
 
   const dedicatedRouteByCode: Record<string, string> = {
     AnnualManagementReport: '/reports/annual',
-    AccountantExport: '/reports/accountant',
   };
 
   const openGenerate = (report: ReportCatalogItem) => {
@@ -158,9 +157,6 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Reportes y Exportaciones</h1>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => router.push('/reports/accountant')}>
-            Exportar para Contador
-          </Button>
           <Button onClick={() => router.push('/reports/history')}>
             <FileText className="w-4 h-4 mr-2" />
             Historial
@@ -208,7 +204,7 @@ export default function ReportsPage() {
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Filter className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>No hay reportes disponibles en esta categoría.</p>
+          <p>No hay reportes disponibles en esta categoria.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -30,10 +30,6 @@ public class Contract
 
     public int AutoRenewalNoticeDays { get; set; }
 
-    public ApprovalLevel ApprovalLevel { get; set; } = ApprovalLevel.Administrator;
-
-    public string CouncilMeetingActNumber { get; set; } = string.Empty;
-
     public Guid? ApprovedInAssemblyId { get; set; }
     public Assembly? ApprovedInAssembly { get; set; }
 

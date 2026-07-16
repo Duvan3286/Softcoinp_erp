@@ -35,7 +35,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetBudgets([FromQuery] int? year)
     {
         var tenantId = GetTenantId();
@@ -44,7 +44,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetBudget(Guid id)
     {
         var tenantId = GetTenantId();
@@ -142,7 +142,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpGet("execution/{year}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetExecutionDashboard(int year)
     {
         var tenantId = GetTenantId();
@@ -184,29 +184,8 @@ public class BudgetsController : BaseController
         }
     }
 
-    [HttpPost("expenses/{id}/approve-council")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council")]
-    public async Task<IActionResult> ApproveCouncilExpense(Guid id)
-    {
-        var tenantId = GetTenantId();
-
-        try
-        {
-            var expense = await _expenseService.ApproveCouncilExpenseAsync(tenantId, id);
-            return Ok(expense);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
-
     [HttpGet("expenses")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetExpenses(
         [FromQuery] Guid? expenseItemId,
         [FromQuery] DateTime? fromDate,
@@ -218,7 +197,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpGet("modifications/{budgetId}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetModifications(Guid budgetId)
     {
         var tenantId = GetTenantId();
@@ -253,7 +232,7 @@ public class BudgetsController : BaseController
     }
 
     [HttpGet("contingency-fund")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant,Council,Auditor")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetContingencyFundStatus()
     {
         var tenantId = GetTenantId();

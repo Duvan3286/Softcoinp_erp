@@ -67,7 +67,6 @@ public class ContractService
                 c.StartDate,
                 c.EndDate,
                 c.HasAutoRenewal,
-                ApprovalLevel = c.ApprovalLevel.ToString(),
                 Status = c.Status.ToString(),
                 AlertCount = c.Alerts.Count(a => a.IsActive)
             })
@@ -84,7 +83,6 @@ public class ContractService
             StartDate = c.StartDate,
             EndDate = c.EndDate,
             HasAutoRenewal = c.HasAutoRenewal,
-            ApprovalLevel = c.ApprovalLevel,
             Status = c.Status,
             DaysUntilExpiration = (int)(c.EndDate - DateTime.UtcNow).TotalDays,
             AlertCount = c.AlertCount
@@ -126,8 +124,6 @@ public class ContractService
             EndDate = contract.EndDate,
             HasAutoRenewal = contract.HasAutoRenewal,
             AutoRenewalNoticeDays = contract.AutoRenewalNoticeDays,
-            ApprovalLevel = contract.ApprovalLevel.ToString(),
-            CouncilMeetingActNumber = contract.CouncilMeetingActNumber,
             ApprovedInAssemblyId = contract.ApprovedInAssemblyId,
             ApprovedInAssemblyTitle = contract.ApprovedInAssembly != null ? contract.ApprovedInAssembly.Title : string.Empty,
             Status = contract.Status.ToString(),
@@ -205,8 +201,6 @@ public class ContractService
                 "No se puede crear un nuevo contrato. La evaluación promedio del proveedor en los últimos dos períodos es inferior a 3.0.");
         }
 
-        var approvalLevel = DetermineApprovalLevel(request.TotalValue, tenantId);
-
         var contract = new Contract
         {
             Id = Guid.NewGuid(),
@@ -222,7 +216,6 @@ public class ContractService
             EndDate = request.EndDate,
             HasAutoRenewal = request.HasAutoRenewal,
             AutoRenewalNoticeDays = request.AutoRenewalNoticeDays,
-            ApprovalLevel = approvalLevel,
             Observations = request.Observations,
             Status = ContractStatus.Draft,
             CreatedByUserId = userId,
@@ -253,15 +246,6 @@ public class ContractService
         if (newStatus == ContractStatus.Active && contract.Status != ContractStatus.Draft)
         {
             throw new InvalidOperationException("Solo se pueden activar contratos en estado Borrador.");
-        }
-
-        if (newStatus == ContractStatus.Active)
-        {
-            if (contract.ApprovalLevel == ApprovalLevel.Council && string.IsNullOrEmpty(contract.CouncilMeetingActNumber))
-            {
-                throw new InvalidOperationException(
-                    "Este contrato requiere aprobación del consejo. Debe registrar el número de acta antes de activarlo.");
-            }
         }
 
         contract.Status = newStatus;
@@ -305,7 +289,6 @@ public class ContractService
         if (request.HasAutoRenewal.HasValue) contract.HasAutoRenewal = request.HasAutoRenewal.Value;
         if (request.AutoRenewalNoticeDays.HasValue) contract.AutoRenewalNoticeDays = request.AutoRenewalNoticeDays.Value;
         if (request.SignedContractFilePath != null) contract.SignedContractFilePath = request.SignedContractFilePath;
-        if (request.CouncilMeetingActNumber != null) contract.CouncilMeetingActNumber = request.CouncilMeetingActNumber;
 
         if (request.ApprovedInAssemblyId.HasValue)
         {
@@ -663,7 +646,6 @@ public class ContractService
                 DaysUntilExpiration = (int)(c.EndDate - now).TotalDays,
                 HasAutoRenewal = c.HasAutoRenewal,
                 AutoRenewalNoticeDays = c.AutoRenewalNoticeDays,
-                ApprovalLevel = c.ApprovalLevel.ToString(),
                 Status = c.Status.ToString()
             })
             .ToListAsync();
@@ -714,7 +696,6 @@ public class ContractService
             .Select(a => new ApprovalThresholdDto
             {
                 Id = a.Id,
-                ApprovalLevel = a.ApprovalLevel.ToString(),
                 MinValue = a.MinValue,
                 MaxValue = a.MaxValue,
                 Description = a.Description,
@@ -725,11 +706,6 @@ public class ContractService
 
     public async Task<ApprovalThresholdDto> CreateApprovalThresholdAsync(string tenantId, string userId, CreateApprovalThresholdRequestDto request)
     {
-        if (!Enum.TryParse<ApprovalLevel>(request.ApprovalLevel, true, out var approvalLevel))
-        {
-            throw new ArgumentException("Nivel de aprobación inválido. Use: Administrator o Council.");
-        }
-
         if (request.MinValue > request.MaxValue)
         {
             throw new ArgumentException("El valor mínimo no puede ser mayor que el valor máximo.");
@@ -739,7 +715,6 @@ public class ContractService
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            ApprovalLevel = approvalLevel,
             MinValue = request.MinValue,
             MaxValue = request.MaxValue,
             Description = request.Description,
@@ -754,7 +729,6 @@ public class ContractService
         return new ApprovalThresholdDto
         {
             Id = threshold.Id,
-            ApprovalLevel = threshold.ApprovalLevel.ToString(),
             MinValue = threshold.MinValue,
             MaxValue = threshold.MaxValue,
             Description = threshold.Description,
@@ -789,29 +763,10 @@ public class ContractService
         return new ApprovalThresholdDto
         {
             Id = threshold.Id,
-            ApprovalLevel = threshold.ApprovalLevel.ToString(),
             MinValue = threshold.MinValue,
             MaxValue = threshold.MaxValue,
             Description = threshold.Description,
             IsActive = threshold.IsActive
         };
-    }
-
-    private ApprovalLevel DetermineApprovalLevel(decimal totalValue, string tenantId)
-    {
-        var thresholds = _context.ApprovalThresholds
-            .Where(a => a.TenantId == tenantId && a.IsActive)
-            .OrderBy(a => a.MinValue)
-            .ToList();
-
-        foreach (var threshold in thresholds)
-        {
-            if (totalValue >= threshold.MinValue && totalValue <= threshold.MaxValue)
-            {
-                return threshold.ApprovalLevel;
-            }
-        }
-
-        return ApprovalLevel.Administrator;
     }
 }

@@ -69,7 +69,6 @@ public class UpdateContractRequestDto
     public bool? HasAutoRenewal { get; set; }
     public int? AutoRenewalNoticeDays { get; set; }
     public string? SignedContractFilePath { get; set; }
-    public string? CouncilMeetingActNumber { get; set; }
     public Guid? ApprovedInAssemblyId { get; set; }
     public string? Observations { get; set; }
 }
@@ -126,7 +125,6 @@ public class CreateProviderEvaluationRequestDto
 
 public class CreateApprovalThresholdRequestDto
 {
-    public string ApprovalLevel { get; set; } = string.Empty;
     public decimal MinValue { get; set; }
     public decimal MaxValue { get; set; }
     public string Description { get; set; } = string.Empty;
@@ -233,7 +231,6 @@ public class ContractListDto
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public bool HasAutoRenewal { get; set; }
-    public string ApprovalLevel { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public int DaysUntilExpiration { get; set; }
     public int AlertCount { get; set; }
@@ -254,8 +251,6 @@ public class ContractDetailDto
     public DateTime EndDate { get; set; }
     public bool HasAutoRenewal { get; set; }
     public int AutoRenewalNoticeDays { get; set; }
-    public string ApprovalLevel { get; set; } = string.Empty;
-    public string CouncilMeetingActNumber { get; set; } = string.Empty;
     public Guid? ApprovedInAssemblyId { get; set; }
     public string ApprovedInAssemblyTitle { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
@@ -309,7 +304,6 @@ public class ProviderPaymentDto
 public class ApprovalThresholdDto
 {
     public Guid Id { get; set; }
-    public string ApprovalLevel { get; set; } = string.Empty;
     public decimal MinValue { get; set; }
     public decimal MaxValue { get; set; }
     public string Description { get; set; } = string.Empty;
@@ -373,6 +367,5 @@ public class ContractExpirationReportDto
     public int DaysUntilExpiration { get; set; }
     public bool HasAutoRenewal { get; set; }
     public int AutoRenewalNoticeDays { get; set; }
-    public string ApprovalLevel { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 }

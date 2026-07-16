@@ -1,9 +1,5 @@
 import apiClient from './api-client';
 
-// ═══════════════════════════════════════════════════════════════════════
-// INTERFACES - Providers
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface CreateProviderRequest {
   providerType: string;
   documentType: string;
@@ -126,10 +122,6 @@ export interface ProviderIndicators {
   activeAlerts: number;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// INTERFACES - Contracts
-// ═══════════════════════════════════════════════════════════════════════
-
 export interface CreateContractRequest {
   providerId: string;
   contractNumber: string;
@@ -156,7 +148,6 @@ export interface UpdateContractRequest {
   hasAutoRenewal?: boolean;
   autoRenewalNoticeDays?: number;
   signedContractFilePath?: string;
-  councilMeetingActNumber?: string;
   approvedInAssemblyId?: string;
   observations?: string;
 }
@@ -227,7 +218,6 @@ export interface ContractDetail {
   hasAutoRenewal: boolean;
   autoRenewalNoticeDays: number;
   approvalLevel: string;
-  councilMeetingActNumber: string;
   approvedInAssemblyId?: string;
   approvedInAssemblyTitle: string;
   status: string;
@@ -301,12 +291,7 @@ export interface ContractExpirationReportItem {
   status: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// SERVICE
-// ═══════════════════════════════════════════════════════════════════════
-
 const supplierService = {
-  // ── Providers ────────────────────────────────────────────────────
   async getProviders(status?: string, providerType?: string, serviceType?: string, search?: string): Promise<ProviderListItem[]> {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
@@ -352,7 +337,6 @@ const supplierService = {
     return response.data;
   },
 
-  // ── Contracts ─────────────────────────────────────────────────────
   async getContracts(status?: string, contractType?: string, providerId?: string, search?: string): Promise<ContractListItem[]> {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
@@ -397,7 +381,6 @@ const supplierService = {
     await apiClient.post(`/contracts/alerts/${alertId}/resolve`);
   },
 
-  // ── Invoices & Payments ──────────────────────────────────────────
   async createInvoice(request: CreateInvoiceRequest): Promise<ContractInvoiceDto> {
     const response = await apiClient.post<ContractInvoiceDto>('/contracts/invoices', request);
     return response.data;
@@ -423,7 +406,6 @@ const supplierService = {
     return response.data;
   },
 
-  // ── Approval Thresholds ─────────────────────────────────────────
   async getApprovalThresholds(): Promise<ApprovalThreshold[]> {
     const response = await apiClient.get<ApprovalThreshold[]>('/contracts/approval-thresholds');
     return response.data;

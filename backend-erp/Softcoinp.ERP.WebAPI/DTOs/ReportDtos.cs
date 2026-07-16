@@ -11,7 +11,6 @@ public class ReportTypeDto
     public string Description { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public string SourceModules { get; set; } = string.Empty;
-    public string AllowedRoles { get; set; } = string.Empty;
     public bool ContainsPersonalData { get; set; }
     public bool IsActive { get; set; }
 }

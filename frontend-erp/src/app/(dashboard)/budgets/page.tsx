@@ -21,7 +21,6 @@ type TabKey = 'list' | 'execution' | 'expenses' | 'modifications' | 'contingency
 export default function BudgetsPage() {
   const { user } = useAuth();
   const canEdit = user?.role === 'SuperAdmin' || user?.role === 'Admin';
-  const canApproveCouncilExpense = user?.role === 'SuperAdmin' || user?.role === 'Admin' || user?.role === 'Council';
 
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [tab, setTab] = useState<TabKey>('list');
@@ -44,7 +43,7 @@ export default function BudgetsPage() {
   const [showContingencyUsage, setShowContingencyUsage] = useState(false);
   const [showEditItems, setShowEditItems] = useState(false);
   const [editIncomeItems, setEditIncomeItems] = useState<{ name: string; description: string; annualValue: number }[]>([]);
-  const [editExpenseItems, setEditExpenseItems] = useState<{ name: string; description: string; category: string; annualValue: number; isContingencyFund: boolean; requiresCouncilApproval: boolean }[]>([]);
+  const [editExpenseItems, setEditExpenseItems] = useState<{ name: string; description: string; category: string; annualValue: number; isContingencyFund: boolean }[]>([]);
 
   const fetchBudgets = async () => {
     setLoading(true);
@@ -106,7 +105,7 @@ export default function BudgetsPage() {
       const existingBudgetsForYear = await budgetService.getBudgets(fiscalYear);
       const alreadyApproved = existingBudgetsForYear.some(b => b.status === 'Approved');
       if (alreadyApproved) {
-        setError(`Ya existe un presupuesto aprobado para el año fiscal ${fiscalYear}.`);
+        setError(`Ya existe un presupuesto aprobado para el ano fiscal ${fiscalYear}.`);
         return;
       }
 
@@ -133,7 +132,7 @@ export default function BudgetsPage() {
   const openEditItems = async () => {
     if (!selectedBudget) return;
     setEditIncomeItems(selectedBudget.incomeItems.map(i => ({ name: i.name, description: i.description, annualValue: i.annualValue })));
-    setEditExpenseItems(selectedBudget.expenseItems.map(e => ({ name: e.name, description: e.description, category: e.category, annualValue: e.annualValue, isContingencyFund: e.isContingencyFund, requiresCouncilApproval: e.requiresCouncilApproval })));
+    setEditExpenseItems(selectedBudget.expenseItems.map(e => ({ name: e.name, description: e.description, category: e.category, annualValue: e.annualValue, isContingencyFund: e.isContingencyFund })));
     setShowEditItems(true);
   };
 
@@ -142,7 +141,7 @@ export default function BudgetsPage() {
     try {
       await budgetService.updateDraftBudget(selectedBudget.id, {
         incomeItems: editIncomeItems.map(i => ({ name: i.name, description: i.description, annualValue: i.annualValue })),
-        expenseItems: editExpenseItems.map(e => ({ name: e.name, description: e.description, category: e.category, annualValue: e.annualValue, isContingencyFund: e.isContingencyFund, contingencyPercentage: e.isContingencyFund ? 5 : 0, requiresCouncilApproval: e.requiresCouncilApproval, approvalThreshold: 0 })),
+        expenseItems: editExpenseItems.map(e => ({ name: e.name, description: e.description, category: e.category, annualValue: e.annualValue, isContingencyFund: e.isContingencyFund, contingencyPercentage: e.isContingencyFund ? 5 : 0 })),
       });
       setSuccess('Partidas guardadas exitosamente');
       setShowEditItems(false);
@@ -200,14 +199,6 @@ export default function BudgetsPage() {
     } catch { setError('Error al registrar gasto'); }
   };
 
-  const handleApproveCouncilExpense = async (executedExpenseId: string) => {
-    try {
-      await budgetService.approveCouncilExpense(executedExpenseId);
-      setSuccess('Gasto aprobado por el consejo');
-      fetchExpenses();
-    } catch { setError('Error al aprobar el gasto'); }
-  };
-
   const handleCreateModification = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -224,10 +215,10 @@ export default function BudgetsPage() {
         meetingActNumber: form.get('meetingActNumber') as string,
         approvalDate: form.get('approvalDate') as string,
       });
-      setSuccess('Modificación creada exitosamente');
+      setSuccess('Modificacion creada exitosamente');
       setShowModification(false);
       fetchModifications(selectedBudget.id);
-    } catch { setError('Error al crear modificación'); }
+    } catch { setError('Error al crear modificacion'); }
   };
 
   const handleContingencyUsage = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -239,7 +230,6 @@ export default function BudgetsPage() {
         budgetId,
         justification: form.get('justification') as string,
         amount: Number(form.get('amount')),
-        councilApprovalActNumber: form.get('councilApprovalActNumber') as string,
       });
       setSuccess('Uso de fondo registrado exitosamente');
       setShowContingencyUsage(false);
@@ -250,9 +240,9 @@ export default function BudgetsPage() {
   const handleGenerateNext = async (id: string) => {
     try {
       await budgetService.generateNextBudget(id);
-      setSuccess('Presupuesto del siguiente período generado');
+      setSuccess('Presupuesto del siguiente periodo generado');
       fetchBudgets();
-    } catch { setError('Error al generar siguiente período'); }
+    } catch { setError('Error al generar siguiente periodo'); }
   };
 
   const trafficColor = (t: string) => {
@@ -276,7 +266,7 @@ export default function BudgetsPage() {
     <div className="flex gap-2 mb-6 flex-wrap">
       {[
         { key: 'list' as TabKey, label: 'Presupuestos', icon: ClipboardList },
-        { key: 'execution' as TabKey, label: 'Ejecución', icon: BarChart3 },
+        { key: 'execution' as TabKey, label: 'Ejecucion', icon: BarChart3 },
         { key: 'expenses' as TabKey, label: 'Gastos', icon: DollarSign },
         { key: 'modifications' as TabKey, label: 'Modificaciones', icon: ArrowLeftRight },
         { key: 'contingency' as TabKey, label: 'Fondo Imprevistos', icon: BadgeDollarSign },
@@ -324,7 +314,7 @@ export default function BudgetsPage() {
       ) : budgets.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12 text-muted-foreground">
-            No hay presupuestos para el año {year}
+            No hay presupuestos para el ano {year}
           </CardContent>
         </Card>
       ) : (
@@ -337,7 +327,7 @@ export default function BudgetsPage() {
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-lg font-semibold">Presupuesto {b.fiscalYear}</span>
                       <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadge(b.status)}`}>
-                        {b.status === 'Draft' ? 'Borrador' : b.status === 'Submitted' ? 'En Revisión' : b.status === 'Approved' ? 'Aprobado' : b.status === 'Rejected' ? 'Rechazado' : b.status === 'Closed' ? 'Cerrado' : b.status}
+                        {b.status === 'Draft' ? 'Borrador' : b.status === 'Submitted' ? 'En Revision' : b.status === 'Approved' ? 'Aprobado' : b.status === 'Rejected' ? 'Rechazado' : b.status === 'Closed' ? 'Cerrado' : b.status}
                       </span>
                     </div>
                     {b.meetingActNumber && (
@@ -383,7 +373,7 @@ export default function BudgetsPage() {
                         <button
                           onClick={() => handleGenerateNext(b.id)}
                           className="p-2 hover:bg-accent rounded-lg transition-colors"
-                          title="Generar siguiente período"
+                          title="Generar siguiente periodo"
                         >
                           <RefreshCw className="w-4 h-4" />
                         </button>
@@ -451,7 +441,7 @@ export default function BudgetsPage() {
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-2">Nombre</th>
-                      <th className="text-center py-2">Categoría</th>
+                      <th className="text-center py-2">Categoria</th>
                       <th className="text-right py-2">Valor Anual</th>
                     </tr>
                   </thead>
@@ -491,7 +481,7 @@ export default function BudgetsPage() {
                   <input name="meetingActNumber" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Fecha Aprobación</label>
+                  <label className="block text-sm font-medium mb-1">Fecha Aprobacion</label>
                   <input name="approvalDate" type="date" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
                 </div>
                 <div className="flex gap-3 justify-end pt-2">
@@ -509,7 +499,7 @@ export default function BudgetsPage() {
   const renderExecution = () => (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-lg font-semibold">Ejecución Presupuestal</h2>
+        <h2 className="text-lg font-semibold">Ejecucion Presupuestal</h2>
         <select
           value={year}
           onChange={e => setYear(Number(e.target.value))}
@@ -526,7 +516,7 @@ export default function BudgetsPage() {
       ) : !dashboard ? (
         <Card>
           <CardContent className="text-center py-12 text-muted-foreground">
-            No hay presupuesto aprobado para el año {year}
+            No hay presupuesto aprobado para el ano {year}
           </CardContent>
         </Card>
       ) : (
@@ -552,7 +542,7 @@ export default function BudgetsPage() {
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground mb-1">% Ejecución</p>
+                <p className="text-xs text-muted-foreground mb-1">% Ejecucion</p>
                 <p className={`text-2xl font-bold ${dashboard.overallExecutionPercentage > 80 ? 'text-red-600' : dashboard.overallExecutionPercentage > 50 ? 'text-yellow-600' : 'text-green-600'}`}>
                   {dashboard.overallExecutionPercentage.toFixed(1)}%
                 </p>
@@ -570,7 +560,7 @@ export default function BudgetsPage() {
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
                       <th className="text-left px-4 py-3">Partida</th>
-                      <th className="text-center px-4 py-3">Categoría</th>
+                      <th className="text-center px-4 py-3">Categoria</th>
                       <th className="text-right px-4 py-3">Anual</th>
                       <th className="text-right px-4 py-3">Proporcional</th>
                       <th className="text-right px-4 py-3">Ejecutado</th>
@@ -594,7 +584,7 @@ export default function BudgetsPage() {
                             {item.trafficLight === 'Green' && <TrendingDown className="w-3 h-3" />}
                             {item.trafficLight === 'Yellow' && <AlertTriangle className="w-3 h-3" />}
                             {item.trafficLight === 'Red' && <AlertTriangle className="w-3 h-3" />}
-                            {item.trafficLight === 'Green' ? 'Normal' : item.trafficLight === 'Yellow' ? 'Alerta' : 'Crítico'}
+                            {item.trafficLight === 'Green' ? 'Normal' : item.trafficLight === 'Yellow' ? 'Alerta' : 'Critico'}
                           </span>
                         </td>
                       </tr>
@@ -649,17 +639,16 @@ export default function BudgetsPage() {
                 <tr className="border-b border-border bg-muted/50">
                   <th className="text-left px-4 py-3">Fecha</th>
                   <th className="text-left px-4 py-3">Partida</th>
-                  <th className="text-left px-4 py-3">Descripción</th>
+                  <th className="text-left px-4 py-3">Descripcion</th>
                   <th className="text-right px-4 py-3">Monto</th>
                   <th className="text-left px-4 py-3">Factura</th>
                   <th className="text-left px-4 py-3">Proveedor</th>
-                  <th className="text-left px-4 py-3">Consejo</th>
                 </tr>
               </thead>
               <tbody>
                 {expenses.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-muted-foreground">No hay gastos registrados</td>
+                    <td colSpan={6} className="text-center py-8 text-muted-foreground">No hay gastos registrados</td>
                   </tr>
                 ) : expenses.map(e => (
                   <tr key={e.id} className="border-b border-border/50 hover:bg-muted/30">
@@ -669,22 +658,6 @@ export default function BudgetsPage() {
                     <td className="px-4 py-3 text-right font-medium">${e.amount.toLocaleString()}</td>
                     <td className="px-4 py-3">{e.invoiceReference || '-'}</td>
                     <td className="px-4 py-3">{e.providerName || '-'}</td>
-                    <td className="px-4 py-3">
-                      {!e.requiresCouncilApproval && (
-                        <span className="text-xs text-muted-foreground">No aplica</span>
-                      )}
-                      {e.requiresCouncilApproval && e.councilApproved && (
-                        <span className="text-xs text-green-600 font-medium">Aprobado</span>
-                      )}
-                      {e.requiresCouncilApproval && !e.councilApproved && !canApproveCouncilExpense && (
-                        <span className="text-xs text-amber-600 font-medium">Pendiente</span>
-                      )}
-                      {e.requiresCouncilApproval && !e.councilApproved && canApproveCouncilExpense && (
-                        <Button variant="secondary" onClick={() => handleApproveCouncilExpense(e.id)}>
-                          Aprobar
-                        </Button>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -711,7 +684,7 @@ export default function BudgetsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Descripción</label>
+                  <label className="block text-sm font-medium mb-1">Descripcion</label>
                   <input name="description" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -746,7 +719,7 @@ export default function BudgetsPage() {
         <h2 className="text-lg font-semibold">Modificaciones Presupuestales</h2>
         {canEdit && selectedBudget && (
           <Button variant="primary" onClick={() => setShowModification(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Nueva Modificación
+            <Plus className="w-4 h-4 mr-1" /> Nueva Modificacion
           </Button>
         )}
       </div>
@@ -776,8 +749,8 @@ export default function BudgetsPage() {
                     <th className="text-right px-4 py-3">Monto</th>
                     <th className="text-right px-4 py-3">Valor Anterior</th>
                     <th className="text-right px-4 py-3">Nuevo Valor</th>
-                    <th className="text-left px-4 py-3">Justificación</th>
-                    <th className="text-left px-4 py-3">Aprobación</th>
+                    <th className="text-left px-4 py-3">Justificacion</th>
+                    <th className="text-left px-4 py-3">Aprobacion</th>
                     <th className="text-left px-4 py-3">Acta</th>
                   </tr>
                 </thead>
@@ -794,7 +767,7 @@ export default function BudgetsPage() {
                           m.modificationType === 'Reduction' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
                           'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                         }`}>
-                          {m.modificationType === 'Addition' ? 'Adición' : m.modificationType === 'Reduction' ? 'Reducción' : 'Traslado'}
+                          {m.modificationType === 'Addition' ? 'Adicion' : m.modificationType === 'Reduction' ? 'Reduccion' : 'Traslado'}
                         </span>
                       </td>
                       <td className="px-4 py-3">{m.expenseItemName || m.incomeItemName}</td>
@@ -817,7 +790,7 @@ export default function BudgetsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-8 overflow-y-auto">
           <Card className="w-full max-w-lg">
             <CardHeader>
-              <h3 className="font-semibold">Nueva Modificación</h3>
+              <h3 className="font-semibold">Nueva Modificacion</h3>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleCreateModification} className="space-y-4">
@@ -825,8 +798,8 @@ export default function BudgetsPage() {
                   <div>
                     <label className="block text-sm font-medium mb-1">Tipo</label>
                     <select name="modificationType" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
-                      <option value="Addition">Adición</option>
-                      <option value="Reduction">Reducción</option>
+                      <option value="Addition">Adicion</option>
+                      <option value="Reduction">Reduccion</option>
                       <option value="Transfer">Traslado</option>
                     </select>
                   </div>
@@ -854,14 +827,13 @@ export default function BudgetsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Justificación</label>
+                  <label className="block text-sm font-medium mb-1">Justificacion</label>
                   <textarea name="justification" required rows={3} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Tipo Aprobación</label>
+                    <label className="block text-sm font-medium mb-1">Tipo Aprobacion</label>
                     <select name="approvalType" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card">
-                      <option value="Council">Consejo</option>
                       <option value="Assembly">Asamblea</option>
                     </select>
                   </div>
@@ -871,7 +843,7 @@ export default function BudgetsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Fecha Aprobación</label>
+                  <label className="block text-sm font-medium mb-1">Fecha Aprobacion</label>
                   <input name="approvalDate" type="date" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
                 </div>
                 <div className="flex gap-3 justify-end pt-2">
@@ -930,22 +902,20 @@ export default function BudgetsPage() {
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
                       <th className="text-left px-4 py-3">Fecha</th>
-                      <th className="text-left px-4 py-3">Justificación</th>
+                      <th className="text-left px-4 py-3">Justificacion</th>
                       <th className="text-right px-4 py-3">Monto</th>
-                      <th className="text-left px-4 py-3">Acta Aprobación</th>
                     </tr>
                   </thead>
                   <tbody>
                     {contingency.usages.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center py-8 text-muted-foreground">Sin usos registrados</td>
+                        <td colSpan={3} className="text-center py-8 text-muted-foreground">Sin usos registrados</td>
                       </tr>
                     ) : contingency.usages.map(u => (
                       <tr key={u.id} className="border-b border-border/50 hover:bg-muted/30">
                         <td className="px-4 py-3">{new Date(u.createdAt).toLocaleDateString()}</td>
                         <td className="px-4 py-3">{u.justification}</td>
                         <td className="px-4 py-3 text-right font-medium">${u.amount.toLocaleString()}</td>
-                        <td className="px-4 py-3">{u.councilApprovalActNumber || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -959,7 +929,7 @@ export default function BudgetsPage() {
       {!contingency && (
         <Card>
           <CardContent className="text-center py-12 text-muted-foreground">
-            No hay información del fondo de imprevistos
+            No hay informacion del fondo de imprevistos
           </CardContent>
         </Card>
       )}
@@ -982,16 +952,12 @@ export default function BudgetsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Justificación</label>
+                  <label className="block text-sm font-medium mb-1">Justificacion</label>
                   <textarea name="justification" required rows={3} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Monto</label>
                   <input name="amount" type="number" step="0.01" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">N° Acta Aprobación Consejo</label>
-                  <input name="councilApprovalActNumber" required className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card" />
                 </div>
                 <div className="flex gap-3 justify-end pt-2">
                   <Button variant="ghost" type="button" onClick={() => setShowContingencyUsage(false)}>Cancelar</Button>
@@ -1009,7 +975,7 @@ export default function BudgetsPage() {
     <div>
       <div className="flex items-center gap-3 mb-6">
         <BadgeDollarSign className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold">Presupuesto y Ejecución</h1>
+        <h1 className="text-2xl font-bold">Presupuesto y Ejecucion</h1>
       </div>
 
       {error && (
@@ -1043,7 +1009,7 @@ export default function BudgetsPage() {
               <form onSubmit={handleCreateBudget} className="space-y-2.5">
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-xs font-medium mb-0.5">Año Fiscal</label>
+                    <label className="block text-xs font-medium mb-0.5">Ano Fiscal</label>
                     <input name="fiscalYear" type="number" defaultValue={year} required className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
                   </div>
                   <div>
@@ -1052,7 +1018,7 @@ export default function BudgetsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-0.5">Fecha Aprobación</label>
+                  <label className="block text-xs font-medium mb-0.5">Fecha Aprobacion</label>
                   <input name="approvalDate" type="date" className="w-full border border-border rounded px-2 py-1.5 text-xs bg-card" />
                 </div>
                 <div>
@@ -1107,7 +1073,7 @@ export default function BudgetsPage() {
                       />
                       <input
                         value={item.description} onChange={e => { const items = [...editIncomeItems]; items[idx].description = e.target.value; setEditIncomeItems(items); }}
-                        placeholder="Descripción" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-card"
+                        placeholder="Descripcion" className="flex-1 border border-border rounded px-2 py-1 text-sm bg-card"
                       />
                       <input
                         value={item.annualValue || ''} type="number" step="0.01"
@@ -1120,7 +1086,7 @@ export default function BudgetsPage() {
                     </div>
                   ))}
                   {editIncomeItems.length === 0 && (
-                    <p className="text-sm text-muted-foreground py-2">No hay ingresos. Presione "Agregar Ingreso" para añadir uno.</p>
+                    <p className="text-sm text-muted-foreground py-2">No hay ingresos. Presione "Agregar Ingreso" para anadir uno.</p>
                   )}
                 </div>
 
@@ -1129,7 +1095,7 @@ export default function BudgetsPage() {
                     <h4 className="font-medium text-sm flex items-center gap-2">
                       <TrendingDown className="w-4 h-4 text-red-600" /> Gastos
                     </h4>
-                    <Button variant="ghost" onClick={() => setEditExpenseItems([...editExpenseItems, { name: '', description: '', category: 'Variable', annualValue: 0, isContingencyFund: false, requiresCouncilApproval: false }])}>
+                    <Button variant="ghost" onClick={() => setEditExpenseItems([...editExpenseItems, { name: '', description: '', category: 'Variable', annualValue: 0, isContingencyFund: false }])}>
                       <Plus className="w-4 h-4 mr-1" /> Agregar Gasto
                     </Button>
                   </div>
@@ -1165,7 +1131,7 @@ export default function BudgetsPage() {
                     </div>
                   ))}
                   {editExpenseItems.length === 0 && (
-                    <p className="text-sm text-muted-foreground py-2">No hay gastos. Presione "Agregar Gasto" para añadir uno.</p>
+                    <p className="text-sm text-muted-foreground py-2">No hay gastos. Presione "Agregar Gasto" para anadir uno.</p>
                   )}
                 </div>
 

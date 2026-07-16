@@ -22,7 +22,7 @@ public class DashboardController : BaseController
     }
 
     [HttpGet("kpis")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<DashboardKpisDto>> GetKpis()
     {
         var tenantId = GetTenantId();
@@ -31,7 +31,7 @@ public class DashboardController : BaseController
     }
 
     [HttpGet("alerts")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult> GetAlerts()
     {
         var tenantId = GetTenantId();
@@ -77,7 +77,7 @@ public class DashboardController : BaseController
     }
 
     [HttpGet("collection-chart")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult> GetCollectionChart()
     {
         var tenantId = GetTenantId();
@@ -95,7 +95,7 @@ public class DashboardController : BaseController
     }
 
     [HttpGet("upcoming-events")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council,Resident")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult> GetUpcomingEvents()
     {
         var tenantId = GetTenantId();
@@ -112,45 +112,8 @@ public class DashboardController : BaseController
         return Ok(activity);
     }
 
-    [HttpGet("council")]
-    [Authorize(Roles = "SuperAdmin,Admin,Council")]
-    public async Task<ActionResult<CouncilDashboardDto>> GetCouncilDashboard()
-    {
-        var tenantId = GetTenantId();
-        var data = await _dashboardService.GetCouncilDashboardAsync(tenantId);
-        return Ok(data);
-    }
-
-    [HttpGet("accountant")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-    public async Task<ActionResult<AccountantBudgetPanelDto>> GetAccountantPanel()
-    {
-        var tenantId = GetTenantId();
-        var data = await _dashboardService.GetAccountantBudgetPanelAsync(tenantId);
-        return Ok(data);
-    }
-
-    [HttpGet("auditor")]
-    [Authorize(Roles = "SuperAdmin,Admin,Auditor")]
-    public async Task<ActionResult<AuditorDashboardDto>> GetAuditorDashboard()
-    {
-        var tenantId = GetTenantId();
-        var data = await _dashboardService.GetAuditorDashboardAsync(tenantId);
-        return Ok(data);
-    }
-
-    [HttpGet("resident")]
-    [Authorize(Roles = "Resident")]
-    public async Task<ActionResult<ResidentDashboardDto>> GetResidentDashboard()
-    {
-        var tenantId = GetTenantId();
-        var userId = GetUserId();
-        var data = await _dashboardService.GetResidentDashboardAsync(tenantId, userId);
-        return Ok(data);
-    }
-
     [HttpPost("invalidate-cache")]
-    [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> InvalidateCache()
     {
         var tenantId = GetTenantId();

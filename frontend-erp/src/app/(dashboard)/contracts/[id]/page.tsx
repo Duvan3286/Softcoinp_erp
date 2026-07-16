@@ -15,19 +15,19 @@ const typeLabels: Record<string, string> = {
   CivilWorks: 'Obra Civil', Lease: 'Arrendamiento',
 };
 const approvalLabels: Record<string, string> = {
-  Administrator: 'Administrador', Council: 'Consejo',
+  Administrator: 'Administrador',
 };
 const alertTypeLabels: Record<string, string> = {
-  NinetyDaysToExpiration: 'Vence en 90 días',
-  ThirtyDaysToExpiration: 'Vence en 30 días',
-  FifteenDaysToExpiration: 'Vence en 15 días',
-  AutoRenewalWarning: 'Renovación Automática',
+  NinetyDaysToExpiration: 'Vence en 90 dias',
+  ThirtyDaysToExpiration: 'Vence en 30 dias',
+  FifteenDaysToExpiration: 'Vence en 15 dias',
+  AutoRenewalWarning: 'Renovacion Automatica',
 };
 const invoiceStatusLabels: Record<string, string> = {
   PendingPayment: 'Pendiente', PartiallyPaid: 'Pago Parcial', FullyPaid: 'Pagada', Cancelled: 'Anulada',
 };
 const paymentMethodLabels: Record<string, string> = {
-  Cash: 'Efectivo', BankTransfer: 'Transferencia', Check: 'Cheque', CreditCard: 'Tarjeta de Crédito',
+  Cash: 'Efectivo', BankTransfer: 'Transferencia', Check: 'Cheque', CreditCard: 'Tarjeta de Credito',
 };
 
 export default function ContractDetailPage() {
@@ -43,7 +43,6 @@ export default function ContractDetailPage() {
   const [justification, setJustification] = useState('');
   const [submittingAction, setSubmittingAction] = useState(false);
   const [statusError, setStatusError] = useState('');
-  const [councilActNumber, setCouncilActNumber] = useState('');
 
   const fetchContract = async () => {
     setLoading(true);
@@ -67,24 +66,12 @@ export default function ContractDetailPage() {
     if (!newStatus || !justification.trim() || !contract) return;
     setStatusError('');
 
-    const requiresCouncilAct = newStatus === 'Active' && contract.approvalLevel === 'Council';
-    const missingAct = !contract.councilMeetingActNumber.trim() && !councilActNumber.trim();
-
-    if (requiresCouncilAct && missingAct) {
-      setStatusError('Este contrato requiere aprobación del consejo. Ingrese el número de acta antes de activarlo.');
-      return;
-    }
-
     setSubmittingAction(true);
     try {
-      if (requiresCouncilAct && councilActNumber.trim() && !contract.councilMeetingActNumber.trim()) {
-        await supplierService.updateContract(id, { councilMeetingActNumber: councilActNumber.trim() });
-      }
       await supplierService.changeContractStatus(id, { newStatus });
       setShowStatusModal(false);
       setNewStatus('');
       setJustification('');
-      setCouncilActNumber('');
       fetchContract();
     } catch (err: any) {
       setStatusError(err?.response?.data?.error || 'Error al cambiar el estado.');
@@ -94,7 +81,7 @@ export default function ContractDetailPage() {
   };
 
   const handleCancelInvoice = async (invoiceId: string) => {
-    if (!confirm('¿Está seguro de anular esta factura? Se revertirá la ejecución presupuestal asociada.')) return;
+    if (!confirm('Esta seguro de anular esta factura? Se revertira la ejecucion presupuestal asociada.')) return;
     try {
       await supplierService.cancelInvoice(invoiceId);
       fetchContract();
@@ -104,7 +91,7 @@ export default function ContractDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('¿Está seguro de eliminar este contrato?')) return;
+    if (!confirm('Esta seguro de eliminar este contrato?')) return;
     try {
       await supplierService.deleteContract(id);
       router.push('/contracts');
@@ -160,7 +147,7 @@ export default function ContractDetailPage() {
             <span className={statusColor(contract.status)}>{statusLabels[contract.status] || contract.status}</span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {typeLabels[contract.contractType]} — {contract.providerBusinessName}
+            {typeLabels[contract.contractType]} - {contract.providerBusinessName}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -187,14 +174,8 @@ export default function ContractDetailPage() {
           <CardContent className="p-4 space-y-3">
             <h3 className="text-sm font-bold text-foreground">Cambiar Estado a: {statusLabels[newStatus] || newStatus}</h3>
 
-            {newStatus === 'Active' && contract.approvalLevel === 'Council' && !contract.councilMeetingActNumber.trim() && (
-              <input type="text" placeholder="Número de acta del consejo" value={councilActNumber}
-                onChange={(e) => setCouncilActNumber(e.target.value.slice(0, 100))}
-                className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
-            )}
-
             <div className="flex gap-3">
-              <input type="text" placeholder="Justificación del cambio de estado" value={justification}
+              <input type="text" placeholder="Justificacion del cambio de estado" value={justification}
                 onChange={(e) => setJustification(e.target.value)}
                 className="flex-1 bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" />
               <Button variant="success" onClick={handleStatusChange} disabled={submittingAction || !justification.trim()}>
@@ -238,7 +219,7 @@ export default function ContractDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader className="py-3 px-6"><h3 className="text-sm font-bold text-foreground">Información del Contrato</h3></CardHeader>
+            <CardHeader className="py-3 px-6"><h3 className="text-sm font-bold text-foreground">Informacion del Contrato</h3></CardHeader>
             <CardContent className="p-6">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                 <div><span className="text-muted-foreground">Proveedor:</span><p className="font-medium">{contract.providerBusinessName}</p></div>
@@ -250,14 +231,13 @@ export default function ContractDetailPage() {
                 <div><span className="text-muted-foreground">Inicio:</span><p className="font-medium">{formatDate(contract.startDate)}</p></div>
                 <div><span className="text-muted-foreground">Fin:</span><p className="font-medium">{formatDate(contract.endDate)}</p></div>
                 <div>
-                  <span className="text-muted-foreground">Días Restantes:</span>
+                  <span className="text-muted-foreground">Dias Restantes:</span>
                   <p className={`font-bold ${contract.daysUntilExpiration <= 30 ? 'text-rose-600' : contract.daysUntilExpiration <= 90 ? 'text-orange-500' : 'text-foreground'}`}>
                     {contract.daysUntilExpiration > 0 ? contract.daysUntilExpiration : 'Vencido'}
                   </p>
                 </div>
-                <div><span className="text-muted-foreground">Aprobación:</span><p className="font-medium">{approvalLabels[contract.approvalLevel]}</p></div>
-                <div><span className="text-muted-foreground">Renovación Auto.:</span><p className="font-medium">{contract.hasAutoRenewal ? `Sí (${contract.autoRenewalNoticeDays} días)` : 'No'}</p></div>
-                {contract.councilMeetingActNumber && <div><span className="text-muted-foreground">Acta Consejo:</span><p className="font-medium">{contract.councilMeetingActNumber}</p></div>}
+                <div><span className="text-muted-foreground">Aprobacion:</span><p className="font-medium">{approvalLabels[contract.approvalLevel] || contract.approvalLevel}</p></div>
+                <div><span className="text-muted-foreground">Renovacion Auto.:</span><p className="font-medium">{contract.hasAutoRenewal ? `Si (${contract.autoRenewalNoticeDays} dias)` : 'No'}</p></div>
                 {contract.approvedInAssemblyTitle && <div><span className="text-muted-foreground">Aprobado en Asamblea:</span><p className="font-medium">{contract.approvedInAssemblyTitle}</p></div>}
               </div>
               {contract.observations && (
@@ -332,7 +312,7 @@ export default function ContractDetailPage() {
                         <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Factura</th>
                         <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Fecha</th>
                         <th className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase">Monto</th>
-                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Método</th>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Metodo</th>
                         <th className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase">Referencia</th>
                       </tr>
                     </thead>

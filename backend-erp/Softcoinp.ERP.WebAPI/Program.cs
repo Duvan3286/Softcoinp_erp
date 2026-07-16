@@ -199,55 +199,98 @@ if (app.Configuration.GetValue<bool>("AUTO_MIGRATE") || Environment.GetEnvironme
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
 
-    // Step 1: Ensure erp_master DB exists and the 'test' tenant record is present.
-    // This MUST succeed before anything else can run.
-    bool masterSeeded = false;
+    // Step 1: Initialize Master DB (create if needed, sync schema).
+    try
+    {
+        var masterDb = services.GetRequiredService<MasterDbContext>();
+        await masterDb.Database.EnsureCreatedAsync();
+        var masterConn = masterDb.Database.GetDbConnection();
+        if (masterConn.State != System.Data.ConnectionState.Open)
+        {
+            await masterConn.OpenAsync();
+        }
+        var dbName = masterConn.Database;
+
+        // Add SessionTimeout column if missing
+        using (var cmd = masterConn.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = '{dbName}' AND table_name = 'erp_master_tenants' AND column_name = 'SessionTimeout'";
+            if (Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 0)
+            {
+                startupLogger.LogInformation("Adding SessionTimeout column to erp_master_tenants...");
+                using var alter = masterConn.CreateCommand();
+                alter.CommandText = "ALTER TABLE erp_master_tenants ADD COLUMN SessionTimeout int NOT NULL DEFAULT 480";
+                await alter.ExecuteNonQueryAsync();
+            }
+        }
+
+        // Add MaxLoginAttempts column if missing
+        using (var cmd = masterConn.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = '{dbName}' AND table_name = 'erp_master_tenants' AND column_name = 'MaxLoginAttempts'";
+            if (Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 0)
+            {
+                startupLogger.LogInformation("Adding MaxLoginAttempts column to erp_master_tenants...");
+                using var alter = masterConn.CreateCommand();
+                alter.CommandText = "ALTER TABLE erp_master_tenants ADD COLUMN MaxLoginAttempts int NOT NULL DEFAULT 5";
+                await alter.ExecuteNonQueryAsync();
+            }
+        }
+
+        if (masterConn.State == System.Data.ConnectionState.Open)
+        {
+            await masterConn.CloseAsync();
+        }
+
+        startupLogger.LogInformation("Master DB schema verified.");
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogWarning(ex, "Master DB schema sync skipped (non-fatal).");
+    }
+
+    // Step 2: Ensure the 'test' tenant record is present in the Master DB.
     try
     {
         await MasterDbInitializer.SeedTenantAsync(services);
         startupLogger.LogInformation("Master DB seeded successfully.");
-        masterSeeded = true;
     }
     catch (Exception ex)
     {
-        startupLogger.LogCritical(ex, "FATAL: Could not seed master tenant. Aborting startup migrations.");
+        startupLogger.LogWarning(ex, "Master tenant seed skipped (non-fatal — will retry on next startup).");
     }
 
-    if (masterSeeded)
+    // Step 3: Attempt to seed Identity users. This may fail on first boot because
+    // ApplicationDbContext.OnConfiguring() calls ITenantResolver which has no HTTP
+    // context at startup. The failure is non-fatal — per-tenant seeding in Step 4
+    // handles the actual user/role creation for each tenant database.
+    try
     {
-        // Step 2: Attempt to seed Identity users. This may fail on first boot because
-        // ApplicationDbContext.OnConfiguring() calls ITenantResolver which has no HTTP
-        // context at startup. The failure is non-fatal — per-tenant seeding in Step 3
-        // handles the actual user/role creation for each tenant database.
-        try
-        {
-            var userManager = services.GetRequiredService<UserManager<User>>();
-            var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-            await DbInitializer.SeedUsersAsync(userManager, roleManager, app.Configuration);
-            startupLogger.LogInformation("Master Identity seed completed.");
-        }
-        catch (Exception ex)
-        {
-            startupLogger.LogWarning(ex,
-                "Master Identity seed skipped (expected on first boot — tenant DB does not exist yet). " +
-                "Per-tenant users will be seeded in Step 3.");
-        }
+        var userManager = services.GetRequiredService<UserManager<User>>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        await DbInitializer.SeedUsersAsync(userManager, roleManager, app.Configuration);
+        startupLogger.LogInformation("Master Identity seed completed.");
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogWarning(ex,
+            "Master Identity seed skipped (expected on first boot — tenant DB does not exist yet). " +
+            "Per-tenant users will be seeded in Step 4.");
+    }
 
-        // Step 3: Create and migrate every active tenant's database, then seed per-tenant users.
-        // Always runs regardless of whether Step 2 succeeded.
-        try
+    // Step 4: Create and migrate every active tenant's database, then seed per-tenant users.
+    try
+    {
+        var migrationService = services.GetRequiredService<DatabaseMigrationService>();
+        var migrationResults = await migrationService.MigrateAllAsync();
+        foreach (var entry in migrationResults)
         {
-            var migrationService = services.GetRequiredService<DatabaseMigrationService>();
-            var migrationResults = await migrationService.MigrateAllAsync();
-            foreach (var entry in migrationResults)
-            {
-                startupLogger.LogInformation("Migration [{Tenant}]: {Status}", entry.Key, entry.Value);
-            }
+            startupLogger.LogInformation("Migration [{Tenant}]: {Status}", entry.Key, entry.Value);
         }
-        catch (Exception ex)
-        {
-            startupLogger.LogCritical(ex, "FATAL: Tenant database migration failed.");
-        }
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogCritical(ex, "FATAL: Tenant database migration failed.");
     }
 }
 

@@ -13,6 +13,5 @@ public class ExpenseItem : BaseEntity
     public decimal AnnualValue { get; set; }
     public bool IsContingencyFund { get; set; }
     public decimal ContingencyPercentage { get; set; }
-    public bool RequiresCouncilApproval { get; set; }
     public decimal ApprovalThreshold { get; set; }
 }

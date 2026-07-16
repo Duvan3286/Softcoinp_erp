@@ -14,6 +14,5 @@ public class ExecutedExpense : BaseEntity
     public Guid? ProviderId { get; set; }
     public Provider? Provider { get; set; }
     public string InvoiceReference { get; set; } = string.Empty;
-    public bool CouncilApproved { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;
 }

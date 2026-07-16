@@ -11,7 +11,7 @@ namespace Softcoinp.ERP.WebAPI.Controllers;
 
 [ApiController]
 [Route("api/notifications")]
-[Authorize]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class NotificationsController : BaseController
 {
     private readonly NotificationService _notificationService;
@@ -24,7 +24,6 @@ public class NotificationsController : BaseController
     }
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
     public async Task<IActionResult> GetUnread([FromQuery] Guid ownerId)
     {
         var tenantId = GetTenantId();
@@ -39,7 +38,6 @@ public class NotificationsController : BaseController
     }
 
     [HttpPost("{id}/read")]
-    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
     public async Task<IActionResult> MarkAsRead(Guid id)
     {
         var tenantId = GetTenantId();
@@ -56,7 +54,6 @@ public class NotificationsController : BaseController
     }
 
     [HttpPost("read-all")]
-    [Authorize(Roles = "SuperAdmin,Admin,Resident")]
     public async Task<IActionResult> MarkAllAsRead([FromQuery] Guid ownerId)
     {
         var tenantId = GetTenantId();

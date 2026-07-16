@@ -31,8 +31,6 @@ export interface ExpenseItem {
   monthlyValue: number;
   isContingencyFund: boolean;
   contingencyPercentage: number;
-  requiresCouncilApproval: boolean;
-  approvalThreshold: number;
 }
 
 export interface BudgetDetail {
@@ -59,8 +57,6 @@ export interface CreateExpenseItem {
   annualValue: number;
   isContingencyFund: boolean;
   contingencyPercentage: number;
-  requiresCouncilApproval: boolean;
-  approvalThreshold: number;
 }
 
 export interface CreateBudgetRequest {
@@ -97,8 +93,6 @@ export interface ExpenseExecutionItem {
   trafficLight: string;
   isContingencyFund: boolean;
   contingencyPercentage: number;
-  requiresCouncilApproval: boolean;
-  approvalThreshold: number;
 }
 
 export interface BudgetAlert {
@@ -142,8 +136,6 @@ export interface ExecutedExpense {
   providerId?: string;
   providerName: string;
   invoiceReference: string;
-  councilApproved: boolean;
-  requiresCouncilApproval: boolean;
 }
 
 export interface CreateModificationRequest {
@@ -179,7 +171,6 @@ export interface ContingencyFundUsage {
   id: string;
   justification: string;
   amount: number;
-  councilApprovalActNumber: string;
   createdAt: string;
 }
 
@@ -196,7 +187,6 @@ export interface RecordContingencyFundUsageRequest {
   budgetId: string;
   justification: string;
   amount: number;
-  councilApprovalActNumber: string;
   executedExpenseId?: string;
 }
 
@@ -269,11 +259,6 @@ const budgetService = {
 
   async recordContingencyFundUsage(request: RecordContingencyFundUsageRequest): Promise<{ id: string; amount: number; justification: string }> {
     const response = await apiClient.post<{ id: string; amount: number; justification: string }>('/budgets/contingency-fund/usage', request);
-    return response.data;
-  },
-
-  async approveCouncilExpense(executedExpenseId: string): Promise<ExecutedExpense> {
-    const response = await apiClient.post<ExecutedExpense>(`/budgets/expenses/${executedExpenseId}/approve-council`);
     return response.data;
   }
 };
