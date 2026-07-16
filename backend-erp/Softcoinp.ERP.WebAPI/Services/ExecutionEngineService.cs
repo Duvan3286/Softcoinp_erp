@@ -42,7 +42,17 @@ public class ExecutionEngineService
             .GroupBy(e => e.ExpenseItemId)
             .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
 
+        var totalExecutedIncome = await _context.UnitFees
+            .Where(f => f.TenantId == tenantId && f.BillingPeriod != null && f.BillingPeriod.Period.StartsWith(fiscalYear.ToString()))
+            .SumAsync(f => f.PaidAmount);
+
         var totalApprovedIncome = budget.IncomeItems.Sum(i => i.AnnualValue);
+        var incomeExecutionPercentage = 0m;
+        if (totalApprovedIncome > 0)
+        {
+            incomeExecutionPercentage = Math.Round(totalExecutedIncome / totalApprovedIncome * 100m, 2);
+        }
+
         var totalApprovedExpense = budget.ExpenseItems.Sum(e => e.AnnualValue);
         var totalExecutedExpense = executedExpenses.Sum(e => e.Amount);
         var totalAvailable = totalApprovedExpense - totalExecutedExpense;
@@ -119,6 +129,8 @@ public class ExecutionEngineService
             FiscalYear = budget.FiscalYear,
             Status = budget.Status.ToString(),
             TotalApprovedIncome = totalApprovedIncome,
+            TotalExecutedIncome = totalExecutedIncome,
+            IncomeExecutionPercentage = incomeExecutionPercentage,
             TotalApprovedExpense = totalApprovedExpense,
             TotalExecutedExpense = totalExecutedExpense,
             TotalAvailable = totalAvailable,

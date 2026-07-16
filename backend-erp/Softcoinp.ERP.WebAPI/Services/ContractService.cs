@@ -474,15 +474,20 @@ public class ContractService
             _context.ProviderPayments.Add(payment);
         }
 
-        if (request.BudgetItemId.HasValue)
+        // El ERP es un cuaderno digital para el administrador, no un sistema contable de
+        // causación: el rubro presupuestal solo se ejecuta por el valor efectivamente
+        // pagado, nunca por el valor facturado. Si la factura ya nace con un pago parcial
+        // o total (AmountPaid > 0), ese pago sí ejecuta el rubro de una vez; el saldo por
+        // pagar se ejecutará cuando se registre en RegisterPaymentAsync.
+        if (request.BudgetItemId.HasValue && request.AmountPaid > 0)
         {
             var executedExpense = new ExecutedExpense
             {
                 TenantId = tenantId,
                 ExpenseItemId = request.BudgetItemId.Value,
                 Description = $"Factura {request.InvoiceNumber} - Proveedor: {request.ProviderId}",
-                Amount = request.TotalAmount,
-                ExpenseDate = request.InvoiceDate,
+                Amount = request.AmountPaid,
+                ExpenseDate = request.PaymentDate ?? request.InvoiceDate,
                 ProviderId = request.ProviderId,
                 InvoiceReference = request.InvoiceNumber,
                 CreatedByUserId = userId
@@ -540,6 +545,26 @@ public class ContractService
         invoice.UpdatedAt = DateTime.UtcNow;
 
         _context.ProviderPayments.Add(payment);
+
+        // Ejecución presupuestal en base a caja: el rubro se ejecuta en el momento en que
+        // el pago realmente se realiza, no cuando se causó la factura.
+        if (invoice.BudgetItemId.HasValue)
+        {
+            var executedExpense = new ExecutedExpense
+            {
+                TenantId = tenantId,
+                ExpenseItemId = invoice.BudgetItemId.Value,
+                Description = $"Pago factura {invoice.InvoiceNumber} - Proveedor: {invoice.ProviderId}",
+                Amount = request.Amount,
+                ExpenseDate = request.PaymentDate,
+                ProviderId = invoice.ProviderId,
+                InvoiceReference = invoice.InvoiceNumber,
+                CreatedByUserId = userId
+            };
+
+            _context.ExecutedExpenses.Add(executedExpense);
+        }
+
         await _context.SaveChangesAsync();
 
         return payment;

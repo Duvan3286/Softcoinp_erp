@@ -23,16 +23,19 @@ public class FeesAndPortfolioController : BaseController
     private readonly StatementService _statementService;
     private readonly ApplicationDbContext _context;
     private readonly ILogger<FeesAndPortfolioController> _logger;
+    private readonly PortfolioAgingService _portfolioAgingService;
 
     public FeesAndPortfolioController(
         BillingEngineService billingEngine,
         PaymentService paymentService,
         StatementService statementService,
         ApplicationDbContext context,
-        ILogger<FeesAndPortfolioController> logger)
+        ILogger<FeesAndPortfolioController> logger,
+        PortfolioAgingService portfolioAgingService)
     {
         _billingEngine = billingEngine;
         _paymentService = paymentService;
+        _portfolioAgingService = portfolioAgingService;
         _statementService = statementService;
         _context = context;
         _logger = logger;
@@ -178,10 +181,22 @@ public class FeesAndPortfolioController : BaseController
             .Where(uf => uf.TenantId == tenantId)
             .ToListAsync();
 
+        var extraordinaryOutstanding = await _context.ExtraordinaryFeeDistributions
+            .Where(d => d.TenantId == tenantId)
+            .SumAsync(d => d.BalanceAmount);
+
+        var chargesOutstanding = await _context.IndividualCharges
+            .Where(c => c.TenantId == tenantId && !c.IsDisputed)
+            .SumAsync(c => c.BalanceAmount);
+
         var totalBilled = unitFees.Sum(uf => uf.FeeValue);
         var totalCollected = unitFees.Sum(uf => uf.PaidAmount);
-        var totalOutstanding = unitFees.Sum(uf => uf.BalanceAmount);
-        var collectionRate = totalBilled > 0 ? Math.Round(totalCollected / totalBilled * 100m, 2) : 100m;
+        var totalOutstanding = unitFees.Sum(uf => uf.BalanceAmount) + extraordinaryOutstanding + chargesOutstanding;
+        var collectionRate = 100m;
+        if (totalBilled > 0)
+        {
+            collectionRate = Math.Round(totalCollected / totalBilled * 100m, 2);
+        }
 
         var unitsWithBalance = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId && uf.BalanceAmount > 0)
@@ -195,32 +210,37 @@ public class FeesAndPortfolioController : BaseController
                            || u.Status == UnitStatus.ActiveUnoccupied
                            || u.Status == UnitStatus.DeliveryProcess));
 
-        var now = DateTime.UtcNow;
+        var overdueByUnit = await _portfolioAgingService.GetOverdueByUnitAsync(tenantId);
 
-        var agingData = await _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId && uf.BalanceAmount > 0)
-            .GroupBy(uf => uf.DueDate < now.AddMonths(-6) ? "6+ meses"
-                        : uf.DueDate < now.AddMonths(-3) ? "4-6 meses"
-                        : uf.DueDate < now.AddMonths(-1) ? "1-3 meses"
-                        : "Corriente")
-            .Select(g => new { Bucket = g.Key, Total = g.Sum(uf => uf.BalanceAmount) })
-            .ToListAsync();
+        var oneToThree = new AgingBucketDto { Bucket = "1-3 meses" };
+        var fourToSix = new AgingBucketDto { Bucket = "4-6 meses" };
+        var sixPlus = new AgingBucketDto { Bucket = "6+ meses" };
 
-        var unitCountByBucket = await _context.UnitFees
-            .Where(uf => uf.TenantId == tenantId && uf.BalanceAmount > 0)
-            .GroupBy(uf => uf.DueDate < now.AddMonths(-6) ? "6+ meses"
-                        : uf.DueDate < now.AddMonths(-3) ? "4-6 meses"
-                        : uf.DueDate < now.AddMonths(-1) ? "1-3 meses"
-                        : "Corriente")
-            .Select(g => new { Bucket = g.Key, Count = g.Select(uf => uf.UnitId).Distinct().Count() })
-            .ToListAsync();
-
-        var agingBuckets = agingData.Select(a => new AgingBucketDto
+        foreach (var unit in overdueByUnit.Values)
         {
-            Bucket = a.Bucket,
-            UnitCount = unitCountByBucket.FirstOrDefault(u => u.Bucket == a.Bucket)?.Count ?? 0,
-            TotalDebt = a.Total
-        }).OrderBy(a => a.Bucket).ToList();
+            var bucket = oneToThree;
+            if (unit.MonthsOverdue > 6)
+            {
+                bucket = sixPlus;
+            }
+            else if (unit.MonthsOverdue > 3)
+            {
+                bucket = fourToSix;
+            }
+
+            bucket.UnitCount += 1;
+            bucket.TotalDebt += unit.TotalDebt;
+        }
+
+        var overdueTotal = overdueByUnit.Values.Sum(u => u.TotalDebt);
+        var currentBucket = new AgingBucketDto
+        {
+            Bucket = "Corriente",
+            UnitCount = Math.Max(0, unitsWithBalance - overdueByUnit.Count),
+            TotalDebt = Math.Max(0, totalOutstanding - overdueTotal)
+        };
+
+        var agingBuckets = new System.Collections.Generic.List<AgingBucketDto> { currentBucket, oneToThree, fourToSix, sixPlus };
 
         var summary = new PortfolioSummaryDto
         {

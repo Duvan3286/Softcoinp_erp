@@ -180,4 +180,115 @@ public class DbInitializer
         context.PDFTemplates.Add(globalTemplate);
         await context.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Siembra las plantillas de notificación automática por defecto para los eventos
+    /// que el motor de Comunicados (NotificationEngine) dispara. Sin estas plantillas
+    /// activas, ProcessEventAsync descarta la notificación en silencio.
+    /// </summary>
+    public static async Task SeedNotificationTemplatesAsync(ApplicationDbContext context, string tenantId)
+    {
+        var hasTemplates = await context.NotificationTemplates.AnyAsync(t => t.TenantId == tenantId);
+        if (hasTemplates)
+        {
+            return;
+        }
+
+        var templates = new List<NotificationTemplate>
+        {
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.PaymentConfirmed,
+                Name = "Confirmación de Pago", ForRecipientType = RecipientType.Both,
+                EmailSubject = "Confirmación de pago recibido - Unidad {UnitIdentifier}",
+                EmailBody = "Hola {ResidentName}, confirmamos la recepción de su pago por valor de {Amount} para la unidad {UnitIdentifier} con fecha {PaymentDate}. Gracias por su puntualidad.",
+                SmsBody = "Confirmamos su pago de {Amount} para la unidad {UnitIdentifier}. Gracias.",
+                DynamicVariables = "ResidentName,Amount,UnitIdentifier,PaymentDate",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.PQRReceived,
+                Name = "PQR Radicada", ForRecipientType = RecipientType.Both,
+                EmailSubject = "PQR Radicada: {RadicadoNumber}",
+                EmailBody = "Hola {ResidentName}, su solicitud fue radicada con el número {RadicadoNumber}. Fecha límite de respuesta: {Deadline}. La administración dará respuesta dentro del plazo establecido.",
+                SmsBody = "Su PQR {RadicadoNumber} fue radicada. Plazo de respuesta: {Deadline}.",
+                DynamicVariables = "ResidentName,RadicadoNumber,Deadline",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.PQRResponseAvailable,
+                Name = "Respuesta a PQR Disponible", ForRecipientType = RecipientType.Both,
+                EmailSubject = "Respuesta a su PQR {RadicadoNumber}",
+                EmailBody = "Hola {ResidentName}, la administración ha respondido su solicitud {RadicadoNumber}. Ingrese al portal para ver el detalle de la respuesta.",
+                SmsBody = "Su PQR {RadicadoNumber} ya tiene respuesta. Ingrese al portal para verla.",
+                DynamicVariables = "ResidentName,RadicadoNumber",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.ReservationApproved,
+                Name = "Reserva Aprobada", ForRecipientType = RecipientType.Both,
+                EmailSubject = "Reserva aprobada: {SpaceName}",
+                EmailBody = "Hola {ResidentName}, su reserva de {SpaceName} para el {ReservationDate} a las {ReservationTime} ha sido aprobada.",
+                SmsBody = "Su reserva de {SpaceName} el {ReservationDate} fue aprobada.",
+                DynamicVariables = "ResidentName,SpaceName,ReservationDate,ReservationTime",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.ReservationReminder24h,
+                Name = "Recordatorio de Reserva (24h)", ForRecipientType = RecipientType.Both,
+                EmailSubject = "Recordatorio: su reserva es mañana",
+                EmailBody = "Hola {ResidentName}, le recordamos que su reserva de {SpaceName} es el {ReservationDate} a las {ReservationTime}.",
+                SmsBody = "Recordatorio: reserva de {SpaceName} manana {ReservationTime}.",
+                DynamicVariables = "ResidentName,SpaceName,ReservationDate,ReservationTime",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.ReservationReminder2h,
+                Name = "Recordatorio de Reserva (2h)", ForRecipientType = RecipientType.Both,
+                EmailSubject = "Recordatorio: su reserva es en 2 horas",
+                EmailBody = "Hola {ResidentName}, le recordamos que su reserva de {SpaceName} es hoy {ReservationDate} a las {ReservationTime}, en 2 horas.",
+                SmsBody = "Recordatorio: reserva de {SpaceName} en 2 horas, {ReservationTime}.",
+                DynamicVariables = "ResidentName,SpaceName,ReservationDate,ReservationTime",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.AssemblyConvocation,
+                Name = "Convocatoria de Asamblea", ForRecipientType = RecipientType.Owner,
+                EmailSubject = "Convocatoria a Asamblea de Propietarios",
+                EmailBody = "Se le convoca a la asamblea de propietarios a realizarse el {AssemblyDate} a las {AssemblyTime} en {Location}. Su asistencia es importante.",
+                SmsBody = "Convocatoria a asamblea el {AssemblyDate} {AssemblyTime} en {Location}.",
+                DynamicVariables = "AssemblyDate,AssemblyTime,Location",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.AssemblyMinutesPublished,
+                Name = "Acta de Asamblea Publicada", ForRecipientType = RecipientType.Owner,
+                EmailSubject = "Acta de asamblea disponible",
+                EmailBody = "El acta de la asamblea del {AssemblyDate} (Acta N.° {ActNumber}) ya está disponible para consulta en el portal.",
+                SmsBody = "El acta de asamblea N.° {ActNumber} ya esta disponible.",
+                DynamicVariables = "AssemblyDate,ActNumber",
+                CreatedByUserId = "system"
+            },
+            new()
+            {
+                TenantId = tenantId, EventType = NotificationEventType.WorkOrderResolved,
+                Name = "Orden de Mantenimiento Resuelta", ForRecipientType = RecipientType.Both,
+                EmailSubject = "Su solicitud de mantenimiento fue atendida",
+                EmailBody = "Hola {ResidentName}, la orden de mantenimiento relacionada con su solicitud {RadicadoNumber} fue completada.",
+                SmsBody = "Su solicitud de mantenimiento {RadicadoNumber} fue atendida.",
+                DynamicVariables = "ResidentName,RadicadoNumber",
+                CreatedByUserId = "system"
+            }
+        };
+
+        context.NotificationTemplates.AddRange(templates);
+        await context.SaveChangesAsync();
+    }
 }

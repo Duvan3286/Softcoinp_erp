@@ -13,15 +13,21 @@ public class ReservationService
     private readonly ApplicationDbContext _context;
     private readonly ReservationAvailabilityEngine _availabilityEngine;
     private readonly ReservationReminderEngine _reminderEngine;
+    private readonly NotificationEngine _notificationEngine;
+    private readonly IndicatorCacheService _indicatorCache;
 
     public ReservationService(
         ApplicationDbContext context,
         ReservationAvailabilityEngine availabilityEngine,
-        ReservationReminderEngine reminderEngine)
+        ReservationReminderEngine reminderEngine,
+        NotificationEngine notificationEngine,
+        IndicatorCacheService indicatorCache)
     {
         _context = context;
         _availabilityEngine = availabilityEngine;
         _reminderEngine = reminderEngine;
+        _notificationEngine = notificationEngine;
+        _indicatorCache = indicatorCache;
     }
 
     // ── Reservable Spaces ────────────────────────────────────────
@@ -546,6 +552,11 @@ public class ReservationService
             };
             _context.ReservationDeposits.Add(deposit);
             await _context.SaveChangesAsync();
+
+            if (reservation.Status == ReservationStatus.Approved)
+            {
+                await CreateDepositChargeAsync(reservation, deposit, availability.Space.Name, tenantId, userId);
+            }
         }
 
         await _reminderEngine.CreateRemindersForReservationAsync(reservation, tenantId);
@@ -553,11 +564,71 @@ public class ReservationService
         return await GetReservationByIdAsync(reservation.Id, tenantId);
     }
 
+    private async Task CreateDepositChargeAsync(
+        Reservation reservation, ReservationDeposit deposit, string spaceName, string tenantId, string userId)
+    {
+        var charge = new IndividualCharge
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UnitId = reservation.UnitId,
+            ChargeType = ChargeType.Other,
+            Concept = "Depósito de reserva",
+            Amount = deposit.Amount,
+            ChargeDate = DateTime.UtcNow,
+            Description = $"Depósito por reserva {reservation.ReservationNumber} - {spaceName}",
+            Status = IndividualChargeStatus.Pending,
+            PaidAmount = 0m,
+            BalanceAmount = deposit.Amount,
+            CreatedByUserId = userId
+        };
+
+        _context.IndividualCharges.Add(charge);
+
+        deposit.ChargeId = charge.Id;
+        reservation.DepositChargeId = charge.Id;
+
+        await _context.SaveChangesAsync();
+
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
+    }
+
+    private async Task CreateDepositReturnCreditAsync(
+        Reservation reservation, ReservationDeposit deposit, string tenantId, string userId)
+    {
+        var credit = new BillingAdjustment
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UnitId = reservation.UnitId,
+            Amount = -deposit.Amount,
+            Reason = $"Devolución de depósito - reserva {reservation.ReservationNumber}",
+            CreatedByUserId = userId
+        };
+
+        _context.BillingAdjustments.Add(credit);
+
+        deposit.ReturnChargeId = credit.Id;
+        deposit.Status = DepositStatus.Returned;
+        deposit.ReturnedAt = DateTime.UtcNow;
+        deposit.ProcessedByUserId = userId;
+
+        reservation.DepositReturnChargeId = credit.Id;
+        reservation.DepositStatus = DepositStatus.Returned;
+
+        await _context.SaveChangesAsync();
+
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
+    }
+
     public async Task ApproveReservationAsync(
         Guid id, ApproveReservationRequestDto request, string tenantId, string userId)
     {
         var reservation = await _context.Reservations
             .Include(r => r.Space)
+            .Include(r => r.Owner)
             .FirstOrDefaultAsync(r => r.Id == id && r.TenantId == tenantId);
 
         if (reservation == null)
@@ -573,6 +644,46 @@ public class ReservationService
         reservation.UpdatedByUserId = userId;
 
         await _context.SaveChangesAsync();
+
+        if (reservation.DepositStatus == DepositStatus.Pending)
+        {
+            var deposit = await _context.ReservationDeposits
+                .FirstOrDefaultAsync(d => d.ReservationId == reservation.Id && d.TenantId == tenantId && d.ChargeId == null);
+
+            if (deposit != null)
+            {
+                var spaceName = string.Empty;
+                if (reservation.Space != null)
+                {
+                    spaceName = reservation.Space.Name;
+                }
+                await CreateDepositChargeAsync(reservation, deposit, spaceName, tenantId, userId);
+            }
+        }
+
+        var approvedSpaceName = string.Empty;
+        if (reservation.Space != null)
+        {
+            approvedSpaceName = reservation.Space.Name;
+        }
+        var residentName = string.Empty;
+        if (reservation.Owner != null)
+        {
+            residentName = reservation.Owner.FullNameOrCompanyName;
+        }
+
+        var approvalVariables = new Dictionary<string, string>
+        {
+            ["ResidentName"] = residentName,
+            ["SpaceName"] = approvedSpaceName,
+            ["ReservationDate"] = reservation.StartDateTime.ToString("dd/MM/yyyy"),
+            ["ReservationTime"] = reservation.StartDateTime.ToString("HH:mm")
+        };
+
+        await _notificationEngine.ProcessEventAsync(
+            tenantId, NotificationEventType.ReservationApproved,
+            "Reservations", reservation.Id.ToString(), "Reservation",
+            ownerId: reservation.OwnerId, variables: approvalVariables);
     }
 
     public async Task RejectReservationAsync(
@@ -668,6 +779,17 @@ public class ReservationService
         reservation.UpdatedByUserId = userId;
 
         await _context.SaveChangesAsync();
+
+        if (!hasIncidents && reservation.DepositChargeId.HasValue)
+        {
+            var deposit = await _context.ReservationDeposits
+                .FirstOrDefaultAsync(d => d.ReservationId == reservation.Id && d.TenantId == tenantId && d.Status != DepositStatus.Returned);
+
+            if (deposit != null)
+            {
+                await CreateDepositReturnCreditAsync(reservation, deposit, tenantId, userId);
+            }
+        }
     }
 
     public async Task ReportIncidentAsync(

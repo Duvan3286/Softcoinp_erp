@@ -612,12 +612,13 @@ public class MaintenanceService
 
         if (request.Status != null && Enum.TryParse<WorkOrderStatus>(request.Status, true, out var newStatus))
         {
+            var wasAlreadyCompleted = order.Status == WorkOrderStatus.Completed;
             order.Status = newStatus;
 
             if (newStatus == WorkOrderStatus.InProgress && order.ExecutionStartDate == null)
                 order.ExecutionStartDate = DateTime.UtcNow;
 
-            if (newStatus == WorkOrderStatus.Completed)
+            if (newStatus == WorkOrderStatus.Completed && !wasAlreadyCompleted)
             {
                 order.ExecutionEndDate = DateTime.UtcNow;
 

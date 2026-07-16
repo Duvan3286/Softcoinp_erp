@@ -230,12 +230,20 @@ public class AssemblyMinutesGenerator
 
         var commissionDeadline = DateTime.UtcNow.AddDays(5);
 
+        var actNumber = assembly.ActNumber;
+        if (string.IsNullOrEmpty(actNumber))
+        {
+            actNumber = await GenerateActNumberAsync(tenantId);
+            assembly.ActNumber = actNumber;
+        }
+
         var minutes = new AssemblyMinutes
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             AssemblyId = assemblyId,
             Status = MinutesStatus.Draft,
+            ActNumber = actNumber,
             PresidentName = presidentName ?? assembly.PresidentName,
             SecretaryName = secretaryName ?? assembly.SecretaryName,
             FullText = fullText,
@@ -251,6 +259,16 @@ public class AssemblyMinutesGenerator
         await _context.SaveChangesAsync();
 
         return minutes;
+    }
+
+    public async Task<string> GenerateActNumberAsync(string tenantId)
+    {
+        var year = DateTime.UtcNow.Year;
+        var countThisYear = await _context.Assemblies
+            .CountAsync(a => a.TenantId == tenantId && a.ActNumber != null && a.ScheduledDate.Year == year);
+
+        var sequence = countThisYear + 1;
+        return $"{sequence:D3}-{year}";
     }
 
     private string GetMajorityLabel(MajorityType majority)

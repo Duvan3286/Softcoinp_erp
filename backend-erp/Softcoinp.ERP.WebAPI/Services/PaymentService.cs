@@ -16,12 +16,18 @@ public class PaymentService
     private readonly ApplicationDbContext _context;
     private readonly ILogger<PaymentService> _logger;
     private readonly IndicatorCacheService _indicatorCache;
+    private readonly NotificationEngine _notificationEngine;
 
-    public PaymentService(ApplicationDbContext context, ILogger<PaymentService> logger, IndicatorCacheService indicatorCache)
+    public PaymentService(
+        ApplicationDbContext context,
+        ILogger<PaymentService> logger,
+        IndicatorCacheService indicatorCache,
+        NotificationEngine notificationEngine)
     {
         _context = context;
         _logger = logger;
         _indicatorCache = indicatorCache;
+        _notificationEngine = notificationEngine;
     }
 
     public async Task<UnitDebtSummaryDto> GetUnitDebtSummaryAsync(string tenantId, Guid unitId)
@@ -289,7 +295,58 @@ public class PaymentService
 
         await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
         await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
+        await SendPaymentConfirmedNotificationAsync(tenantId, payment);
         return payment;
+    }
+
+    private async Task SendPaymentConfirmedNotificationAsync(string tenantId, Payment payment)
+    {
+        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == payment.UnitId && u.TenantId == tenantId);
+        var unitIdentifier = string.Empty;
+        if (unit != null)
+        {
+            unitIdentifier = unit.Identifier;
+        }
+
+        var variables = new Dictionary<string, string>
+        {
+            ["Amount"] = payment.Amount.ToString("N0"),
+            ["UnitIdentifier"] = unitIdentifier,
+            ["PaymentDate"] = payment.PaymentDate.ToString("dd/MM/yyyy")
+        };
+
+        var activeOwner = await _context.UnitOwners
+            .Where(uo => uo.TenantId == tenantId && uo.UnitId == payment.UnitId && uo.IsActive)
+            .Select(uo => new { uo.OwnerId, uo.Owner!.FullNameOrCompanyName })
+            .FirstOrDefaultAsync();
+
+        if (activeOwner != null)
+        {
+            var ownerVariables = new Dictionary<string, string>(variables)
+            {
+                ["ResidentName"] = activeOwner.FullNameOrCompanyName
+            };
+            await _notificationEngine.ProcessEventAsync(
+                tenantId, NotificationEventType.PaymentConfirmed,
+                "Billing", payment.Id.ToString(), "Payment",
+                ownerId: activeOwner.OwnerId, variables: ownerVariables);
+        }
+
+        var activeResident = await _context.TenantResidents
+            .Where(tr => tr.TenantId == tenantId && tr.UnitId == payment.UnitId && tr.IsActive)
+            .FirstOrDefaultAsync();
+
+        if (activeResident != null)
+        {
+            var residentVariables = new Dictionary<string, string>(variables)
+            {
+                ["ResidentName"] = activeResident.FullName
+            };
+            await _notificationEngine.ProcessEventAsync(
+                tenantId, NotificationEventType.PaymentConfirmed,
+                "Billing", payment.Id.ToString(), "Payment",
+                tenantResidentId: activeResident.Id, variables: residentVariables);
+        }
     }
 
     public async Task<List<PaymentDto>> GetUnitPaymentsAsync(string tenantId, Guid unitId)

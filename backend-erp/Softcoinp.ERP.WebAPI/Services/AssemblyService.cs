@@ -17,19 +17,28 @@ public class AssemblyService
     private readonly AssemblyVotingEngine _votingEngine;
     private readonly AssemblyMinutesGenerator _minutesGenerator;
     private readonly AssemblyDecisionPropagationService _propagationService;
+    private readonly NotificationEngine _notificationEngine;
+    private readonly BillingEngineService _billingEngineService;
+    private readonly BudgetService _budgetService;
 
     public AssemblyService(
         ApplicationDbContext context,
         AssemblyQuorumEngine quorumEngine,
         AssemblyVotingEngine votingEngine,
         AssemblyMinutesGenerator minutesGenerator,
-        AssemblyDecisionPropagationService propagationService)
+        AssemblyDecisionPropagationService propagationService,
+        NotificationEngine notificationEngine,
+        BillingEngineService billingEngineService,
+        BudgetService budgetService)
     {
         _context = context;
         _quorumEngine = quorumEngine;
         _votingEngine = votingEngine;
         _minutesGenerator = minutesGenerator;
         _propagationService = propagationService;
+        _notificationEngine = notificationEngine;
+        _billingEngineService = billingEngineService;
+        _budgetService = budgetService;
     }
 
     // ── Assembly CRUD ─────────────────────────────────────────────
@@ -278,6 +287,13 @@ public class AssemblyService
         assembly.SecretaryOwnerId = request.SecretaryOwnerId;
         assembly.UpdatedByUserId = userId;
 
+        if (string.IsNullOrEmpty(assembly.ActNumber))
+        {
+            assembly.ActNumber = await _minutesGenerator.GenerateActNumberAsync(tenantId);
+        }
+
+        await RefreshQuorumSnapshotAsync(assembly, tenantId);
+
         await _context.SaveChangesAsync();
     }
 
@@ -419,20 +435,55 @@ public class AssemblyService
         if (convocation == null)
             throw new InvalidOperationException("Convocation not found");
 
+        var assembly = await _context.Assemblies
+            .FirstOrDefaultAsync(a => a.Id == convocation.AssemblyId && a.TenantId == tenantId);
+
+        var variables = new Dictionary<string, string>
+        {
+            ["AssemblyDate"] = string.Empty,
+            ["AssemblyTime"] = string.Empty,
+            ["Location"] = string.Empty
+        };
+
+        if (assembly != null)
+        {
+            variables["AssemblyDate"] = assembly.ScheduledDate.ToString("dd/MM/yyyy");
+            variables["AssemblyTime"] = assembly.ScheduledTime;
+            variables["Location"] = assembly.Location;
+        }
+
         convocation.SentAt = DateTime.UtcNow;
         convocation.SentByUserId = userId;
-        convocation.DeliveredCount = convocation.TotalRecipients;
-        convocation.FailedCount = 0;
 
         var recipients = await _context.ConvocationRecipients
             .Where(r => r.ConvocationId == convocationId)
             .ToListAsync();
 
+        var deliveredCount = 0;
+        var failedCount = 0;
+
         foreach (var recipient in recipients)
         {
-            recipient.Delivered = true;
-            recipient.DeliveredAt = DateTime.UtcNow;
+            var notification = await _notificationEngine.ProcessEventAsync(
+                tenantId, NotificationEventType.AssemblyConvocation,
+                "Assembly", convocation.Id.ToString(), "AssemblyConvocation",
+                ownerId: recipient.OwnerId, variables: variables);
+
+            if (notification != null)
+            {
+                recipient.Delivered = true;
+                recipient.DeliveredAt = DateTime.UtcNow;
+                deliveredCount++;
+            }
+            else
+            {
+                recipient.Delivered = false;
+                failedCount++;
+            }
         }
+
+        convocation.DeliveredCount = deliveredCount;
+        convocation.FailedCount = failedCount;
 
         await _context.SaveChangesAsync();
     }
@@ -526,8 +577,19 @@ public class AssemblyService
         _context.AssemblyAttendances.Add(attendance);
         await _context.SaveChangesAsync();
 
+        await RefreshQuorumSnapshotAsync(assembly, tenantId);
+        await _context.SaveChangesAsync();
+
         return (await GetAttendancesAsync(assemblyId, tenantId))
             .First(a => a.Id == attendance.Id);
+    }
+
+    private async Task RefreshQuorumSnapshotAsync(Assembly assembly, string tenantId)
+    {
+        var quorumStatus = await _quorumEngine.CalculateQuorumAsync(assembly.Id, tenantId);
+        assembly.TotalCoefficients = quorumStatus.TotalCoefficients;
+        assembly.QuorumAchievedFirstCall = quorumStatus.FirstCallQuorumMet;
+        assembly.QuorumAchievedSecondCall = quorumStatus.SecondCallQuorumMet;
     }
 
     public async Task UpdateAttendanceAsync(
@@ -588,7 +650,9 @@ public class AssemblyService
                 OwnerNotes = ai.OwnerNotes,
                 VoteRegistered = ai.VoteRegistered,
                 RegisteredByUserId = ai.RegisteredByUserId,
-                VoteRegisteredAt = ai.VoteRegisteredAt
+                VoteRegisteredAt = ai.VoteRegisteredAt,
+                PropagationTarget = ai.PropagationTarget.ToString(),
+                TargetBudgetId = ai.TargetBudgetId
             })
             .ToListAsync();
     }
@@ -604,6 +668,20 @@ public class AssemblyService
 
         var eligibleCoefficients = await _quorumEngine.GetEligibleVotingCoefficientsAsync(assemblyId, tenantId);
 
+        DecisionPropagationTarget? propagationTarget = null;
+        if (!string.IsNullOrEmpty(request.PropagationTarget)
+            && Enum.TryParse<DecisionPropagationTarget>(request.PropagationTarget, true, out var parsedTarget))
+        {
+            propagationTarget = parsedTarget;
+        }
+
+        DistributionType? extraordinaryFeeDistributionType = null;
+        if (!string.IsNullOrEmpty(request.ExtraordinaryFeeDistributionType)
+            && Enum.TryParse<DistributionType>(request.ExtraordinaryFeeDistributionType, true, out var parsedDistribution))
+        {
+            extraordinaryFeeDistributionType = parsedDistribution;
+        }
+
         var item = new AssemblyAgendaItem
         {
             Id = Guid.NewGuid(),
@@ -617,7 +695,14 @@ public class AssemblyService
             VotingMode = Enum.TryParse<VotingMode>(request.VotingMode, true, out var vot) ? vot : VotingMode.Public,
             IsInformationOnly = request.IsInformationOnly,
             RequiresVoting = request.RequiresVoting,
-            TotalCoefficientsForVote = eligibleCoefficients
+            TotalCoefficientsForVote = eligibleCoefficients,
+            PropagationTarget = propagationTarget,
+            ExtraordinaryFeeTotalAmount = request.ExtraordinaryFeeTotalAmount,
+            ExtraordinaryFeeInstallments = request.ExtraordinaryFeeInstallments,
+            ExtraordinaryFeeStartPeriod = request.ExtraordinaryFeeStartPeriod,
+            ExtraordinaryFeeDueDate = request.ExtraordinaryFeeDueDate,
+            ExtraordinaryFeeDistributionType = extraordinaryFeeDistributionType,
+            TargetBudgetId = request.TargetBudgetId
         };
 
         _context.AssemblyAgendaItems.Add(item);
@@ -706,8 +791,83 @@ public class AssemblyService
 
         await _context.SaveChangesAsync();
 
+        if (item.PropagationTarget.HasValue)
+        {
+            await PropagateDecisionAsync(item, tenantId, userId);
+        }
+
         return (await GetAgendaItemsAsync(item.AssemblyId, tenantId))
             .First(ai => ai.Id == itemId);
+    }
+
+    private async Task PropagateDecisionAsync(AssemblyAgendaItem item, string tenantId, string userId)
+    {
+        var propagation = await _propagationService.CreatePropagationAsync(
+            item.AssemblyId, item.Id, tenantId, item.PropagationTarget!.Value,
+            $"Propagación automática del punto de agenda '{item.Title}'.");
+
+        if (item.IsApproved != true)
+        {
+            await _propagationService.MarkAsFailedAsync(
+                propagation.Id, tenantId, "El punto de agenda fue rechazado en la votación.");
+            return;
+        }
+
+        var assembly = await _context.Assemblies
+            .FirstOrDefaultAsync(a => a.Id == item.AssemblyId && a.TenantId == tenantId);
+        var actNumber = string.Empty;
+        if (assembly != null && assembly.ActNumber != null)
+        {
+            actNumber = assembly.ActNumber;
+        }
+
+        try
+        {
+            if (item.PropagationTarget == DecisionPropagationTarget.ExtraordinaryFee)
+            {
+                if (!item.ExtraordinaryFeeTotalAmount.HasValue
+                    || !item.ExtraordinaryFeeInstallments.HasValue
+                    || !item.ExtraordinaryFeeDueDate.HasValue
+                    || !item.ExtraordinaryFeeDistributionType.HasValue
+                    || string.IsNullOrEmpty(item.ExtraordinaryFeeStartPeriod))
+                {
+                    throw new InvalidOperationException(
+                        "El punto de agenda no tiene los datos de la cuota extraordinaria completos.");
+                }
+
+                var fee = await _billingEngineService.CreateExtraordinaryFeeFromDecisionAsync(
+                    tenantId, item.Title, item.Description ?? string.Empty, actNumber,
+                    item.ExtraordinaryFeeTotalAmount.Value, item.ExtraordinaryFeeInstallments.Value,
+                    item.ExtraordinaryFeeStartPeriod, item.ExtraordinaryFeeDistributionType.Value,
+                    item.ExtraordinaryFeeDueDate.Value, userId);
+
+                await _propagationService.MarkAsPropagatedAsync(
+                    propagation.Id, tenantId, fee.Id.ToString(), "ExtraordinaryFee");
+            }
+            else if (item.PropagationTarget == DecisionPropagationTarget.Budget)
+            {
+                if (!item.TargetBudgetId.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        "El punto de agenda no tiene asociado el presupuesto a activar.");
+                }
+
+                var approveRequest = new ApproveBudgetRequestDto
+                {
+                    MeetingActNumber = actNumber,
+                    ApprovalDate = DateTime.UtcNow
+                };
+
+                await _budgetService.ApproveBudgetAsync(tenantId, item.TargetBudgetId.Value, approveRequest);
+
+                await _propagationService.MarkAsPropagatedAsync(
+                    propagation.Id, tenantId, item.TargetBudgetId.Value.ToString(), "Budget");
+            }
+        }
+        catch (Exception ex)
+        {
+            await _propagationService.MarkAsFailedAsync(propagation.Id, tenantId, ex.Message);
+        }
     }
 
     // ── Constancies ───────────────────────────────────────────────
@@ -852,12 +1012,6 @@ public class AssemblyService
         minutes.UpdatedAt = DateTime.UtcNow;
         minutes.UpdatedByUserId = userId;
 
-        var recipients = await _context.ConvocationRecipients
-            .Where(r => r.Convocation != null && r.Convocation.AssemblyId == assemblyId)
-            .CountAsync();
-
-        minutes.PublishNotificationCount = recipients;
-
         var assembly = await _context.Assemblies
             .FirstOrDefaultAsync(a => a.Id == assemblyId && a.TenantId == tenantId);
 
@@ -866,6 +1020,40 @@ public class AssemblyService
             assembly.Status = AssemblyStatus.Published;
             assembly.UpdatedByUserId = userId;
         }
+
+        var recipients = await _context.ConvocationRecipients
+            .Where(r => r.Convocation != null && r.Convocation.AssemblyId == assemblyId)
+            .Select(r => r.OwnerId)
+            .Distinct()
+            .ToListAsync();
+
+        var assemblyDate = string.Empty;
+        if (assembly != null)
+        {
+            assemblyDate = assembly.ScheduledDate.ToString("dd/MM/yyyy");
+        }
+
+        var variables = new Dictionary<string, string>
+        {
+            ["AssemblyDate"] = assemblyDate,
+            ["ActNumber"] = minutes.ActNumber ?? string.Empty
+        };
+
+        var notificationCount = 0;
+        foreach (var ownerId in recipients)
+        {
+            var notification = await _notificationEngine.ProcessEventAsync(
+                tenantId, NotificationEventType.AssemblyMinutesPublished,
+                "Assembly", minutes.Id.ToString(), "AssemblyMinutes",
+                ownerId: ownerId, variables: variables);
+
+            if (notification != null)
+            {
+                notificationCount++;
+            }
+        }
+
+        minutes.PublishNotificationCount = notificationCount;
 
         await _context.SaveChangesAsync();
     }

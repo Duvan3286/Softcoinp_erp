@@ -100,6 +100,15 @@ public class UsersController : ControllerBase
         targetUser.SuspendedReason = request.Reason;
         await _userManager.UpdateAsync(targetUser);
 
+        var activeTokens = await _db.RefreshTokens
+            .Where(r => r.UserId == targetUser.Id && !r.IsRevoked)
+            .ToListAsync();
+        foreach (var token in activeTokens)
+        {
+            token.IsRevoked = true;
+            token.RevokedAt = DateTime.UtcNow;
+        }
+
         _db.AccessAuditLogs.Add(new AccessAuditLog
         {
             Timestamp = DateTime.UtcNow,

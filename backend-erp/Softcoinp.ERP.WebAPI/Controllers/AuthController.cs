@@ -211,6 +211,13 @@ public class AuthController : ControllerBase
         }
 
         var user = stored.User!;
+
+        if (user.IsSuspended || !user.IsActive)
+        {
+            await RevokeAllUserTokensAsync(user.Id);
+            return Unauthorized(new { message = "El usuario ha sido suspendido o desactivado." });
+        }
+
         var tenant = await _tenantResolver.GetCurrentTenantAsync();
         var identityRoles = await _userManager.GetRolesAsync(user);
         var tenantRole = tenant != null

@@ -28,6 +28,7 @@ public class DashboardService
     private readonly DashboardAlertEngineService _alertEngineService;
     private readonly PaymentStatusMapService _paymentStatusMapService;
     private readonly ReportAccessControlService _reportAccessControlService;
+    private readonly PortfolioAgingService _portfolioAgingService;
 
     public const string CollectionChartCacheKeyPrefix = "collection_chart_";
 
@@ -37,7 +38,8 @@ public class DashboardService
         ExecutionEngineService executionEngineService,
         DashboardAlertEngineService alertEngineService,
         PaymentStatusMapService paymentStatusMapService,
-        ReportAccessControlService reportAccessControlService)
+        ReportAccessControlService reportAccessControlService,
+        PortfolioAgingService portfolioAgingService)
     {
         _context = context;
         _indicatorCache = indicatorCache;
@@ -45,6 +47,7 @@ public class DashboardService
         _alertEngineService = alertEngineService;
         _paymentStatusMapService = paymentStatusMapService;
         _reportAccessControlService = reportAccessControlService;
+        _portfolioAgingService = portfolioAgingService;
     }
 
     // ── KPIs ──────────────────────────────────────────────────────────
@@ -131,12 +134,6 @@ public class DashboardService
         return kpis;
     }
 
-    private class PortfolioAgingRawDto
-    {
-        public int MonthsOverdue { get; set; }
-        public decimal OverdueBalance { get; set; }
-    }
-
     private class PortfolioAgingResult
     {
         public decimal OverdueOneMonth { get; set; }
@@ -146,56 +143,23 @@ public class DashboardService
 
     private async Task<PortfolioAgingResult> GetPortfolioAgingAsync(string tenantId)
     {
-        var sql = @"
-WITH fee_debts AS (
-    SELECT UnitId,
-           SUM(BalanceAmount) AS FeeBalance,
-           COUNT(DISTINCT BillingPeriodId) AS MonthsOverdue
-    FROM erp_unit_fees
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
-    GROUP BY UnitId
-),
-extra_debts AS (
-    SELECT UnitId, SUM(BalanceAmount) AS ExtraBalance
-    FROM erp_extraordinary_fee_distributions
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
-    GROUP BY UnitId
-),
-charge_debts AS (
-    SELECT UnitId, SUM(BalanceAmount) AS ChargeBalance
-    FROM erp_individual_charges
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'Paid'
-    GROUP BY UnitId
-)
-SELECT
-    COALESCE(fd.MonthsOverdue, 0) AS MonthsOverdue,
-    COALESCE(fd.FeeBalance, 0) + COALESCE(ed.ExtraBalance, 0) + COALESCE(cd.ChargeBalance, 0) AS OverdueBalance
-FROM erp_units u
-LEFT JOIN fee_debts fd ON fd.UnitId = u.Id
-LEFT JOIN extra_debts ed ON ed.UnitId = u.Id
-LEFT JOIN charge_debts cd ON cd.UnitId = u.Id
-WHERE u.TenantId = @p0
-  AND (COALESCE(fd.FeeBalance, 0) + COALESCE(ed.ExtraBalance, 0) + COALESCE(cd.ChargeBalance, 0)) > 0";
-
-        var rows = await _context.Database
-            .SqlQueryRaw<PortfolioAgingRawDto>(sql, tenantId)
-            .ToListAsync();
+        var overdueByUnit = await _portfolioAgingService.GetOverdueByUnitAsync(tenantId);
 
         var result = new PortfolioAgingResult();
 
-        foreach (var row in rows)
+        foreach (var unit in overdueByUnit.Values)
         {
-            if (row.MonthsOverdue <= 1)
+            if (unit.MonthsOverdue <= 1)
             {
-                result.OverdueOneMonth += row.OverdueBalance;
+                result.OverdueOneMonth += unit.TotalDebt;
             }
-            else if (row.MonthsOverdue == 2)
+            else if (unit.MonthsOverdue == 2)
             {
-                result.OverdueTwoMonths += row.OverdueBalance;
+                result.OverdueTwoMonths += unit.TotalDebt;
             }
             else
             {
-                result.OverdueThreeOrMoreMonths += row.OverdueBalance;
+                result.OverdueThreeOrMoreMonths += unit.TotalDebt;
             }
         }
 

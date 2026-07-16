@@ -11,10 +11,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class ClaimResolutionService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IndicatorCacheService _indicatorCache;
 
-    public ClaimResolutionService(ApplicationDbContext context)
+    public ClaimResolutionService(ApplicationDbContext context, IndicatorCacheService indicatorCache)
     {
         _context = context;
+        _indicatorCache = indicatorCache;
     }
 
     public async Task ResolveClaimAsync(string tenantId, Guid pqrId, bool resolved, string resolutionNote, string userId)
@@ -127,6 +129,9 @@ public class ClaimResolutionService
 
         _context.PqrFollowUps.Add(followUp);
         await _context.SaveChangesAsync();
+
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
     }
 
     private async Task ApplyCreditNoteAsync(
@@ -134,6 +139,8 @@ public class ClaimResolutionService
         Guid chargeId, decimal chargeAmount, string sourceLabel, string userId)
     {
         var description = $"Nota de crédito por reclamo {pqr.RadicadoNumber}. {sourceLabel}. {pqr.ClaimResolutionNote}";
+
+        Guid? unitFeeIdForAdjustment = null;
 
         switch (chargeType)
         {
@@ -144,6 +151,7 @@ public class ClaimResolutionService
                     unitFee.BalanceAmount = 0m;
                     unitFee.PaidAmount = unitFee.FeeValue;
                     unitFee.Status = FeeStatus.FullyPaid;
+                    unitFeeIdForAdjustment = unitFee.Id;
                 }
                 break;
 
@@ -167,6 +175,19 @@ public class ClaimResolutionService
                 }
                 break;
         }
+
+        var creditNote = new BillingAdjustment
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UnitId = pqr.UnitId,
+            UnitFeeId = unitFeeIdForAdjustment,
+            Amount = -chargeAmount,
+            Reason = description,
+            CreatedByUserId = userId
+        };
+
+        _context.BillingAdjustments.Add(creditNote);
 
         pqr.CreditNoteGenerated = true;
     }

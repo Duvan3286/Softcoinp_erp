@@ -13,6 +13,8 @@ public class AssemblyMinutes
 
     public MinutesStatus Status { get; set; } = MinutesStatus.Draft;
 
+    public string? ActNumber { get; set; }
+
     public string? PresidentName { get; set; }
     public string? SecretaryName { get; set; }
 

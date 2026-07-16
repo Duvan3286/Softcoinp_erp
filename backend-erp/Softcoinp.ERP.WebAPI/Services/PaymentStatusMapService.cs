@@ -17,13 +17,16 @@ public class PaymentStatusMapService
 {
     private readonly ApplicationDbContext _context;
     private readonly IndicatorCacheService _indicatorCache;
+    private readonly PortfolioAgingService _portfolioAgingService;
 
     public const string CacheKeyPrefix = "payment_map_";
 
-    public PaymentStatusMapService(ApplicationDbContext context, IndicatorCacheService indicatorCache)
+    public PaymentStatusMapService(
+        ApplicationDbContext context, IndicatorCacheService indicatorCache, PortfolioAgingService portfolioAgingService)
     {
         _context = context;
         _indicatorCache = indicatorCache;
+        _portfolioAgingService = portfolioAgingService;
     }
 
     public async Task<PaymentStatusMapDto> GetPaymentStatusMapAsync(string tenantId)
@@ -42,53 +45,53 @@ public class PaymentStatusMapService
 
     private async Task<PaymentStatusMapDto> ComputePaymentStatusMapAsync(string tenantId)
     {
-        var sql = @"
-WITH spokespersons AS (
-    SELECT uo.UnitId, o.FullNameOrCompanyName AS OwnerName
-    FROM erp_unit_owners uo
-    INNER JOIN erp_owners o ON o.Id = uo.OwnerId
-    WHERE uo.TenantId = @p0 AND uo.IsActive = TRUE AND uo.IsSpokesperson = TRUE
-),
-fee_debts AS (
-    SELECT UnitId,
-           SUM(BalanceAmount) AS TotalDebt,
-           COUNT(DISTINCT BillingPeriodId) AS MonthsOverdue
-    FROM erp_unit_fees
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
-    GROUP BY UnitId
-),
-extra_debts AS (
-    SELECT UnitId, SUM(BalanceAmount) AS TotalDebt
-    FROM erp_extraordinary_fee_distributions
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'FullyPaid'
-    GROUP BY UnitId
-),
-charge_debts AS (
-    SELECT UnitId, SUM(BalanceAmount) AS TotalDebt
-    FROM erp_individual_charges
-    WHERE TenantId = @p0 AND BalanceAmount > 0 AND Status <> 'Paid'
-    GROUP BY UnitId
-)
-SELECT
-    u.Id AS UnitId,
-    u.Identifier AS Identifier,
-    COALESCE(NULLIF(u.TowerOrBlock, ''), 'Sin Torre') AS TowerOrBlock,
-    u.FloorLevel AS FloorLevel,
-    COALESCE(s.OwnerName, 'Sin propietario') AS OwnerName,
-    COALESCE(fd.TotalDebt, 0) + COALESCE(ed.TotalDebt, 0) + COALESCE(cd.TotalDebt, 0) AS OverdueBalance,
-    COALESCE(fd.MonthsOverdue, 0) AS MonthsOverdue,
-    u.Status AS UnitStatus
-FROM erp_units u
-LEFT JOIN spokespersons s ON s.UnitId = u.Id
-LEFT JOIN fee_debts fd ON fd.UnitId = u.Id
-LEFT JOIN extra_debts ed ON ed.UnitId = u.Id
-LEFT JOIN charge_debts cd ON cd.UnitId = u.Id
-WHERE u.TenantId = @p0
-ORDER BY TowerOrBlock, u.FloorLevel, u.Identifier";
+        var overdueByUnit = await _portfolioAgingService.GetOverdueByUnitAsync(tenantId);
 
-        var rawUnits = await _context.Database
-            .SqlQueryRaw<UnitPaymentStatusRawDto>(sql, tenantId)
+        var spokespersons = await _context.UnitOwners
+            .Where(uo => uo.TenantId == tenantId && uo.IsActive && uo.IsSpokesperson)
+            .Select(uo => new { uo.UnitId, OwnerName = uo.Owner!.FullNameOrCompanyName })
+            .ToDictionaryAsync(x => x.UnitId, x => x.OwnerName);
+
+        var units = await _context.Units
+            .Where(u => u.TenantId == tenantId)
+            .Select(u => new { u.Id, u.Identifier, u.TowerOrBlock, u.FloorLevel, Status = u.Status.ToString() })
             .ToListAsync();
+
+        var rawUnits = new List<UnitPaymentStatusRawDto>();
+        foreach (var unit in units)
+        {
+            var towerOrBlock = "Sin Torre";
+            if (!string.IsNullOrEmpty(unit.TowerOrBlock))
+            {
+                towerOrBlock = unit.TowerOrBlock;
+            }
+
+            var ownerName = "Sin propietario";
+            if (spokespersons.TryGetValue(unit.Id, out var spokespersonName))
+            {
+                ownerName = spokespersonName;
+            }
+
+            var overdueBalance = 0m;
+            var monthsOverdue = 0;
+            if (overdueByUnit.TryGetValue(unit.Id, out var overdue))
+            {
+                overdueBalance = overdue.TotalDebt;
+                monthsOverdue = overdue.MonthsOverdue;
+            }
+
+            rawUnits.Add(new UnitPaymentStatusRawDto
+            {
+                UnitId = unit.Id,
+                Identifier = unit.Identifier,
+                TowerOrBlock = towerOrBlock,
+                FloorLevel = unit.FloorLevel,
+                OwnerName = ownerName,
+                OverdueBalance = overdueBalance,
+                MonthsOverdue = monthsOverdue,
+                UnitStatus = unit.Status
+            });
+        }
 
         var map = new PaymentStatusMapDto
         {

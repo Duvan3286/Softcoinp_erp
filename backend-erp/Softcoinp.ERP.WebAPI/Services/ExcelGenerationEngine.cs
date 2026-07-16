@@ -17,10 +17,13 @@ public class ExcelGenerationEngine
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
 
-    public ExcelGenerationEngine(ApplicationDbContext context, IWebHostEnvironment env)
+    private readonly PortfolioAgingService _portfolioAgingService;
+
+    public ExcelGenerationEngine(ApplicationDbContext context, IWebHostEnvironment env, PortfolioAgingService portfolioAgingService)
     {
         _context = context;
         _env = env;
+        _portfolioAgingService = portfolioAgingService;
     }
 
     public async Task<GeneratedReport> GenerateExcelReportAsync(
@@ -146,80 +149,72 @@ public class ExcelGenerationEngine
 
     private void FillPortfolioReport(IXLWorksheet ws, string tenantId)
     {
-        var headers = new[] { "Unidad", "Torre/Bloque", "Propietario", "0-30 Dias", "31-60 Dias", "61-90 Dias", "90+ Dias", "Total Adeudado" };
+        var headers = new[] { "Unidad", "Torre/Bloque", "Propietario", "Meses de Mora", "Saldo Vencido" };
         StyleHeader(ws.Row(1), headers);
 
-        var today = DateTime.UtcNow.Date;
-        var fees = _context.UnitFees
-            .Where(f => f.TenantId == tenantId && f.Status != FeeStatus.FullyPaid)
-            .Include(f => f.Unit)
-            .ThenInclude(u => u!.UnitOwners)
+        // Misma fuente que el Dashboard, el mapa de estado de pago y el módulo de Cuotas
+        // y Cartera (PortfolioAgingService), para que este reporte nunca muestre una cifra
+        // distinta a la que el administrador ya vio en pantalla.
+        var overdueByUnit = _portfolioAgingService.GetOverdueByUnit(tenantId);
+
+        if (overdueByUnit.Count == 0)
+        {
+            ws.Cell(2, 1).Value = "No hay unidades con saldo vencido.";
+            ws.Columns().AdjustToContents();
+            return;
+        }
+
+        var unitIds = overdueByUnit.Keys.ToList();
+        var units = _context.Units
+            .Where(u => unitIds.Contains(u.Id))
+            .Include(u => u.UnitOwners.Where(uo => uo.IsActive))
             .ThenInclude(uo => uo.Owner)
             .ToList();
 
-        var grouped = fees
-            .GroupBy(f => f.UnitId)
-            .Select(g =>
+        var rows = units
+            .Select(u =>
             {
-                var unit = g.FirstOrDefault()?.Unit;
-                var ownerName = unit?.UnitOwners
-                    .Where(uo => uo.IsActive)
+                var ownerName = u.UnitOwners
                     .Select(uo => uo.Owner!.FullNameOrCompanyName)
                     .FirstOrDefault() ?? "";
-                var bucket0 = g.Where(f => (today - f.DueDate).Days <= 30).Sum(f => f.BalanceAmount);
-                var bucket1 = g.Where(f => (today - f.DueDate).Days > 30 && (today - f.DueDate).Days <= 60).Sum(f => f.BalanceAmount);
-                var bucket2 = g.Where(f => (today - f.DueDate).Days > 60 && (today - f.DueDate).Days <= 90).Sum(f => f.BalanceAmount);
-                var bucket3 = g.Where(f => (today - f.DueDate).Days > 90).Sum(f => f.BalanceAmount);
+                var overdue = overdueByUnit[u.Id];
 
                 return new
                 {
-                    UnitIdentifier = unit?.Identifier ?? "",
-                    Tower = unit?.TowerOrBlock ?? "",
+                    UnitIdentifier = u.Identifier,
+                    Tower = u.TowerOrBlock,
                     OwnerName = ownerName,
-                    Bucket0 = bucket0,
-                    Bucket1 = bucket1,
-                    Bucket2 = bucket2,
-                    Bucket3 = bucket3,
-                    TotalBalance = bucket0 + bucket1 + bucket2 + bucket3
+                    overdue.MonthsOverdue,
+                    overdue.TotalDebt
                 };
             })
-            .Where(x => x.TotalBalance > 0)
-            .OrderByDescending(x => x.TotalBalance)
+            .OrderByDescending(x => x.TotalDebt)
             .ToList();
 
         var row = 2;
-        var grandB0 = 0m; var grandB1 = 0m; var grandB2 = 0m; var grandB3 = 0m; var grandTotal = 0m;
+        var grandTotal = 0m;
 
-        foreach (var item in grouped)
+        foreach (var item in rows)
         {
             var r = ws.Row(row);
             r.Cell(1).Value = item.UnitIdentifier;
             r.Cell(2).Value = item.Tower;
             r.Cell(3).Value = item.OwnerName;
-            r.Cell(4).Value = item.Bucket0; r.Cell(4).Style.NumberFormat.Format = "#,##0";
-            r.Cell(5).Value = item.Bucket1; r.Cell(5).Style.NumberFormat.Format = "#,##0";
-            r.Cell(6).Value = item.Bucket2; r.Cell(6).Style.NumberFormat.Format = "#,##0";
-            r.Cell(7).Value = item.Bucket3; r.Cell(7).Style.NumberFormat.Format = "#,##0";
-            r.Cell(8).Value = item.TotalBalance; r.Cell(8).Style.NumberFormat.Format = "#,##0";
-            ApplyRowStyle(r, 8, row % 2 == 0);
+            r.Cell(4).Value = item.MonthsOverdue;
+            r.Cell(5).Value = item.TotalDebt; r.Cell(5).Style.NumberFormat.Format = "#,##0";
+            ApplyRowStyle(r, 5, row % 2 == 0);
 
-            grandB0 += item.Bucket0; grandB1 += item.Bucket1; grandB2 += item.Bucket2; grandB3 += item.Bucket3;
-            grandTotal += item.TotalBalance;
+            grandTotal += item.TotalDebt;
             row++;
         }
 
         var t = ws.Row(row);
         t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
-        t.Cell(4).Value = grandB0; t.Cell(4).Style.Font.Bold = true; t.Cell(4).Style.NumberFormat.Format = "#,##0";
-        t.Cell(5).Value = grandB1; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0";
-        t.Cell(6).Value = grandB2; t.Cell(6).Style.Font.Bold = true; t.Cell(6).Style.NumberFormat.Format = "#,##0";
-        t.Cell(7).Value = grandB3; t.Cell(7).Style.Font.Bold = true; t.Cell(7).Style.NumberFormat.Format = "#,##0";
-        t.Cell(8).Value = grandTotal; t.Cell(8).Style.Font.Bold = true; t.Cell(8).Style.NumberFormat.Format = "#,##0";
+        t.Cell(5).Value = grandTotal; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0";
 
-        ws.Range(1, 1, row, 8).SetAutoFilter();
+        ws.Range(1, 1, row, 5).SetAutoFilter();
         ws.Column(1).Width = 14; ws.Column(2).Width = 14; ws.Column(3).Width = 30;
-        ws.Column(4).Width = 12; ws.Column(5).Width = 12; ws.Column(6).Width = 12;
-        ws.Column(7).Width = 12; ws.Column(8).Width = 14;
+        ws.Column(4).Width = 16; ws.Column(5).Width = 16;
     }
 
     private void FillCollectionReport(IXLWorksheet ws, string tenantId, DateTime? from, DateTime? to)
@@ -230,7 +225,7 @@ public class ExcelGenerationEngine
         var query = _context.Payments
             .Where(p => p.TenantId == tenantId)
             .Include(p => p.Unit)
-            .ThenInclude(u => u!.UnitOwners)
+            .ThenInclude(u => u!.UnitOwners.Where(uo => uo.IsActive))
             .ThenInclude(uo => uo.Owner)
             .AsQueryable();
 
@@ -244,7 +239,6 @@ public class ExcelGenerationEngine
         foreach (var payment in payments)
         {
             var ownerName = payment.Unit?.UnitOwners
-                .Where(uo => uo.IsActive)
                 .Select(uo => uo.Owner!.FullNameOrCompanyName)
                 .FirstOrDefault() ?? "";
 
@@ -383,9 +377,12 @@ public class ExcelGenerationEngine
         var monthsElapsed = Math.Max((now.Year - fiscalYear) * 12 + now.Month - 1, 1);
         var proportionExpected = monthsElapsed / 12m;
 
-        var totalExecuted = _context.ProviderPayments
-            .Where(p => p.TenantId == tenantId && p.PaymentDate >= startDate && p.PaymentDate <= endDate)
-            .Sum(p => (decimal?)p.Amount) ?? 0;
+        var executedExpenses = _context.ExecutedExpenses
+            .Where(e => e.TenantId == tenantId && e.ExpenseDate >= startDate && e.ExpenseDate <= endDate)
+            .ToList();
+        var executionByExpenseItem = executedExpenses
+            .GroupBy(e => e.ExpenseItemId)
+            .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
 
         var headers = new[] { "Rubro", "Presupuestado Anual", "Esperado al Mes", "Ejecutado Acumulado", "Disponible", "% Ejecucion" };
         StyleHeader(ws.Row(1), headers);
@@ -399,8 +396,16 @@ public class ExcelGenerationEngine
         {
             var expected = item.AnnualValue * proportionExpected;
             var executed = 0m;
+            if (executionByExpenseItem.TryGetValue(item.Id, out var executedForItem))
+            {
+                executed = executedForItem;
+            }
             var available = item.AnnualValue - executed;
-            var percentage = item.AnnualValue > 0 ? Math.Round(executed / item.AnnualValue * 100m, 2) : 0m;
+            var percentage = 0m;
+            if (item.AnnualValue > 0)
+            {
+                percentage = Math.Round(executed / item.AnnualValue * 100m, 2);
+            }
 
             var r = ws.Row(row);
             r.Cell(1).Value = item.Name;
@@ -479,7 +484,7 @@ public class ExcelGenerationEngine
         StyleHeader(ws.Row(1), headers);
 
         var query = _context.PqrRecords
-            .Where(p => p.TenantId == tenantId)
+            .Where(p => p.TenantId == tenantId && !p.IsInternal)
             .AsQueryable();
 
         if (from.HasValue) query = query.Where(p => p.FiledAt >= from.Value);
@@ -622,7 +627,7 @@ public class ExcelGenerationEngine
         var payments = _context.Payments
             .Where(p => p.TenantId == tenantId && p.PaymentDate >= from && p.PaymentDate <= to)
             .Include(p => p.Unit)
-            .ThenInclude(u => u!.UnitOwners)
+            .ThenInclude(u => u!.UnitOwners.Where(uo => uo.IsActive))
             .ThenInclude(uo => uo.Owner)
             .OrderBy(p => p.PaymentDate)
             .ThenBy(p => p.Unit!.Identifier)
@@ -651,7 +656,6 @@ public class ExcelGenerationEngine
             currentMonth = paymentMonth;
 
             var owner = payment.Unit?.UnitOwners
-                .Where(uo => uo.IsActive)
                 .Select(uo => uo.Owner)
                 .FirstOrDefault();
 

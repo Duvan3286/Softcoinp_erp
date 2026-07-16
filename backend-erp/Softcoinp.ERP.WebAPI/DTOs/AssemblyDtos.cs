@@ -256,6 +256,8 @@ public class AssemblyAgendaItemDto
     public bool VoteRegistered { get; set; }
     public string? RegisteredByUserId { get; set; }
     public DateTime? VoteRegisteredAt { get; set; }
+    public string? PropagationTarget { get; set; }
+    public Guid? TargetBudgetId { get; set; }
 }
 
 public class CreateAgendaItemRequestDto
@@ -268,6 +270,19 @@ public class CreateAgendaItemRequestDto
     public string VotingMode { get; set; } = "Public";
     public bool IsInformationOnly { get; set; }
     public bool RequiresVoting { get; set; } = true;
+
+    // Propagación automática opcional: "ExtraordinaryFee" o "Budget"
+    public string? PropagationTarget { get; set; }
+
+    // Requerido si PropagationTarget == "ExtraordinaryFee"
+    public decimal? ExtraordinaryFeeTotalAmount { get; set; }
+    public int? ExtraordinaryFeeInstallments { get; set; }
+    public string? ExtraordinaryFeeStartPeriod { get; set; }
+    public DateTime? ExtraordinaryFeeDueDate { get; set; }
+    public string? ExtraordinaryFeeDistributionType { get; set; }
+
+    // Requerido si PropagationTarget == "Budget": Id de un presupuesto en estado Draft
+    public Guid? TargetBudgetId { get; set; }
 }
 
 public class UpdateAgendaItemRequestDto

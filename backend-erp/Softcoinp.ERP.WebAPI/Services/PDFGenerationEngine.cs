@@ -19,10 +19,13 @@ public class PDFGenerationEngine
     private readonly ApplicationDbContext _context;
     private readonly IWebHostEnvironment _env;
 
-    public PDFGenerationEngine(ApplicationDbContext context, IWebHostEnvironment env)
+    private readonly PortfolioAgingService _portfolioAgingService;
+
+    public PDFGenerationEngine(ApplicationDbContext context, IWebHostEnvironment env, PortfolioAgingService portfolioAgingService)
     {
         _context = context;
         _env = env;
+        _portfolioAgingService = portfolioAgingService;
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
@@ -44,7 +47,7 @@ public class PDFGenerationEngine
             .FirstOrDefaultAsync();
 
         var tenantConfig = await _context.TenantConfigurations
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
 
         var periodLabel = BuildPeriodLabel(periodFrom, periodTo);
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
@@ -227,98 +230,95 @@ public class PDFGenerationEngine
         col.Item().Text("Reporte de Cartera").FontSize(14).Bold();
         col.Item().PaddingBottom(8);
 
-        var today = DateTime.UtcNow.Date;
-        var fees = _context.UnitFees
-            .Where(f => f.TenantId == tenantId && f.Status != FeeStatus.FullyPaid)
-            .Include(f => f.Unit)
-            .ThenInclude(u => u!.UnitOwners)
+        // Misma fuente que el Dashboard, el mapa de estado de pago y el módulo de Cuotas
+        // y Cartera (PortfolioAgingService), para que este reporte nunca muestre una cifra
+        // distinta a la que el administrador ya vio en pantalla.
+        var overdueByUnit = _portfolioAgingService.GetOverdueByUnit(tenantId);
+
+        if (overdueByUnit.Count == 0)
+        {
+            col.Item().Padding(10).Text("No hay unidades con saldo vencido.").FontColor(Colors.Grey.Darken2);
+            return;
+        }
+
+        var unitIds = overdueByUnit.Keys.ToList();
+        var units = _context.Units
+            .Where(u => unitIds.Contains(u.Id))
+            .Include(u => u.UnitOwners.Where(uo => uo.IsActive))
             .ThenInclude(uo => uo.Owner)
             .ToList();
 
-        var grouped = fees
-            .GroupBy(f => f.UnitId)
-            .Select(g =>
+        var rows = units
+            .Select(u =>
             {
-                var unit = g.FirstOrDefault()?.Unit;
-                var ownerName = unit?.UnitOwners
-                    .Where(uo => uo.IsActive)
+                var ownerName = u.UnitOwners
                     .Select(uo => uo.Owner!.FullNameOrCompanyName)
                     .FirstOrDefault() ?? "Sin propietario";
-                var totalBalance = g.Sum(f => f.BalanceAmount);
-                var bucket0 = g.Where(f => (today - f.DueDate).Days <= 30).Sum(f => f.BalanceAmount);
-                var bucket1 = g.Where(f => (today - f.DueDate).Days > 30 && (today - f.DueDate).Days <= 60).Sum(f => f.BalanceAmount);
-                var bucket2 = g.Where(f => (today - f.DueDate).Days > 60 && (today - f.DueDate).Days <= 90).Sum(f => f.BalanceAmount);
-                var bucket3 = g.Where(f => (today - f.DueDate).Days > 90).Sum(f => f.BalanceAmount);
+                var overdue = overdueByUnit[u.Id];
 
                 return new
                 {
-                    UnitIdentifier = unit?.Identifier ?? "",
+                    UnitIdentifier = u.Identifier,
+                    Tower = u.TowerOrBlock,
                     OwnerName = ownerName,
-                    Bucket0 = bucket0,
-                    Bucket1 = bucket1,
-                    Bucket2 = bucket2,
-                    Bucket3 = bucket3,
-                    TotalBalance = totalBalance
+                    overdue.MonthsOverdue,
+                    overdue.TotalDebt
                 };
             })
-            .Where(x => x.TotalBalance > 0)
-            .OrderByDescending(x => x.TotalBalance)
+            .OrderByDescending(x => x.TotalDebt)
             .ToList();
-
-        if (grouped.Count == 0)
-        {
-            col.Item().Padding(10).Text("No hay unidades con saldo pendiente.").FontColor(Colors.Grey.Darken2);
-            return;
-        }
 
         col.Item().Table(table =>
         {
             table.ColumnsDefinition(cd =>
             {
                 cd.ConstantColumn(50);
+                cd.ConstantColumn(60);
                 cd.RelativeColumn();
-                cd.ConstantColumn(55);
-                cd.ConstantColumn(55);
-                cd.ConstantColumn(55);
-                cd.ConstantColumn(55);
-                cd.ConstantColumn(65);
+                cd.ConstantColumn(70);
+                cd.ConstantColumn(75);
             });
 
             var headerStyle = TextStyle.Default.FontSize(8).Bold().FontColor(Colors.White);
             table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Unidad").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Torre").Style(headerStyle);
             table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Propietario").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("0-30d").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("31-60d").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("61-90d").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("90+d").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("Total").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("Meses de Mora").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("Saldo Vencido").Style(headerStyle);
 
             var rowStyle = TextStyle.Default.FontSize(7);
             var altColor = Colors.Grey.Lighten4;
             var index = 0;
             var grandTotal = 0m;
 
-            foreach (var item in grouped)
+            foreach (var item in rows)
             {
-                var bg = index % 2 == 0 ? Colors.White : altColor;
+                var bg = Colors.White;
+                if (index % 2 != 0)
+                {
+                    bg = altColor;
+                }
+
+                var ownerDisplay = item.OwnerName;
+                if (ownerDisplay.Length > 25)
+                {
+                    ownerDisplay = ownerDisplay[..25] + "...";
+                }
+
                 table.Cell().Background(bg).Padding(2).Text(item.UnitIdentifier).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).Text(item.OwnerName.Length > 20 ? item.OwnerName[..20] + "..." : item.OwnerName).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).AlignRight().Text(item.Bucket0.ToString("N0")).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).AlignRight().Text(item.Bucket1.ToString("N0")).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).AlignRight().Text(item.Bucket2.ToString("N0")).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).AlignRight().Text(item.Bucket3.ToString("N0")).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).AlignRight().Text(item.TotalBalance.ToString("N2")).Style(rowStyle);
-                grandTotal += item.TotalBalance;
+                table.Cell().Background(bg).Padding(2).Text(item.Tower).Style(rowStyle);
+                table.Cell().Background(bg).Padding(2).Text(ownerDisplay).Style(rowStyle);
+                table.Cell().Background(bg).Padding(2).AlignRight().Text(item.MonthsOverdue.ToString()).Style(rowStyle);
+                table.Cell().Background(bg).Padding(2).AlignRight().Text(item.TotalDebt.ToString("N2")).Style(rowStyle);
+                grandTotal += item.TotalDebt;
                 index++;
             }
 
             var totalStyle = TextStyle.Default.FontSize(7).Bold();
             table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("TOTALES").Style(totalStyle);
             table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(grouped.Sum(x => x.Bucket0).ToString("N0")).Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(grouped.Sum(x => x.Bucket1).ToString("N0")).Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(grouped.Sum(x => x.Bucket2).ToString("N0")).Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(grouped.Sum(x => x.Bucket3).ToString("N0")).Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(totalStyle);
             table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(grandTotal.ToString("N2")).Style(totalStyle);
         });
     }
@@ -331,6 +331,8 @@ public class PDFGenerationEngine
         var query = _context.Payments
             .Where(p => p.TenantId == tenantId)
             .Include(p => p.Unit)
+            .ThenInclude(u => u!.UnitOwners.Where(uo => uo.IsActive))
+            .ThenInclude(uo => uo.Owner)
             .AsQueryable();
 
         if (from.HasValue) query = query.Where(p => p.PaymentDate >= from.Value);
@@ -370,7 +372,6 @@ public class PDFGenerationEngine
             foreach (var payment in payments)
             {
                 var ownerName = payment.Unit?.UnitOwners
-                    .Where(uo => uo.IsActive)
                     .Select(uo => uo.Owner!.FullNameOrCompanyName)
                     .FirstOrDefault() ?? "";
 
@@ -517,23 +518,16 @@ public class PDFGenerationEngine
         col.Item().PaddingBottom(8);
 
         var fiscalYear = DateTime.Today.Year;
-        var budgets = _context.Budgets
-            .Where(b => b.TenantId == tenantId && b.FiscalYear == fiscalYear)
+        var budget = _context.Budgets
+            .Where(b => b.TenantId == tenantId && b.FiscalYear == fiscalYear && b.Status == BudgetStatus.Approved)
             .Include(b => b.ExpenseItems)
             .Include(b => b.IncomeItems)
-            .ToList();
+            .FirstOrDefault();
 
-        var activeBudget = budgets.FirstOrDefault(b => b.Status == BudgetStatus.Approved);
-        if (activeBudget is null && budgets.Count == 0)
-        {
-            col.Item().Padding(10).Text($"No hay presupuesto para el ano fiscal {fiscalYear}.").FontColor(Colors.Grey.Darken2);
-            return;
-        }
-
-        var budget = activeBudget;
         if (budget is null)
         {
-            budget = budgets.First();
+            col.Item().Padding(10).Text($"No hay presupuesto aprobado para el ano fiscal {fiscalYear}.").FontColor(Colors.Grey.Darken2);
+            return;
         }
 
         var startDate = new DateTime(fiscalYear, 1, 1);
@@ -542,33 +536,17 @@ public class PDFGenerationEngine
         var monthsElapsed = Math.Max((now.Year - fiscalYear) * 12 + now.Month - 1, 1);
         var proportionExpected = monthsElapsed / 12m;
 
-        var paymentsInPeriod = _context.ProviderPayments
-            .Where(p => p.TenantId == tenantId && p.PaymentDate >= startDate && p.PaymentDate <= endDate)
-            .Include(p => p.Invoice)
+        var executedExpensesInPeriod = _context.ExecutedExpenses
+            .Where(e => e.TenantId == tenantId && e.ExpenseDate >= startDate && e.ExpenseDate <= endDate)
             .ToList();
 
-        var executedByBudgetItem = new Dictionary<Guid, decimal>();
-        foreach (var payment in paymentsInPeriod)
-        {
-            if (payment.Invoice is null || payment.Invoice.BudgetItemId is null)
-            {
-                continue;
-            }
-
-            var budgetItemId = payment.Invoice.BudgetItemId.Value;
-            if (executedByBudgetItem.ContainsKey(budgetItemId))
-            {
-                executedByBudgetItem[budgetItemId] += payment.Amount;
-            }
-            else
-            {
-                executedByBudgetItem[budgetItemId] = payment.Amount;
-            }
-        }
+        var executedByBudgetItem = executedExpensesInPeriod
+            .GroupBy(e => e.ExpenseItemId)
+            .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
 
         var totalApprovedExpense = budget.ExpenseItems.Sum(e => e.AnnualValue);
         var totalApprovedIncome = budget.IncomeItems.Sum(i => i.AnnualValue);
-        var totalExecuted = paymentsInPeriod.Sum(p => p.Amount);
+        var totalExecuted = executedExpensesInPeriod.Sum(e => e.Amount);
         var expectedExpense = totalApprovedExpense * proportionExpected;
         var overallPercentage = 0m;
         if (totalApprovedExpense > 0)
@@ -734,7 +712,7 @@ public class PDFGenerationEngine
         col.Item().PaddingBottom(8);
 
         var query = _context.PqrRecords
-            .Where(p => p.TenantId == tenantId)
+            .Where(p => p.TenantId == tenantId && !p.IsInternal)
             .AsQueryable();
 
         if (from.HasValue) query = query.Where(p => p.FiledAt >= from.Value);
@@ -881,7 +859,7 @@ public class PDFGenerationEngine
         foreach (var assembly in assemblies)
         {
             var presentCoefficients = assembly.Attendances
-                .Where(a => a.Status == AttendanceStatus.Present)
+                .Where(a => a.Status == AttendanceStatus.Present || a.Status == AttendanceStatus.Represented)
                 .Sum(a => a.Coefficient);
 
             var quorumPct = assembly.TotalCoefficients > 0
@@ -927,7 +905,7 @@ public class PDFGenerationEngine
             .Where(t => t.TenantId == tenantId && t.IsGlobal)
             .FirstOrDefaultAsync();
 
-        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
         var sections = await _context.ManagementReportSections
             .Where(s => s.TenantId == tenantId)
             .OrderBy(s => s.SectionOrder)
@@ -1031,7 +1009,7 @@ public class PDFGenerationEngine
             .Where(t => t.TenantId == tenantId && t.IsGlobal)
             .FirstOrDefaultAsync();
 
-        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync();
+        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
 
         var document = Document.Create(container =>
         {

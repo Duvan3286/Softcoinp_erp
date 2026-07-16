@@ -20,15 +20,18 @@ public class PQRController : BaseController
     private readonly PQRRadicationService _radicationService;
     private readonly ClaimResolutionService _claimResolutionService;
     private readonly ApplicationDbContext _context;
+    private readonly NotificationEngine _notificationEngine;
 
     public PQRController(
         PQRRadicationService radicationService,
         ClaimResolutionService claimResolutionService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        NotificationEngine notificationEngine)
     {
         _radicationService = radicationService;
         _claimResolutionService = claimResolutionService;
         _context = context;
+        _notificationEngine = notificationEngine;
     }
 
     [HttpPost]
@@ -751,6 +754,17 @@ public class PQRController : BaseController
         }
 
         await _context.SaveChangesAsync();
+
+        var responseVariables = new System.Collections.Generic.Dictionary<string, string>
+        {
+            ["ResidentName"] = pqr.RadiadorName,
+            ["RadicadoNumber"] = pqr.RadicadoNumber
+        };
+
+        await _notificationEngine.ProcessEventAsync(
+            tenantId, NotificationEventType.PQRResponseAvailable,
+            "PQR", pqr.Id.ToString(), "PqrRecord",
+            ownerId: pqr.OwnerId, tenantResidentId: pqr.TenantResidentId, variables: responseVariables);
 
         return Ok(new
         {

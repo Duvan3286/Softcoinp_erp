@@ -130,6 +130,9 @@ public class DatabaseMigrationService
                 // Seed standard report types and default PDF templates
                 await DbInitializer.SeedReportTypesAsync(tenantContext, tenant.Id.ToString());
 
+                // Seed default automatic-notification templates (Comunicados)
+                await DbInitializer.SeedNotificationTemplatesAsync(tenantContext, tenant.Id.ToString());
+
                 results.Add(tenant.Subdomain, "Success");
                 _logger.LogInformation("Successfully migrated tenant: {Subdomain}", tenant.Subdomain);
             }

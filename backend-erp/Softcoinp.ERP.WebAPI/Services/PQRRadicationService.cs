@@ -13,12 +13,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class PQRRadicationService
 {
     private readonly ApplicationDbContext _context;
-    private readonly NotificationService _notificationService;
+    private readonly NotificationEngine _notificationEngine;
 
-    public PQRRadicationService(ApplicationDbContext context, NotificationService notificationService)
+    public PQRRadicationService(ApplicationDbContext context, NotificationEngine notificationEngine)
     {
         _context = context;
-        _notificationService = notificationService;
+        _notificationEngine = notificationEngine;
     }
 
     public async Task<PqrCreatedResponseDto> RadicateAsync(string tenantId, string userId, CreatePqrRequestDto request)
@@ -193,22 +193,27 @@ public class PQRRadicationService
 
     private async Task SendRadicationNotificationAsync(string tenantId, PqrRecord pqr)
     {
-        if (pqr.OwnerId.HasValue)
+        if (!pqr.OwnerId.HasValue && !pqr.TenantResidentId.HasValue)
         {
-            var typeLabel = pqr.PQRType switch
-            {
-                PQRType.Request => "Petición",
-                PQRType.Complaint => "Queja",
-                PQRType.Claim => "Reclamo",
-                _ => "Solicitud"
-            };
-
-            var title = $"PQR Radicada: {pqr.RadicadoNumber}";
-            var message = $"Su {typeLabel} ha sido radicada con el número {pqr.RadicadoNumber}. " +
-                          $"Fecha límite de respuesta: {pqr.Deadline?.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) ?? "Por definir"}. " +
-                          "La administración dará respuesta dentro del plazo establecido.";
-
-            await _notificationService.CreateAsync(tenantId, pqr.OwnerId.Value, title, message);
+            return;
         }
+
+        var deadlineText = "Por definir";
+        if (pqr.Deadline.HasValue)
+        {
+            deadlineText = pqr.Deadline.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+        }
+
+        var variables = new System.Collections.Generic.Dictionary<string, string>
+        {
+            ["ResidentName"] = pqr.RadiadorName,
+            ["RadicadoNumber"] = pqr.RadicadoNumber,
+            ["Deadline"] = deadlineText
+        };
+
+        await _notificationEngine.ProcessEventAsync(
+            tenantId, NotificationEventType.PQRReceived,
+            "PQR", pqr.Id.ToString(), "PqrRecord",
+            ownerId: pqr.OwnerId, tenantResidentId: pqr.TenantResidentId, variables: variables);
     }
 }

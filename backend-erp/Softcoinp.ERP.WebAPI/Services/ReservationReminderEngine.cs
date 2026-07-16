@@ -12,10 +12,12 @@ namespace Softcoinp.ERP.WebAPI.Services;
 public class ReservationReminderEngine
 {
     private readonly ApplicationDbContext _context;
+    private readonly NotificationEngine _notificationEngine;
 
-    public ReservationReminderEngine(ApplicationDbContext context)
+    public ReservationReminderEngine(ApplicationDbContext context, NotificationEngine notificationEngine)
     {
         _context = context;
+        _notificationEngine = notificationEngine;
     }
 
     public async Task CreateRemindersForReservationAsync(Reservation reservation, string tenantId)
@@ -78,6 +80,8 @@ public class ReservationReminderEngine
     public async Task ProcessReminderAsync(Guid reminderId)
     {
         var reminder = await _context.ReservationReminders
+            .Include(r => r.Reservation!)
+            .ThenInclude(rv => rv!.Space)
             .FirstOrDefaultAsync(r => r.Id == reminderId);
 
         if (reminder == null || reminder.Status != ReminderStatus.Pending)
@@ -85,6 +89,44 @@ public class ReservationReminderEngine
 
         try
         {
+            var reservation = reminder.Reservation;
+            if (reservation == null)
+            {
+                throw new InvalidOperationException("La reserva asociada al recordatorio no existe.");
+            }
+
+            var owner = await _context.Owners.FirstOrDefaultAsync(o => o.Id == reservation.OwnerId);
+            var residentName = string.Empty;
+            if (owner != null)
+            {
+                residentName = owner.FullNameOrCompanyName;
+            }
+
+            var spaceName = string.Empty;
+            if (reservation.Space != null)
+            {
+                spaceName = reservation.Space.Name;
+            }
+
+            var variables = new Dictionary<string, string>
+            {
+                ["ResidentName"] = residentName,
+                ["SpaceName"] = spaceName,
+                ["ReservationDate"] = reservation.StartDateTime.ToString("dd/MM/yyyy"),
+                ["ReservationTime"] = reservation.StartDateTime.ToString("HH:mm")
+            };
+
+            var eventType = NotificationEventType.ReservationReminder24h;
+            if (reminder.ReminderType == ReminderType.TwoHours)
+            {
+                eventType = NotificationEventType.ReservationReminder2h;
+            }
+
+            await _notificationEngine.ProcessEventAsync(
+                reminder.TenantId, eventType,
+                "Reservations", reservation.Id.ToString(), "Reservation",
+                ownerId: reservation.OwnerId, variables: variables);
+
             reminder.Status = ReminderStatus.Sent;
             reminder.SentAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();

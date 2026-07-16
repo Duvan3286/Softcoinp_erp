@@ -40,4 +40,19 @@ public class AssemblyAgendaItem
     public bool VoteRegistered { get; set; }
     public string? RegisteredByUserId { get; set; }
     public DateTime? VoteRegisteredAt { get; set; }
+
+    // ── Propagación automática de decisiones ────────────────────────
+    // Cuando se define, la aprobación del punto dispara automáticamente
+    // la creación/activación del recurso correspondiente en Cuotas o Presupuesto.
+    public DecisionPropagationTarget? PropagationTarget { get; set; }
+
+    // Payload usado cuando PropagationTarget == ExtraordinaryFee
+    public decimal? ExtraordinaryFeeTotalAmount { get; set; }
+    public int? ExtraordinaryFeeInstallments { get; set; }
+    public string? ExtraordinaryFeeStartPeriod { get; set; }
+    public DateTime? ExtraordinaryFeeDueDate { get; set; }
+    public DistributionType? ExtraordinaryFeeDistributionType { get; set; }
+
+    // Payload usado cuando PropagationTarget == Budget (presupuesto en Draft a activar)
+    public Guid? TargetBudgetId { get; set; }
 }

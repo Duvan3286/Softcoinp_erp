@@ -124,7 +124,14 @@ public class BillingEngineService
         var excludedUnitIds = new HashSet<Guid>(excludedUnits.Select(e => e.UnitId));
 
         var tenantConfig = await _context.TenantConfigurations
-            .FirstOrDefaultAsync(tc => tc.Id != Guid.Empty);
+            .FirstOrDefaultAsync(tc => tc.TenantId == tenantId);
+
+        if (tenantConfig != null && cutoffDate.Day != tenantConfig.BillingCycleDay)
+        {
+            throw new ArgumentException(
+                "La fecha de corte debe coincidir con el día de corte configurado para el conjunto (día "
+                + tenantConfig.BillingCycleDay + "). Actualice la configuración del conjunto o corrija la fecha de corte.");
+        }
 
         var roundingPolicy = tenantConfig?.RoundingPolicy ?? RoundingPolicy.Nearest;
 
@@ -340,6 +347,90 @@ public class BillingEngineService
         await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
         await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
         return adjustment;
+    }
+
+    /// <summary>
+    /// Crea una cuota extraordinaria y sus distribuciones por unidad a partir de una
+    /// decisión ya aprobada (por ejemplo, un punto de agenda de asamblea aprobado),
+    /// sin requerir que un administrador la registre manualmente en Cuotas.
+    /// </summary>
+    public async Task<ExtraordinaryFee> CreateExtraordinaryFeeFromDecisionAsync(
+        string tenantId, string name, string description, string meetingActNumber,
+        decimal totalAmount, int numberOfInstallments, string startPeriod,
+        DistributionType distributionType, DateTime dueDate, string userId)
+    {
+        if (totalAmount <= 0)
+        {
+            throw new ArgumentException("El monto total de la cuota extraordinaria debe ser mayor a cero.");
+        }
+
+        var units = await _context.Units
+            .Where(u => u.TenantId == tenantId
+                && (u.Status == UnitStatus.ActiveOccupied || u.Status == UnitStatus.ActiveUnoccupied))
+            .ToListAsync();
+
+        if (units.Count == 0)
+        {
+            throw new InvalidOperationException("No hay unidades activas para distribuir la cuota extraordinaria.");
+        }
+
+        var totalCoefficients = units.Sum(u => u.CoproprietyCoefficient);
+
+        var fee = new ExtraordinaryFee
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Name = name,
+            Description = description,
+            MeetingActNumber = meetingActNumber,
+            TotalAmount = totalAmount,
+            DistributionType = distributionType,
+            NumberOfInstallments = numberOfInstallments,
+            StartPeriod = startPeriod,
+            ApprovalDate = DateTime.UtcNow,
+            Status = ExtraordinaryFeeStatus.Active,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        using var tx = await _context.Database.BeginTransactionAsync();
+        _context.ExtraordinaryFees.Add(fee);
+
+        var distributions = new List<ExtraordinaryFeeDistribution>();
+        foreach (var unit in units)
+        {
+            var unitAmount = Math.Round(totalAmount / units.Count, 2);
+            if (distributionType == DistributionType.AllByCoefficient && totalCoefficients > 0)
+            {
+                unitAmount = Math.Round(totalAmount * unit.CoproprietyCoefficient / totalCoefficients, 2);
+            }
+
+            for (int i = 1; i <= numberOfInstallments; i++)
+            {
+                var installDueDate = dueDate.AddMonths(i - 1);
+                var installmentAmount = Math.Round(unitAmount / numberOfInstallments, 2);
+                distributions.Add(new ExtraordinaryFeeDistribution
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    ExtraordinaryFeeId = fee.Id,
+                    UnitId = unit.Id,
+                    Amount = installmentAmount,
+                    InstallmentNumber = i,
+                    DueDate = installDueDate,
+                    Status = FeeStatus.Pending,
+                    BalanceAmount = installmentAmount
+                });
+            }
+        }
+
+        _context.ExtraordinaryFeeDistributions.AddRange(distributions);
+        await _context.SaveChangesAsync();
+        await tx.CommitAsync();
+
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
+
+        return fee;
     }
 
     public async Task<List<BillingAdjustmentDto>> GetUnitAdjustmentsAsync(string tenantId, Guid unitId)

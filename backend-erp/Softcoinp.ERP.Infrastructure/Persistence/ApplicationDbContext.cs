@@ -32,9 +32,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
     }
 
     // ── Módulo Financiero (existente) ────────────────────────────────
-    public DbSet<FinancialRecord> FinancialRecords => Set<FinancialRecord>();
     public DbSet<Provider> Providers => Set<Provider>();
-    public DbSet<FinancialTransaction> FinancialTransactions => Set<FinancialTransaction>();
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<IncomeItem> IncomeItems => Set<IncomeItem>();
     public DbSet<ExpenseItem> ExpenseItems => Set<ExpenseItem>();
@@ -307,22 +305,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .WithMany()
                   .HasForeignKey(e => e.ExecutedExpenseId)
                   .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        modelBuilder.Entity<FinancialTransaction>(entity =>
-        {
-            entity.ToTable("erp_financial_transactions");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Amount).HasPrecision(18, 2);
-            entity.Property(e => e.Reference).HasMaxLength(200);
-            entity.HasIndex(e => e.ExternalUnitId);
-        });
-
-        modelBuilder.Entity<FinancialRecord>(entity =>
-        {
-            entity.ToTable("erp_financial_records");
-            entity.Property(e => e.Amount).HasPrecision(18, 2);
-            entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
         modelBuilder.Entity<Provider>(entity =>

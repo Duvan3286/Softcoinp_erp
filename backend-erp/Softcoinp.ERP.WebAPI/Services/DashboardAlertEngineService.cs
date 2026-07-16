@@ -31,7 +31,11 @@ public class DashboardAlertEngineService
         {
             RuleType = AlertRuleType.ProviderContractExpiring,
             IsEnabled = true,
-            ThresholdDays = 30,
+            // Alineado con el umbral por defecto del módulo de Contratos
+            // (ContractAlertEngineService y GetExpiringContractsReportAsync usan 90 días)
+            // para que el conteo del Dashboard coincida con el del módulo de Proveedores
+            // mientras el administrador no personalice este umbral.
+            ThresholdDays = 90,
             DefaultUrgency = AlertUrgency.High
         },
         [AlertRuleType.PreventiveMaintenanceDue] = new AlertConfiguration

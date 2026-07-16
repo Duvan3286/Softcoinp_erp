@@ -34,6 +34,7 @@ public class Assembly : BaseEntity
 
     public DateTime? SessionStartTime { get; set; }
     public DateTime? SessionEndTime { get; set; }
+    public string? ActNumber { get; set; }
 
     public string? PresidentName { get; set; }
     public string? SecretaryName { get; set; }

@@ -9,8 +9,6 @@ using Softcoinp.ERP.Domain.Interfaces;
 using Softcoinp.ERP.Infrastructure.Persistence;
 using Softcoinp.ERP.Infrastructure.Persistence.Repositories;
 using Softcoinp.ERP.Infrastructure.Services;
-using Softcoinp.ERP.Infrastructure.External;
-using Softcoinp.ERP.Application.Services;
 using Softcoinp.ERP.WebAPI.Services;
 using Softcoinp.ERP.WebAPI.Middleware;
 using Microsoft.Extensions.Hosting;
@@ -57,6 +55,14 @@ builder.Services.AddAuthentication(options => {
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options => {
+    // Sin esto, el manejador de JWT remapea automáticamente el claim estándar "sub"
+    // (que este backend usa para el email, ver AuthController.GenerateJwtToken) al
+    // tipo largo ClaimTypes.NameIdentifier, duplicando ese tipo de claim junto con el
+    // ClaimTypes.NameIdentifier explícito que sí contiene el Id real del usuario. Como
+    // FindFirstValue devuelve la primera coincidencia, el email terminaba ganándole al
+    // Id en cualquier lookup por ClaimTypes.NameIdentifier (BaseController.GetUserId(),
+    // ActiveUserValidationMiddleware, etc.).
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters {
         ValidateIssuer = true,
         ValidateAudience = true,
@@ -83,16 +89,13 @@ builder.Services.AddAuthentication(options => {
     };
 });
 
-// Register External Integration Client
-builder.Services.AddHttpClient<ICoreIntegrationClient, CoreIntegrationClient>();
-
 // Register Application Services
-builder.Services.AddScoped<BillingService>();
 builder.Services.AddScoped<BudgetService>();
 builder.Services.AddScoped<ExecutionEngineService>();
 builder.Services.AddScoped<ExpenseService>();
 builder.Services.AddScoped<BillingEngineService>();
 builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<PortfolioAgingService>();
 builder.Services.AddScoped<StatementService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<DashboardAlertEngineService>();
@@ -134,6 +137,7 @@ builder.Services.AddHostedService<PQRAlertEngineService>();
 builder.Services.AddHostedService<ContractAlertEngineService>();
 builder.Services.AddHostedService<PreventiveMaintenanceEngineService>();
 builder.Services.AddHostedService<ScheduledCommunicationService>();
+builder.Services.AddHostedService<ReservationReminderBackgroundService>();
 
 // Register Application DB Context (Multi-tenant)
 // IMPORTANT: Do NOT pre-configure the connection string here.
@@ -259,8 +263,9 @@ else
 
 app.UseStaticFiles(); // Habilitar archivos estáticos (wwwroot)
 app.UseCors("AllowFrontend");
-app.UseMiddleware<TenantDetectionMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<ActiveUserValidationMiddleware>();
+app.UseMiddleware<TenantDetectionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");

@@ -96,6 +96,8 @@ public class BudgetExecutionDashboardDto
     public int FiscalYear { get; set; }
     public string Status { get; set; } = string.Empty;
     public decimal TotalApprovedIncome { get; set; }
+    public decimal TotalExecutedIncome { get; set; }
+    public decimal IncomeExecutionPercentage { get; set; }
     public decimal TotalApprovedExpense { get; set; }
     public decimal TotalExecutedExpense { get; set; }
     public decimal TotalAvailable { get; set; }
