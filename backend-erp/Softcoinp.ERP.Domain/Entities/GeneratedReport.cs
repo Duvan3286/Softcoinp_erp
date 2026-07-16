@@ -27,4 +27,6 @@ public class GeneratedReport
 
     public Guid? RecurringConfigId { get; set; }
     public RecurringReportConfig? RecurringConfig { get; set; }
+
+    public int ConsecutiveNumber { get; set; }
 }

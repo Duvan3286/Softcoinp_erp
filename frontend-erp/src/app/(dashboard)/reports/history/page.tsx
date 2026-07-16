@@ -94,9 +94,7 @@ export default function HistoryPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-400 text-sm">
-          {error}
-        </div>
+        <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-400 text-sm">{error}</div>
       )}
 
       <Card>
@@ -142,10 +140,10 @@ export default function HistoryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
+                    <th className="text-left p-4 font-semibold text-foreground">No.</th>
                     <th className="text-left p-4 font-semibold text-foreground">Reporte</th>
                     <th className="text-left p-4 font-semibold text-foreground">Formato</th>
                     <th className="text-left p-4 font-semibold text-foreground">Periodo</th>
-                    <th className="text-left p-4 font-semibold text-foreground">Generado por</th>
                     <th className="text-left p-4 font-semibold text-foreground">Fecha</th>
                     <th className="text-left p-4 font-semibold text-foreground">Tamaño</th>
                     <th className="text-left p-4 font-semibold text-foreground">Acciones</th>
@@ -154,20 +152,20 @@ export default function HistoryPage() {
                 <tbody>
                   {reports.map((report) => (
                     <tr key={report.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                      <td className="p-4 text-muted-foreground">
+                        {report.consecutiveNumber > 0 ? String(report.consecutiveNumber).padStart(4, '0') : '-'}
+                      </td>
                       <td className="p-4">
                         <span className="font-medium text-foreground">{report.reportTypeName}</span>
                       </td>
                       <td className="p-4">
-                        <span className={`badge ${formatBadgeClass[report.format] || 'badge-neutral'}`}>
-                          {report.format}
-                        </span>
+                        <span className={`badge ${formatBadgeClass[report.format] || 'badge-neutral'}`}>{report.format}</span>
                       </td>
                       <td className="p-4 text-muted-foreground">
                         {report.periodFrom && report.periodTo
                           ? `${new Date(report.periodFrom).toLocaleDateString('es-CO')} - ${new Date(report.periodTo).toLocaleDateString('es-CO')}`
-                          : '—'}
+                          : '-'}
                       </td>
-                      <td className="p-4 text-muted-foreground">{report.generatedByUserId}</td>
                       <td className="p-4 text-muted-foreground">
                         {new Date(report.generatedAt).toLocaleDateString('es-CO')}
                       </td>

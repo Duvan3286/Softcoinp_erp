@@ -33,6 +33,7 @@ public class GeneratedReportDto
     public string? Parameters { get; set; }
     public string? Notes { get; set; }
     public Guid? RecurringConfigId { get; set; }
+    public int ConsecutiveNumber { get; set; }
 }
 
 public class GenerateReportRequestDto
@@ -95,37 +96,6 @@ public class UpdateManagementReportSectionDto
     public int? SectionOrder { get; set; }
 }
 
-public class PDFTemplateDto
-{
-    public Guid Id { get; set; }
-    public string ReportTypeCode { get; set; } = string.Empty;
-    public string ReportTypeName { get; set; } = string.Empty;
-    public string? LogoFilePath { get; set; }
-    public string HeaderText { get; set; } = string.Empty;
-    public string FooterText { get; set; } = string.Empty;
-    public string SignatureName { get; set; } = string.Empty;
-    public string SignatureRole { get; set; } = string.Empty;
-    public string? ConfidentialityNote { get; set; }
-    public string? DisclaimerNote { get; set; }
-    public string PrimaryColor { get; set; } = "#059669";
-    public string SecondaryColor { get; set; } = "#1e293b";
-    public bool IsDefault { get; set; }
-}
-
-public class UpdatePDFTemplateDto
-{
-    public string? LogoFilePath { get; set; }
-    public string? HeaderText { get; set; }
-    public string? FooterText { get; set; }
-    public string? SignatureName { get; set; }
-    public string? SignatureRole { get; set; }
-    public string? ConfidentialityNote { get; set; }
-    public string? DisclaimerNote { get; set; }
-    public string? PrimaryColor { get; set; }
-    public string? SecondaryColor { get; set; }
-    public bool? IsDefault { get; set; }
-}
-
 public class ReportCatalogItemDto
 {
     public string Code { get; set; } = string.Empty;
@@ -134,78 +104,6 @@ public class ReportCatalogItemDto
     public string Category { get; set; } = string.Empty;
     public List<string> AvailableFormats { get; set; } = new() { "Pdf", "Excel" };
     public bool ContainsPersonalData { get; set; }
-}
-
-public class PortfolioAgingReportDto
-{
-    public List<PortfolioAgingBucketDto> Buckets { get; set; } = new();
-    public decimal TotalOverdue { get; set; }
-    public decimal TotalPaid { get; set; }
-    public decimal GrandTotal { get; set; }
-    public int UnitCount { get; set; }
-}
-
-public class PortfolioAgingBucketDto
-{
-    public string Label { get; set; } = string.Empty;
-    public int FromDays { get; set; }
-    public int ToDays { get; set; }
-    public decimal TotalOverdue { get; set; }
-    public decimal TotalPrincipal { get; set; }
-    public decimal TotalInterest { get; set; }
-    public int UnitCount { get; set; }
-}
-
-public class PQRSummaryReportDto
-{
-    public int TotalRequests { get; set; }
-    public int OpenRequests { get; set; }
-    public int ClosedRequests { get; set; }
-    public int OverdueRequests { get; set; }
-    public double AverageResponseTimeHours { get; set; }
-    public List<PQRCategorySummaryDto> ByCategory { get; set; } = new();
-}
-
-public class PQRCategorySummaryDto
-{
-    public string Category { get; set; } = string.Empty;
-    public int Count { get; set; }
-    public double AverageResponseTimeHours { get; set; }
-}
-
-public class MaintenanceSummaryReportDto
-{
-    public int TotalPlanned { get; set; }
-    public int ExecutedOnTime { get; set; }
-    public int Overdue { get; set; }
-    public decimal TotalEstimatedCost { get; set; }
-    public decimal TotalActualCost { get; set; }
-    public double CompliancePercentage { get; set; }
-}
-
-public class ContingencyFundReportDto
-{
-    public decimal CurrentBalance { get; set; }
-    public decimal TotalContributions { get; set; }
-    public decimal TotalUsages { get; set; }
-    public List<ContingencyFundMovementDto> RecentMovements { get; set; } = new();
-}
-
-public class ContingencyFundMovementDto
-{
-    public DateTime Date { get; set; }
-    public string Type { get; set; } = string.Empty;
-    public string Concept { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
-    public decimal RunningBalance { get; set; }
-}
-
-public class CollectionComparisonDto
-{
-    public decimal CurrentPeriodTotal { get; set; }
-    public decimal PreviousPeriodTotal { get; set; }
-    public decimal Variation { get; set; }
-    public decimal VariationPercentage { get; set; }
 }
 
 public class AnnualReportStatusDto
@@ -223,12 +121,8 @@ public class ConsolidateAnnualReportRequestDto
     public int FiscalYear { get; set; }
 }
 
-public class AnnualReportConsolidatedDto
+public class AccountantExportRequestDto
 {
-    public string TenantName { get; set; } = string.Empty;
-    public string TenantNit { get; set; } = string.Empty;
-    public int FiscalYear { get; set; }
-    public List<ManagementReportSectionDto> Sections { get; set; } = new();
-    public string GeneratedAt { get; set; } = string.Empty;
-    public string GeneratedBy { get; set; } = string.Empty;
+    public DateTime PeriodFrom { get; set; }
+    public DateTime PeriodTo { get; set; }
 }

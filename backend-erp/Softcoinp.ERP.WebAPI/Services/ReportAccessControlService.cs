@@ -23,43 +23,38 @@ public class ReportAccessControlService
     {
         ["SuperAdmin"] = new List<string>
         {
-            "BudgetExecution",
-            "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
-            "PeriodCollection", "PortfolioProjection",
-            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts", "ProviderPayments",
-            "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
-            "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport", "OwnerRegistry"
+            "PortfolioReport", "CollectionReport", "ExpenseReport",
+            "BudgetExecution", "ActiveContracts", "PQRReport",
+            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport"
         },
         ["Admin"] = new List<string>
         {
-            "BudgetExecution",
-            "ContingencyFund", "CashFlow", "PortfolioAging", "PortfolioByUnit", "TopDebtors",
-            "PeriodCollection", "PortfolioProjection",
-            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts", "ProviderPayments",
-            "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
-            "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport", "OwnerRegistry"
+            "PortfolioReport", "CollectionReport", "ExpenseReport",
+            "BudgetExecution", "ActiveContracts", "PQRReport",
+            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport"
         },
         ["Council"] = new List<string>
         {
-            "BudgetExecution",
-            "ContingencyFund", "CashFlow",
-            "PQRSummary", "CommonAreaUsage", "MaintenanceSummary", "ActiveContracts", "ProviderPayments",
-            "CommunicationSummary", "AssemblyMinutes", "AssemblyDecisions",
-            "CouncilHistory", "AssemblyQuorum", "AnnualManagementReport"
+            "PortfolioReport", "BudgetExecution", "ActiveContracts",
+            "PQRReport", "MaintenanceReport", "AssemblyReport", "AnnualManagementReport"
         },
         ["Accountant"] = new List<string>
         {
-            "BudgetExecution",
-            "ContingencyFund", "CashFlow", "PortfolioAging", "PeriodCollection", "OwnerRegistry", "ProviderPayments"
+            "CollectionReport", "ExpenseReport", "BudgetExecution",
+            "PortfolioReport"
         },
         ["Auditor"] = new List<string>
         {
-            "BudgetExecution",
-            "ContingencyFund", "CashFlow", "PortfolioAging", "PeriodCollection", "OwnerRegistry"
+            "CollectionReport", "ExpenseReport", "BudgetExecution",
+            "PortfolioReport"
+        },
+        ["Reviewer"] = new List<string>
+        {
+            "CollectionReport", "ExpenseReport", "BudgetExecution",
+            "PortfolioReport"
         },
         ["Resident"] = new List<string>
         {
-            "PortfolioByUnit"
         }
     };
 
@@ -87,7 +82,7 @@ public class ReportAccessControlService
 
     public bool CanAccessPersonalData(string role)
     {
-        return role == "SuperAdmin" || role == "Admin" || role == "Accountant" || role == "Auditor";
+        return role == "SuperAdmin" || role == "Admin" || role == "Accountant" || role == "Auditor" || role == "Reviewer";
     }
 
     public async Task<List<ReportTypeDto>> GetFilteredCatalogAsync(string tenantId, string role)
@@ -143,7 +138,8 @@ public class ReportAccessControlService
                 GeneratedAt = g.GeneratedAt,
                 Parameters = g.Parameters,
                 Notes = g.Notes,
-                RecurringConfigId = g.RecurringConfigId
+                RecurringConfigId = g.RecurringConfigId,
+                ConsecutiveNumber = g.ConsecutiveNumber
             })
             .ToList();
     }

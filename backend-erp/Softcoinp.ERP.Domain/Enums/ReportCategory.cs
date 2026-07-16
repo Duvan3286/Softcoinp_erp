@@ -2,8 +2,8 @@ namespace Softcoinp.ERP.Domain.Enums;
 
 public enum ReportCategory
 {
-    Financial,
     Portfolio,
+    Financial,
     Operational,
     Assembly,
     Annual

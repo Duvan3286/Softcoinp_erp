@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
-using Softcoinp.ERP.WebAPI.DTOs;
 
 namespace Softcoinp.ERP.WebAPI.Services;
 
@@ -43,15 +42,15 @@ public class ExcelGenerationEngine
         var dir = Path.Combine(_env.WebRootPath ?? "wwwroot", "reports", tenantId, reportTypeCode);
         Directory.CreateDirectory(dir);
 
-        var fileName = $"{reportTypeCode}_{periodLabel}_{timestamp}.xlsx";
+        var consecutive = await GetNextConsecutiveNumber(tenantId, reportType.Id);
+        var fileName = $"{reportTypeCode}_{periodLabel}_{consecutive:D4}_{timestamp}.xlsx";
         var filePath = Path.Combine(dir, fileName);
 
         using var workbook = new XLWorkbook();
-
         workbook.Style.Font.FontSize = 10;
         workbook.Style.Font.FontName = "Calibri";
 
-        var ws = workbook.Worksheets.Add(reportType.Name.Length > 31 ? reportType.Name.Substring(0, 31) : reportType.Name);
+        var ws = workbook.Worksheets.Add(reportType.Name.Length > 31 ? reportType.Name[..31] : reportType.Name);
         ConfigureSheet(ws, reportTypeCode, tenantId, periodFrom, periodTo);
 
         workbook.SaveAs(filePath);
@@ -71,13 +70,24 @@ public class ExcelGenerationEngine
             GeneratedAt = DateTime.UtcNow,
             Parameters = parameters,
             Notes = notes,
-            RecurringConfigId = recurringConfigId
+            RecurringConfigId = recurringConfigId,
+            ConsecutiveNumber = consecutive
         };
 
         _context.GeneratedReports.Add(generated);
         await _context.SaveChangesAsync();
-
         return generated;
+    }
+
+    private async Task<int> GetNextConsecutiveNumber(string tenantId, Guid reportTypeId)
+    {
+        var lastNumber = await _context.GeneratedReports
+            .Where(r => r.TenantId == tenantId && r.ReportTypeId == reportTypeId)
+            .OrderByDescending(r => r.ConsecutiveNumber)
+            .Select(r => (int?)r.ConsecutiveNumber)
+            .FirstOrDefaultAsync();
+
+        return (lastNumber ?? 0) + 1;
     }
 
     private void ConfigureSheet(IXLWorksheet ws, string reportTypeCode, string tenantId,
@@ -85,60 +95,26 @@ public class ExcelGenerationEngine
     {
         switch (reportTypeCode)
         {
-            case "PortfolioAging":
-                FillPortfolioAging(ws, tenantId);
+            case "PortfolioReport":
+                FillPortfolioReport(ws, tenantId);
                 break;
-            case "PortfolioByUnit":
-                FillPortfolioByUnit(ws, tenantId);
+            case "CollectionReport":
+                FillCollectionReport(ws, tenantId, periodFrom, periodTo);
                 break;
-            case "TopDebtors":
-                FillTopDebtors(ws, tenantId);
-                break;
-            case "PeriodCollection":
-                FillPeriodCollection(ws, tenantId, periodFrom, periodTo);
-                break;
-            case "ActiveContracts":
-                FillActiveContracts(ws, tenantId);
-                break;
-            case "ProviderPayments":
-                FillProviderPayments(ws, tenantId, periodFrom, periodTo);
-                break;
-            case "OwnerRegistry":
-                FillOwnerRegistry(ws, tenantId);
-                break;
-            case "ContingencyFund":
-                FillContingencyFund(ws, tenantId);
+            case "ExpenseReport":
+                FillExpenseReport(ws, tenantId, periodFrom, periodTo);
                 break;
             case "BudgetExecution":
-                FillBudgetExecution(ws, tenantId);
+                FillBudgetExecutionReport(ws, tenantId);
                 break;
-            case "PortfolioProjection":
-                ws.Cell(1, 1).Value = "Proyeccion de Cartera";
-                ws.Cell(2, 1).Value = "Funcionalidad en desarrollo.";
+            case "ActiveContracts":
+                FillActiveContractsReport(ws, tenantId);
                 break;
-            case "PQRSummary":
-                FillPQRSummary(ws, tenantId);
+            case "PQRReport":
+                FillPQRReport(ws, tenantId, periodFrom, periodTo);
                 break;
-            case "CommonAreaUsage":
-                FillCommonAreaUsage(ws, tenantId);
-                break;
-            case "MaintenanceSummary":
-                FillMaintenanceSummary(ws, tenantId);
-                break;
-            case "CommunicationSummary":
-                FillCommunicationSummary(ws, tenantId);
-                break;
-            case "AssemblyMinutes":
-                FillAssemblyMinutes(ws, tenantId);
-                break;
-            case "AssemblyDecisions":
-                FillAssemblyDecisions(ws, tenantId);
-                break;
-            case "CouncilHistory":
-                FillCouncilHistory(ws, tenantId);
-                break;
-            case "AssemblyQuorum":
-                FillAssemblyQuorum(ws, tenantId);
+            case "MaintenanceReport":
+                FillMaintenanceReport(ws, tenantId, periodFrom, periodTo);
                 break;
             default:
                 ws.Cell(1, 1).Value = "Exportacion de datos";
@@ -149,91 +125,194 @@ public class ExcelGenerationEngine
         }
     }
 
-    private void FillContingencyFund(IXLWorksheet ws, string tenantId)
+    private static void StyleHeader(IXLRow row, string[] headers, int startCol = 1)
     {
-        ws.Cell(1, 1).Value = "Fondo de Contingencia";
-        ws.Cell(1, 1).Style.Font.Bold = true;
-        ws.Cell(1, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-        ws.Cell(1, 1).Style.Font.FontColor = XLColor.White;
-        ws.Cell(1, 2).Value = "Saldo Actual";
-        ws.Cell(1, 2).Style.Font.Bold = true;
-        ws.Cell(1, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-        ws.Cell(1, 2).Style.Font.FontColor = XLColor.White;
-
-        var budget = _context.Budgets
-            .Include(b => b.ExpenseItems)
-            .Where(b => b.TenantId == tenantId && b.Status == BudgetStatus.Approved)
-            .OrderByDescending(b => b.FiscalYear)
-            .FirstOrDefault();
-
-        var contingencyItem = budget?.ExpenseItems.FirstOrDefault(e => e.IsContingencyFund);
-        var totalContributed = contingencyItem?.AnnualValue ?? 0;
-
-        var usages = _context.ContingencyFundUsages
-            .Where(u => u.TenantId == tenantId)
-            .OrderBy(u => u.CreatedAt)
-            .ToList();
-
-        var totalUsed = usages.Sum(u => u.Amount);
-        var available = totalContributed - totalUsed;
-
-        ws.Cell(2, 1).Value = "Saldo disponible";
-        ws.Cell(2, 2).Value = available;
-        ws.Cell(2, 2).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(2, 2).Style.Font.Bold = true;
-
-        var headers = new[] { "Fecha", "Concepto", "Justificacion", "Monto", "Acta Aprobacion" };
-        var headerRow = 4;
         for (var i = 0; i < headers.Length; i++)
         {
-            var cell = ws.Cell(headerRow, i + 1);
+            var cell = row.Cell(startCol + i);
             cell.Value = headers[i];
             cell.Style.Font.Bold = true;
             cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
             cell.Style.Font.FontColor = XLColor.White;
         }
+    }
 
-        var row = headerRow + 1;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var totalUsages = 0m;
+    private static void ApplyRowStyle(IXLRow row, int colCount, bool isAlt)
+    {
+        if (!isAlt) return;
+        for (var c = 1; c <= colCount; c++)
+            row.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#f8fafc");
+    }
 
-        foreach (var u in usages)
-        {
-            ws.Cell(row, 1).Value = u.CreatedAt.ToString("yyyy-MM-dd");
-            ws.Cell(row, 2).Value = "Uso";
-            ws.Cell(row, 3).Value = u.Justification;
-            ws.Cell(row, 4).Value = -u.Amount;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = u.CouncilApprovalActNumber;
+    private void FillPortfolioReport(IXLWorksheet ws, string tenantId)
+    {
+        var headers = new[] { "Unidad", "Torre/Bloque", "Propietario", "0-30 Dias", "31-60 Dias", "61-90 Dias", "90+ Dias", "Total Adeudado" };
+        StyleHeader(ws.Row(1), headers);
 
-            if (row % 2 == 0)
+        var today = DateTime.UtcNow.Date;
+        var fees = _context.UnitFees
+            .Where(f => f.TenantId == tenantId && f.Status != FeeStatus.FullyPaid)
+            .Include(f => f.Unit)
+            .ThenInclude(u => u!.UnitOwners)
+            .ThenInclude(uo => uo.Owner)
+            .ToList();
+
+        var grouped = fees
+            .GroupBy(f => f.UnitId)
+            .Select(g =>
             {
-                for (var col = 1; col <= 5; col++)
-                    ws.Cell(row, col).Style.Fill.BackgroundColor = altColor;
-            }
+                var unit = g.FirstOrDefault()?.Unit;
+                var ownerName = unit?.UnitOwners
+                    .Where(uo => uo.IsActive)
+                    .Select(uo => uo.Owner!.FullNameOrCompanyName)
+                    .FirstOrDefault() ?? "";
+                var bucket0 = g.Where(f => (today - f.DueDate).Days <= 30).Sum(f => f.BalanceAmount);
+                var bucket1 = g.Where(f => (today - f.DueDate).Days > 30 && (today - f.DueDate).Days <= 60).Sum(f => f.BalanceAmount);
+                var bucket2 = g.Where(f => (today - f.DueDate).Days > 60 && (today - f.DueDate).Days <= 90).Sum(f => f.BalanceAmount);
+                var bucket3 = g.Where(f => (today - f.DueDate).Days > 90).Sum(f => f.BalanceAmount);
 
-            totalUsages += u.Amount;
+                return new
+                {
+                    UnitIdentifier = unit?.Identifier ?? "",
+                    Tower = unit?.TowerOrBlock ?? "",
+                    OwnerName = ownerName,
+                    Bucket0 = bucket0,
+                    Bucket1 = bucket1,
+                    Bucket2 = bucket2,
+                    Bucket3 = bucket3,
+                    TotalBalance = bucket0 + bucket1 + bucket2 + bucket3
+                };
+            })
+            .Where(x => x.TotalBalance > 0)
+            .OrderByDescending(x => x.TotalBalance)
+            .ToList();
+
+        var row = 2;
+        var grandB0 = 0m; var grandB1 = 0m; var grandB2 = 0m; var grandB3 = 0m; var grandTotal = 0m;
+
+        foreach (var item in grouped)
+        {
+            var r = ws.Row(row);
+            r.Cell(1).Value = item.UnitIdentifier;
+            r.Cell(2).Value = item.Tower;
+            r.Cell(3).Value = item.OwnerName;
+            r.Cell(4).Value = item.Bucket0; r.Cell(4).Style.NumberFormat.Format = "#,##0";
+            r.Cell(5).Value = item.Bucket1; r.Cell(5).Style.NumberFormat.Format = "#,##0";
+            r.Cell(6).Value = item.Bucket2; r.Cell(6).Style.NumberFormat.Format = "#,##0";
+            r.Cell(7).Value = item.Bucket3; r.Cell(7).Style.NumberFormat.Format = "#,##0";
+            r.Cell(8).Value = item.TotalBalance; r.Cell(8).Style.NumberFormat.Format = "#,##0";
+            ApplyRowStyle(r, 8, row % 2 == 0);
+
+            grandB0 += item.Bucket0; grandB1 += item.Bucket1; grandB2 += item.Bucket2; grandB3 += item.Bucket3;
+            grandTotal += item.TotalBalance;
             row++;
         }
 
-        row++;
-        ws.Cell(row, 1).Value = "TOTAL USOS";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 4).Value = totalUsages;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
+        t.Cell(4).Value = grandB0; t.Cell(4).Style.Font.Bold = true; t.Cell(4).Style.NumberFormat.Format = "#,##0";
+        t.Cell(5).Value = grandB1; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0";
+        t.Cell(6).Value = grandB2; t.Cell(6).Style.Font.Bold = true; t.Cell(6).Style.NumberFormat.Format = "#,##0";
+        t.Cell(7).Value = grandB3; t.Cell(7).Style.Font.Bold = true; t.Cell(7).Style.NumberFormat.Format = "#,##0";
+        t.Cell(8).Value = grandTotal; t.Cell(8).Style.Font.Bold = true; t.Cell(8).Style.NumberFormat.Format = "#,##0";
 
-        ws.Columns(1, 1).Width = 15;
-        ws.Columns(2, 2).Width = 15;
-        ws.Columns(3, 3).Width = 40;
-        ws.Columns(4, 4).Width = 15;
-        ws.Columns(5, 5).Width = 20;
+        ws.Range(1, 1, row, 8).SetAutoFilter();
+        ws.Column(1).Width = 14; ws.Column(2).Width = 14; ws.Column(3).Width = 30;
+        ws.Column(4).Width = 12; ws.Column(5).Width = 12; ws.Column(6).Width = 12;
+        ws.Column(7).Width = 12; ws.Column(8).Width = 14;
     }
 
-    private void FillBudgetExecution(IXLWorksheet ws, string tenantId)
+    private void FillCollectionReport(IXLWorksheet ws, string tenantId, DateTime? from, DateTime? to)
+    {
+        var headers = new[] { "Fecha", "Unidad", "Propietario", "Valor", "Medio de Pago", "Comprobante" };
+        StyleHeader(ws.Row(1), headers);
+
+        var query = _context.Payments
+            .Where(p => p.TenantId == tenantId)
+            .Include(p => p.Unit)
+            .ThenInclude(u => u!.UnitOwners)
+            .ThenInclude(uo => uo.Owner)
+            .AsQueryable();
+
+        if (from.HasValue) query = query.Where(p => p.PaymentDate >= from.Value);
+        if (to.HasValue) query = query.Where(p => p.PaymentDate <= to.Value);
+
+        var payments = query.OrderByDescending(p => p.PaymentDate).ToList();
+        var row = 2;
+        var totalAmount = 0m;
+
+        foreach (var payment in payments)
+        {
+            var ownerName = payment.Unit?.UnitOwners
+                .Where(uo => uo.IsActive)
+                .Select(uo => uo.Owner!.FullNameOrCompanyName)
+                .FirstOrDefault() ?? "";
+
+            var r = ws.Row(row);
+            r.Cell(1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
+            r.Cell(2).Value = payment.Unit?.Identifier ?? "";
+            r.Cell(3).Value = ownerName;
+            r.Cell(4).Value = payment.Amount; r.Cell(4).Style.NumberFormat.Format = "#,##0.00";
+            r.Cell(5).Value = payment.PaymentMethod.ToString();
+            r.Cell(6).Value = payment.ReferenceNumber;
+            ApplyRowStyle(r, 6, row % 2 == 0);
+            totalAmount += payment.Amount;
+            row++;
+        }
+
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
+        t.Cell(4).Value = totalAmount; t.Cell(4).Style.Font.Bold = true; t.Cell(4).Style.NumberFormat.Format = "#,##0.00";
+
+        ws.Range(1, 1, row, 6).SetAutoFilter();
+        ws.Column(1).Width = 14; ws.Column(2).Width = 14; ws.Column(3).Width = 30;
+        ws.Column(4).Width = 15; ws.Column(5).Width = 16; ws.Column(6).Width = 20;
+    }
+
+    private void FillExpenseReport(IXLWorksheet ws, string tenantId, DateTime? from, DateTime? to)
+    {
+        var headers = new[] { "Fecha", "Proveedor", "Descripcion", "Rubro", "Valor", "Comprobante" };
+        StyleHeader(ws.Row(1), headers);
+
+        var query = _context.ProviderPayments
+            .Where(p => p.TenantId == tenantId)
+            .Include(p => p.Invoice)
+                .ThenInclude(i => i!.Provider)
+            .AsQueryable();
+
+        if (from.HasValue) query = query.Where(p => p.PaymentDate >= from.Value);
+        if (to.HasValue) query = query.Where(p => p.PaymentDate <= to.Value);
+
+        var payments = query.OrderBy(p => p.PaymentDate).ToList();
+        var row = 2;
+        var totalAmount = 0m;
+
+        foreach (var payment in payments)
+        {
+            var r = ws.Row(row);
+            r.Cell(1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
+            r.Cell(2).Value = payment.Invoice?.Provider?.BusinessName ?? "";
+            r.Cell(3).Value = payment.ReferenceNumber;
+            r.Cell(4).Value = "";
+            r.Cell(5).Value = payment.Amount; r.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+            r.Cell(6).Value = payment.Invoice?.InvoiceNumber ?? "";
+            ApplyRowStyle(r, 6, row % 2 == 0);
+            totalAmount += payment.Amount;
+            row++;
+        }
+
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
+        t.Cell(5).Value = totalAmount; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+
+        ws.Range(1, 1, row, 6).SetAutoFilter();
+        ws.Column(1).Width = 14; ws.Column(2).Width = 28; ws.Column(3).Width = 35;
+        ws.Column(4).Width = 20; ws.Column(5).Width = 15; ws.Column(6).Width = 18;
+    }
+
+    private void FillBudgetExecutionReport(IXLWorksheet ws, string tenantId)
     {
         var fiscalYear = DateTime.Today.Year;
-
         var budget = _context.Budgets
             .Include(b => b.ExpenseItems)
             .Include(b => b.IncomeItems)
@@ -247,441 +326,66 @@ public class ExcelGenerationEngine
             return;
         }
 
+        var now = DateTime.UtcNow;
         var startDate = new DateTime(fiscalYear, 1, 1);
         var endDate = new DateTime(fiscalYear, 12, 31, 23, 59, 59);
+        var monthsElapsed = Math.Max((now.Year - fiscalYear) * 12 + now.Month - 1, 1);
+        var proportionExpected = monthsElapsed / 12m;
 
-        var executedByItem = _context.ExecutedExpenses
-            .Where(e => e.TenantId == tenantId && e.ExpenseDate >= startDate && e.ExpenseDate <= endDate)
-            .GroupBy(e => e.ExpenseItemId)
-            .Select(g => new { ExpenseItemId = g.Key, Total = g.Sum(e => e.Amount) })
-            .ToList()
-            .ToDictionary(x => x.ExpenseItemId, x => x.Total);
+        var totalExecuted = _context.ProviderPayments
+            .Where(p => p.TenantId == tenantId && p.PaymentDate >= startDate && p.PaymentDate <= endDate)
+            .Sum(p => (decimal?)p.Amount) ?? 0;
 
-        var headers = new[] { "Rubro", "Categoria", "Presupuestado", "Ejecutado", "Disponible", "% Ejecucion" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
+        var headers = new[] { "Rubro", "Presupuestado Anual", "Esperado al Mes", "Ejecutado Acumulado", "Disponible", "% Ejecucion" };
+        StyleHeader(ws.Row(1), headers);
 
         var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
         var totalApproved = 0m;
-        var totalExecuted = 0m;
+        var totalExecLine = 0m;
+        var totalExpected = 0m;
 
         foreach (var item in budget.ExpenseItems)
         {
-            var executed = executedByItem.TryGetValue(item.Id, out var val) ? val : 0m;
+            var expected = item.AnnualValue * proportionExpected;
+            var executed = 0m;
             var available = item.AnnualValue - executed;
             var percentage = item.AnnualValue > 0 ? Math.Round(executed / item.AnnualValue * 100m, 2) : 0m;
 
-            ws.Cell(row, 1).Value = item.Name;
-            ws.Cell(row, 2).Value = item.Category.ToString();
-            ws.Cell(row, 3).Value = item.AnnualValue;
-            ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 4).Value = executed;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = available;
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 6).Value = percentage;
-            ws.Cell(row, 6).Style.NumberFormat.Format = "0.00";
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 6; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
+            var r = ws.Row(row);
+            r.Cell(1).Value = item.Name;
+            r.Cell(2).Value = item.AnnualValue; r.Cell(2).Style.NumberFormat.Format = "#,##0";
+            r.Cell(3).Value = expected; r.Cell(3).Style.NumberFormat.Format = "#,##0";
+            r.Cell(4).Value = executed; r.Cell(4).Style.NumberFormat.Format = "#,##0";
+            r.Cell(5).Value = available; r.Cell(5).Style.NumberFormat.Format = "#,##0";
+            r.Cell(6).Value = percentage; r.Cell(6).Style.NumberFormat.Format = "0.00";
+            ApplyRowStyle(r, 6, row % 2 == 0);
 
             totalApproved += item.AnnualValue;
-            totalExecuted += executed;
+            totalExecLine += executed;
+            totalExpected += expected;
             row++;
         }
 
-        var overallPercentage = totalApproved > 0 ? Math.Round(totalExecuted / totalApproved * 100m, 2) : 0m;
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 3).Value = totalApproved;
-        ws.Cell(row, 3).Style.Font.Bold = true;
-        ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 4).Value = totalExecuted;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 5).Value = totalApproved - totalExecuted;
-        ws.Cell(row, 5).Style.Font.Bold = true;
-        ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 6).Value = overallPercentage;
-        ws.Cell(row, 6).Style.Font.Bold = true;
-        ws.Cell(row, 6).Style.NumberFormat.Format = "0.00";
+        var overallPercentage = totalApproved > 0 ? Math.Round(totalExecLine / totalApproved * 100m, 2) : 0m;
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
+        t.Cell(2).Value = totalApproved; t.Cell(2).Style.Font.Bold = true; t.Cell(2).Style.NumberFormat.Format = "#,##0";
+        t.Cell(3).Value = totalExpected; t.Cell(3).Style.Font.Bold = true; t.Cell(3).Style.NumberFormat.Format = "#,##0";
+        t.Cell(4).Value = totalExecLine; t.Cell(4).Style.Font.Bold = true; t.Cell(4).Style.NumberFormat.Format = "#,##0";
+        t.Cell(5).Value = totalApproved - totalExecLine; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0";
+        t.Cell(6).Value = overallPercentage; t.Cell(6).Style.Font.Bold = true; t.Cell(6).Style.NumberFormat.Format = "0.00";
 
         ws.Range(1, 1, row, 6).SetAutoFilter();
-        ws.Columns(1, 1).Width = 30;
-        ws.Columns(2, 2).Width = 14;
-        ws.Columns(3, 6).Width = 16;
+        ws.Column(1).Width = 28; ws.Column(2).Width = 18; ws.Column(3).Width = 18;
+        ws.Column(4).Width = 18; ws.Column(5).Width = 14; ws.Column(6).Width = 12;
     }
 
-    private void FillPortfolioAging(IXLWorksheet ws, string tenantId)
+    private void FillActiveContractsReport(IXLWorksheet ws, string tenantId)
     {
-        var headers = new[] { "Unidad", "Torre/Bloque", "0-30 Dias", "31-60 Dias", "61-90 Dias", "90+ Dias", "Total Adeudado" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
+        var headers = new[] { "Contrato", "Proveedor", "Objeto", "Valor", "Fecha Inicio", "Fecha Terminacion", "Dias Restantes", "Evaluacion" };
+        StyleHeader(ws.Row(1), headers);
 
-        var fees = _context.UnitFees
-            .Where(f => f.TenantId == tenantId && f.Status != FeeStatus.FullyPaid)
-            .Include(f => f.Unit)
-            .ToList();
-
-        var groupedByUnit = fees
-            .GroupBy(f => f.UnitId)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var now = DateTime.UtcNow;
-        var totalBucket0 = 0m;
-        var totalBucket1 = 0m;
-        var totalBucket2 = 0m;
-        var totalBucket3 = 0m;
-        var totalGeneral = 0m;
-
-        foreach (var group in groupedByUnit.OrderBy(g => g.FirstOrDefault()?.Unit?.Identifier))
-        {
-            var unit = group.FirstOrDefault()?.Unit;
-            if (unit is null) continue;
-
-            var bucket0 = 0m;
-            var bucket1 = 0m;
-            var bucket2 = 0m;
-            var bucket3 = 0m;
-
-            foreach (var fee in group)
-            {
-                var daysOverdue = (now - fee.DueDate).Days;
-                if (daysOverdue <= 0)
-                    continue;
-                if (daysOverdue <= 30)
-                    bucket0 += fee.BalanceAmount;
-                else if (daysOverdue <= 60)
-                    bucket1 += fee.BalanceAmount;
-                else if (daysOverdue <= 90)
-                    bucket2 += fee.BalanceAmount;
-                else
-                    bucket3 += fee.BalanceAmount;
-            }
-
-            var total = bucket0 + bucket1 + bucket2 + bucket3;
-
-            ws.Cell(row, 1).Value = unit.Identifier;
-            ws.Cell(row, 2).Value = unit.TowerOrBlock;
-            ws.Cell(row, 3).Value = bucket0;
-            ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 4).Value = bucket1;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = bucket2;
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 6).Value = bucket3;
-            ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 7).Value = total;
-            ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0.00";
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 7; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            totalBucket0 += bucket0;
-            totalBucket1 += bucket1;
-            totalBucket2 += bucket2;
-            totalBucket3 += bucket3;
-            totalGeneral += total;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 3).Value = totalBucket0;
-        ws.Cell(row, 3).Style.Font.Bold = true;
-        ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 4).Value = totalBucket1;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 5).Value = totalBucket2;
-        ws.Cell(row, 5).Style.Font.Bold = true;
-        ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 6).Value = totalBucket3;
-        ws.Cell(row, 6).Style.Font.Bold = true;
-        ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 7).Value = totalGeneral;
-        ws.Cell(row, 7).Style.Font.Bold = true;
-        ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0.00";
-
-        ws.Range(1, 1, row, 7).SetAutoFilter();
-        ws.Columns(1, 1).Width = 15;
-        ws.Columns(2, 2).Width = 15;
-        ws.Columns(3, 7).Width = 14;
-    }
-
-    private void FillPortfolioByUnit(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Unidad", "Torre/Bloque", "Total Adeudado", "Cantidad Cuotas", "Saldo Total" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var fees = _context.UnitFees
-            .Where(f => f.TenantId == tenantId && f.Status != FeeStatus.FullyPaid)
-            .Include(f => f.Unit)
-            .ToList();
-
-        var groupedByUnit = fees
-            .GroupBy(f => f.UnitId)
-            .Select(g => new
-            {
-                UnitId = g.Key,
-                Unit = g.FirstOrDefault()!.Unit,
-                TotalBalance = g.Sum(f => f.BalanceAmount),
-                FeeCount = g.Count(),
-                TotalOriginal = g.Sum(f => f.FeeValue)
-            })
-            .OrderByDescending(g => g.TotalBalance)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var grandBalance = 0m;
-        var grandCount = 0;
-        var grandOriginal = 0m;
-
-        foreach (var g in groupedByUnit)
-        {
-            if (g.Unit is null) continue;
-
-            ws.Cell(row, 1).Value = g.Unit.Identifier;
-            ws.Cell(row, 2).Value = g.Unit.TowerOrBlock;
-            ws.Cell(row, 3).Value = g.TotalBalance;
-            ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 4).Value = g.FeeCount;
-            ws.Cell(row, 5).Value = g.TotalOriginal;
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 5; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            grandBalance += g.TotalBalance;
-            grandCount += g.FeeCount;
-            grandOriginal += g.TotalOriginal;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 3).Value = grandBalance;
-        ws.Cell(row, 3).Style.Font.Bold = true;
-        ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 4).Value = grandCount;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 5).Value = grandOriginal;
-        ws.Cell(row, 5).Style.Font.Bold = true;
-        ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-
-        ws.Range(1, 1, row, 5).SetAutoFilter();
-        ws.Columns(1, 1).Width = 15;
-        ws.Columns(2, 2).Width = 15;
-        ws.Columns(3, 5).Width = 15;
-    }
-
-    private void FillTopDebtors(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "#", "Unidad", "Propietario", "Total Adeudado", "Cuotas Pendientes" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var fees = _context.UnitFees
-            .Where(f => f.TenantId == tenantId && f.Status != FeeStatus.FullyPaid)
-            .Include(f => f.Unit)
-            .ThenInclude(u => u!.UnitOwners)
-            .ThenInclude(uo => uo.Owner)
-            .ToList();
-
-        var groupedByUnit = fees
-            .GroupBy(f => f.UnitId)
-            .Select(g => new
-            {
-                UnitId = g.Key,
-                Unit = g.FirstOrDefault()!.Unit,
-                TotalBalance = g.Sum(f => f.BalanceAmount),
-                FeeCount = g.Count()
-            })
-            .OrderByDescending(g => g.TotalBalance)
-            .Take(20)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var rank = 1;
-        var grandBalance = 0m;
-        var grandCount = 0;
-
-        foreach (var g in groupedByUnit)
-        {
-            if (g.Unit is null) continue;
-
-            var ownerName = string.Empty;
-            var activeOwner = g.Unit.UnitOwners
-                .Where(uo => uo.IsActive)
-                .Select(uo => uo.Owner)
-                .FirstOrDefault();
-            if (activeOwner != null)
-            {
-                ownerName = activeOwner.FullNameOrCompanyName;
-            }
-
-            ws.Cell(row, 1).Value = rank;
-            ws.Cell(row, 2).Value = g.Unit.Identifier;
-            ws.Cell(row, 3).Value = ownerName;
-            ws.Cell(row, 4).Value = g.TotalBalance;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = g.FeeCount;
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 5; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            grandBalance += g.TotalBalance;
-            grandCount += g.FeeCount;
-            rank++;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 4).Value = grandBalance;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 5).Value = grandCount;
-        ws.Cell(row, 5).Style.Font.Bold = true;
-
-        ws.Range(1, 1, row, 5).SetAutoFilter();
-        ws.Columns(1, 1).Width = 5;
-        ws.Columns(2, 2).Width = 15;
-        ws.Columns(3, 3).Width = 35;
-        ws.Columns(4, 5).Width = 15;
-    }
-
-    private void FillPeriodCollection(IXLWorksheet ws, string tenantId, DateTime? from, DateTime? to)
-    {
-        var headers = new[] { "Fecha", "Unidad", "Referencia", "Metodo", "Monto", "Avance", "Notas" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var paymentsQuery = _context.Payments
-            .Where(p => p.TenantId == tenantId)
-            .Include(p => p.Unit)
-            .Include(p => p.Allocations)
-            .AsQueryable();
-
-        if (from.HasValue)
-            paymentsQuery = paymentsQuery.Where(p => p.PaymentDate >= from.Value);
-        if (to.HasValue)
-            paymentsQuery = paymentsQuery.Where(p => p.PaymentDate <= to.Value);
-
-        var payments = paymentsQuery
-            .OrderByDescending(p => p.PaymentDate)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var totalAmount = 0m;
-        var totalAdvance = 0m;
-
-        foreach (var payment in payments)
-        {
-            var methodName = payment.PaymentMethod.ToString();
-            var unitIdentifier = payment.Unit != null ? payment.Unit.Identifier : string.Empty;
-
-            ws.Cell(row, 1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
-            ws.Cell(row, 2).Value = unitIdentifier;
-            ws.Cell(row, 3).Value = payment.ReferenceNumber;
-            ws.Cell(row, 4).Value = methodName;
-            ws.Cell(row, 5).Value = payment.Amount;
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 6).Value = payment.AdvanceAmount;
-            ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 7).Value = payment.Notes;
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 7; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            totalAmount += payment.Amount;
-            totalAdvance += payment.AdvanceAmount;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 5).Value = totalAmount;
-        ws.Cell(row, 5).Style.Font.Bold = true;
-        ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 6).Value = totalAdvance;
-        ws.Cell(row, 6).Style.Font.Bold = true;
-        ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-
-        ws.Range(1, 1, row, 7).SetAutoFilter();
-        ws.Columns(1, 1).Width = 14;
-        ws.Columns(2, 2).Width = 15;
-        ws.Columns(3, 3).Width = 20;
-        ws.Columns(4, 4).Width = 12;
-        ws.Columns(5, 6).Width = 15;
-        ws.Columns(7, 7).Width = 30;
-    }
-
-    private void FillActiveContracts(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Contrato", "Proveedor", "Tipo", "Valor Total", "Valor Mensual", "Fecha Inicio", "Fecha Fin" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
+        var today = DateTime.UtcNow.Date;
         var contracts = _context.Contracts
             .Where(c => c.TenantId == tenantId && c.Status == ContractStatus.Active)
             .Include(c => c.Provider)
@@ -689,56 +393,139 @@ public class ExcelGenerationEngine
             .ToList();
 
         var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
         var totalValue = 0m;
-        var totalMonthly = 0m;
 
         foreach (var contract in contracts)
         {
-            var providerName = contract.Provider != null ? contract.Provider.BusinessName : string.Empty;
-            var typeName = contract.ContractType.ToString();
-
-            ws.Cell(row, 1).Value = contract.ContractNumber;
-            ws.Cell(row, 2).Value = providerName;
-            ws.Cell(row, 3).Value = typeName;
-            ws.Cell(row, 4).Value = contract.TotalValue;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = contract.MonthlyValue;
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 6).Value = contract.StartDate.ToString("yyyy-MM-dd");
-            ws.Cell(row, 7).Value = contract.EndDate.ToString("yyyy-MM-dd");
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 7; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
+            var daysRemaining = (contract.EndDate.Date - today).Days;
+            var r = ws.Row(row);
+            r.Cell(1).Value = contract.ContractNumber;
+            r.Cell(2).Value = contract.Provider?.BusinessName ?? "";
+            r.Cell(3).Value = contract.ObjectDescription;
+            r.Cell(4).Value = contract.TotalValue; r.Cell(4).Style.NumberFormat.Format = "#,##0";
+            r.Cell(5).Value = contract.StartDate.ToString("yyyy-MM-dd");
+            r.Cell(6).Value = contract.EndDate.ToString("yyyy-MM-dd");
+            r.Cell(7).Value = daysRemaining;
+            r.Cell(8).Value = contract.Status.ToString();
+            ApplyRowStyle(r, 8, row % 2 == 0);
             totalValue += contract.TotalValue;
-            totalMonthly += contract.MonthlyValue;
             row++;
         }
 
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 4).Value = totalValue;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 5).Value = totalMonthly;
-        ws.Cell(row, 5).Style.Font.Bold = true;
-        ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
+        t.Cell(4).Value = totalValue; t.Cell(4).Style.Font.Bold = true; t.Cell(4).Style.NumberFormat.Format = "#,##0";
 
-        ws.Range(1, 1, row, 7).SetAutoFilter();
-        ws.Columns(1, 1).Width = 18;
-        ws.Columns(2, 2).Width = 30;
-        ws.Columns(3, 3).Width = 14;
-        ws.Columns(4, 5).Width = 15;
-        ws.Columns(6, 7).Width = 14;
+        ws.Range(1, 1, row, 8).SetAutoFilter();
+        ws.Column(1).Width = 18; ws.Column(2).Width = 28; ws.Column(3).Width = 35;
+        ws.Column(4).Width = 15; ws.Column(5).Width = 14; ws.Column(6).Width = 14;
+        ws.Column(7).Width = 14; ws.Column(8).Width = 14;
     }
 
-    private void FillProviderPayments(IXLWorksheet ws, string tenantId, DateTime? periodFrom, DateTime? periodTo)
+    private void FillPQRReport(IXLWorksheet ws, string tenantId, DateTime? from, DateTime? to)
     {
-        var headers = new[] { "Fecha de Pago", "Proveedor", "Factura", "Contrato", "Medio de Pago", "Referencia", "Valor" };
+        var headers = new[] { "Radicado", "Tipo", "Categoria", "Fecha Radicacion", "Estado", "Tiempo Respuesta (h)" };
+        StyleHeader(ws.Row(1), headers);
+
+        var query = _context.PqrRecords
+            .Where(p => p.TenantId == tenantId)
+            .AsQueryable();
+
+        if (from.HasValue) query = query.Where(p => p.FiledAt >= from.Value);
+        if (to.HasValue) query = query.Where(p => p.FiledAt <= to.Value);
+
+        var records = query.OrderByDescending(p => p.FiledAt).ToList();
+        var row = 2;
+
+        foreach (var record in records)
+        {
+            var responseTime = record.ClosedAt.HasValue
+                ? Math.Round((record.ClosedAt.Value - record.FiledAt).TotalHours, 1)
+                : Math.Round((DateTime.UtcNow - record.FiledAt).TotalHours, 1);
+
+            var r = ws.Row(row);
+            r.Cell(1).Value = record.RadicadoNumber;
+            r.Cell(2).Value = record.PQRType.ToString();
+            r.Cell(3).Value = record.Category.ToString();
+            r.Cell(4).Value = record.FiledAt.ToString("yyyy-MM-dd");
+            r.Cell(5).Value = record.Status.ToString();
+            r.Cell(6).Value = responseTime;
+            ApplyRowStyle(r, 6, row % 2 == 0);
+            row++;
+        }
+
+        ws.Range(1, 1, row - 1, 6).SetAutoFilter();
+        ws.Column(1).Width = 18; ws.Column(2).Width = 16; ws.Column(3).Width = 20;
+        ws.Column(4).Width = 16; ws.Column(5).Width = 16; ws.Column(6).Width = 18;
+    }
+
+    private void FillMaintenanceReport(IXLWorksheet ws, string tenantId, DateTime? from, DateTime? to)
+    {
+        var headers = new[] { "Bien/Activo", "Tipo Mantenimiento", "Proveedor", "Fecha Ejecucion", "Costo Real", "Resultado" };
+        StyleHeader(ws.Row(1), headers);
+
+        var query = _context.WorkOrders
+            .Where(w => w.TenantId == tenantId && w.Status == WorkOrderStatus.Completed)
+            .Include(w => w.Asset)
+            .Include(w => w.AssignedProvider)
+            .AsQueryable();
+
+        if (from.HasValue) query = query.Where(w => w.ExecutionEndDate >= from.Value);
+        if (to.HasValue) query = query.Where(w => w.ExecutionEndDate <= to.Value);
+
+        var orders = query.OrderByDescending(w => w.ExecutionEndDate).ToList();
+        var row = 2;
+        var totalCost = 0m;
+
+        foreach (var order in orders)
+        {
+            var mttoType = order.OrderType == WorkOrderType.Preventive ? "Preventivo" : "Correctivo";
+
+            var r = ws.Row(row);
+            r.Cell(1).Value = order.Asset?.Name ?? "";
+            r.Cell(2).Value = mttoType;
+            r.Cell(3).Value = order.AssignedProvider?.BusinessName ?? "";
+            r.Cell(4).Value = order.ExecutionEndDate?.ToString("yyyy-MM-dd") ?? "";
+            r.Cell(5).Value = order.ActualCost; r.Cell(5).Style.NumberFormat.Format = "#,##0";
+            r.Cell(6).Value = order.Outcome?.ToString() ?? "";
+            ApplyRowStyle(r, 6, row % 2 == 0);
+            totalCost += order.ActualCost;
+            row++;
+        }
+
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
+        t.Cell(5).Value = totalCost; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0";
+
+        ws.Range(1, 1, row, 6).SetAutoFilter();
+        ws.Column(1).Width = 22; ws.Column(2).Width = 16; ws.Column(3).Width = 28;
+        ws.Column(4).Width = 16; ws.Column(5).Width = 14; ws.Column(6).Width = 22;
+    }
+
+    public Task<byte[]> GenerateAccountantExportAsync(string tenantId, DateTime periodFrom, DateTime periodTo)
+    {
+        using var workbook = new XLWorkbook();
+        workbook.Style.Font.FontSize = 10;
+        workbook.Style.Font.FontName = "Calibri";
+
+        var incomeSheet = workbook.Worksheets.Add("Ingresos");
+        FillAccountantIncomeSheet(incomeSheet, tenantId, periodFrom, periodTo);
+
+        var expenseSheet = workbook.Worksheets.Add("Egresos");
+        FillAccountantExpenseSheet(expenseSheet, tenantId, periodFrom, periodTo);
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return Task.FromResult(stream.ToArray());
+    }
+
+    private void FillAccountantIncomeSheet(IXLWorksheet ws, string tenantId, DateTime from, DateTime to)
+    {
+        var headers = new[] {
+            "Fecha", "Unidad", "Propietario", "Identificacion Propietario",
+            "Valor", "Medio de Pago", "Comprobante", "Concepto", "Periodo"
+        };
+
         for (var i = 0; i < headers.Length; i++)
         {
             var cell = ws.Cell(1, i + 1);
@@ -748,72 +535,101 @@ public class ExcelGenerationEngine
             cell.Style.Font.FontColor = XLColor.White;
         }
 
-        var query = _context.ProviderPayments
-            .Where(p => p.TenantId == tenantId)
-            .Include(p => p.Invoice)
-                .ThenInclude(i => i!.Provider)
-            .Include(p => p.Invoice)
-                .ThenInclude(i => i!.Contract)
-            .AsQueryable();
-
-        if (periodFrom.HasValue)
-        {
-            query = query.Where(p => p.PaymentDate >= periodFrom.Value);
-        }
-        if (periodTo.HasValue)
-        {
-            query = query.Where(p => p.PaymentDate <= periodTo.Value);
-        }
-
-        var payments = query.OrderBy(p => p.PaymentDate).ToList();
+        var payments = _context.Payments
+            .Where(p => p.TenantId == tenantId && p.PaymentDate >= from && p.PaymentDate <= to)
+            .Include(p => p.Unit)
+            .ThenInclude(u => u!.UnitOwners)
+            .ThenInclude(uo => uo.Owner)
+            .OrderBy(p => p.PaymentDate)
+            .ThenBy(p => p.Unit!.Identifier)
+            .ToList();
 
         var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
         var totalAmount = 0m;
+        var currentMonth = 0;
 
         foreach (var payment in payments)
         {
-            var providerName = payment.Invoice != null && payment.Invoice.Provider != null ? payment.Invoice.Provider.BusinessName : string.Empty;
-            var invoiceNumber = payment.Invoice != null ? payment.Invoice.InvoiceNumber : string.Empty;
-            var contractNumber = payment.Invoice != null && payment.Invoice.Contract != null ? payment.Invoice.Contract.ContractNumber : string.Empty;
-
-            ws.Cell(row, 1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
-            ws.Cell(row, 2).Value = providerName;
-            ws.Cell(row, 3).Value = invoiceNumber;
-            ws.Cell(row, 4).Value = contractNumber;
-            ws.Cell(row, 5).Value = payment.PaymentMethod.ToString();
-            ws.Cell(row, 6).Value = payment.ReferenceNumber;
-            ws.Cell(row, 7).Value = payment.Amount;
-            ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0.00";
-
-            if (row % 2 == 0)
+            var paymentMonth = payment.PaymentDate.Month;
+            if (currentMonth != 0 && paymentMonth != currentMonth)
             {
-                for (var c = 1; c <= 7; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
+                var subRow = ws.Row(row);
+                subRow.Cell(1).Value = $"SUBTOTAL {new DateTime(from.Year, currentMonth, 1):MMMM}";
+                subRow.Cell(1).Style.Font.Bold = true;
+                subRow.Cell(5).Value = totalAmount;
+                subRow.Cell(5).Style.Font.Bold = true;
+                subRow.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+                for (var c = 1; c <= headers.Length; c++)
+                    subRow.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#e2e8f0");
+                row++;
+                totalAmount = 0m;
             }
+            currentMonth = paymentMonth;
 
+            var owner = payment.Unit?.UnitOwners
+                .Where(uo => uo.IsActive)
+                .Select(uo => uo.Owner)
+                .FirstOrDefault();
+
+            var ownerDoc = owner is not null
+                ? $"{owner.DocumentType} {owner.DocumentNumber}"
+                : "";
+            var ownerName = owner?.FullNameOrCompanyName ?? "";
+
+            var r = ws.Row(row);
+            r.Cell(1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
+            r.Cell(2).Value = payment.Unit?.Identifier ?? "";
+            r.Cell(3).Value = ownerName;
+            r.Cell(4).Value = ownerDoc;
+            r.Cell(5).Value = payment.Amount; r.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+            r.Cell(6).Value = payment.PaymentMethod.ToString();
+            r.Cell(7).Value = payment.ReferenceNumber;
+            r.Cell(8).Value = "Cuota de administracion";
+            r.Cell(9).Value = payment.PaymentDate.ToString("yyyy-MM");
+            if (row % 2 == 0)
+                for (var c = 1; c <= headers.Length; c++)
+                    r.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#f8fafc");
             totalAmount += payment.Amount;
             row++;
         }
 
-        ws.Cell(row, 1).Value = "TOTAL";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 7).Value = totalAmount;
-        ws.Cell(row, 7).Style.Font.Bold = true;
-        ws.Cell(row, 7).Style.NumberFormat.Format = "#,##0.00";
+        if (payments.Count > 0)
+        {
+            var subRow = ws.Row(row);
+            subRow.Cell(1).Value = $"SUBTOTAL {new DateTime(from.Year, currentMonth, 1):MMMM}";
+            subRow.Cell(1).Style.Font.Bold = true;
+            subRow.Cell(5).Value = totalAmount;
+            subRow.Cell(5).Style.Font.Bold = true;
+            subRow.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+            for (var c = 1; c <= headers.Length; c++)
+                subRow.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#e2e8f0");
+            row += 2;
+        }
 
-        ws.Range(1, 1, row, 7).SetAutoFilter();
-        ws.Columns(1, 1).Width = 14;
-        ws.Columns(2, 2).Width = 30;
-        ws.Columns(3, 4).Width = 18;
-        ws.Columns(5, 5).Width = 16;
-        ws.Columns(6, 6).Width = 18;
-        ws.Columns(7, 7).Width = 15;
+        var grandTotal = _context.Payments
+            .Where(p => p.TenantId == tenantId && p.PaymentDate >= from && p.PaymentDate <= to)
+            .Sum(p => (decimal?)p.Amount) ?? 0;
+
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTAL GENERAL DEL PERIODO";
+        t.Cell(1).Style.Font.Bold = true;
+        t.Cell(5).Value = grandTotal;
+        t.Cell(5).Style.Font.Bold = true;
+        t.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+
+        ws.Range(1, 1, row, headers.Length).SetAutoFilter();
+        ws.Column(1).Width = 14; ws.Column(2).Width = 12; ws.Column(3).Width = 30;
+        ws.Column(4).Width = 22; ws.Column(5).Width = 15; ws.Column(6).Width = 16;
+        ws.Column(7).Width = 20; ws.Column(8).Width = 24; ws.Column(9).Width = 10;
     }
 
-    private void FillOwnerRegistry(IXLWorksheet ws, string tenantId)
+    private void FillAccountantExpenseSheet(IXLWorksheet ws, string tenantId, DateTime from, DateTime to)
     {
-        var headers = new[] { "Documento", "Nombre", "Email", "Telefono", "Tipo", "Unidades" };
+        var headers = new[] {
+            "Fecha", "Proveedor", "Identificacion Proveedor", "Descripcion",
+            "Rubro Presupuestal", "Valor", "Factura", "Medio de Pago", "Periodo"
+        };
+
         for (var i = 0; i < headers.Length; i++)
         {
             var cell = ws.Cell(1, i + 1);
@@ -823,560 +639,83 @@ public class ExcelGenerationEngine
             cell.Style.Font.FontColor = XLColor.White;
         }
 
-        var owners = _context.Owners
-            .Where(o => o.TenantId == tenantId && o.IsActive)
-            .Include(o => o.UnitOwners)
-            .ThenInclude(uo => uo.Unit)
-            .OrderBy(o => o.FullNameOrCompanyName)
+        var payments = _context.ProviderPayments
+            .Where(p => p.TenantId == tenantId && p.PaymentDate >= from && p.PaymentDate <= to)
+            .Include(p => p.Invoice)
+                .ThenInclude(i => i!.Provider)
+            .OrderBy(p => p.PaymentDate)
             .ToList();
 
         var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
+        var totalAmount = 0m;
+        var currentMonth = 0;
 
-        foreach (var owner in owners)
+        foreach (var payment in payments)
         {
-            var docTypeName = owner.DocumentType.ToString();
-            var document = docTypeName + " " + owner.DocumentNumber;
-            var ownerTypeName = owner.OwnerType == OwnerType.NaturalPerson ? "Persona Natural" : "Persona Juridica";
-            var unitsList = string.Join(", ", owner.UnitOwners
-                .Where(uo => uo.IsActive)
-                .Select(uo => uo.Unit != null ? uo.Unit.Identifier : string.Empty));
-
-            ws.Cell(row, 1).Value = document;
-            ws.Cell(row, 2).Value = owner.FullNameOrCompanyName;
-            ws.Cell(row, 3).Value = owner.Email;
-            ws.Cell(row, 4).Value = owner.MainPhone;
-            ws.Cell(row, 5).Value = ownerTypeName;
-            ws.Cell(row, 6).Value = unitsList;
-
-            if (row % 2 == 0)
+            var paymentMonth = payment.PaymentDate.Month;
+            if (currentMonth != 0 && paymentMonth != currentMonth)
             {
-                for (var c = 1; c <= 6; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
+                var subRow = ws.Row(row);
+                subRow.Cell(1).Value = $"SUBTOTAL {new DateTime(from.Year, currentMonth, 1):MMMM}";
+                subRow.Cell(1).Style.Font.Bold = true;
+                subRow.Cell(6).Value = totalAmount;
+                subRow.Cell(6).Style.Font.Bold = true;
+                subRow.Cell(6).Style.NumberFormat.Format = "#,##0.00";
+                for (var c = 1; c <= headers.Length; c++)
+                    subRow.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#e2e8f0");
+                row++;
+                totalAmount = 0m;
             }
+            currentMonth = paymentMonth;
 
+            var providerDoc = "";
+            var providerName = payment.Invoice?.Provider?.BusinessName ?? "";
+
+            var r = ws.Row(row);
+            r.Cell(1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
+            r.Cell(2).Value = providerName;
+            r.Cell(3).Value = providerDoc;
+            r.Cell(4).Value = payment.ReferenceNumber;
+            r.Cell(5).Value = "";
+            r.Cell(6).Value = payment.Amount; r.Cell(6).Style.NumberFormat.Format = "#,##0.00";
+            r.Cell(7).Value = payment.Invoice?.InvoiceNumber ?? "";
+            r.Cell(8).Value = payment.PaymentMethod.ToString();
+            r.Cell(9).Value = payment.PaymentDate.ToString("yyyy-MM");
+            if (row % 2 == 0)
+                for (var c = 1; c <= headers.Length; c++)
+                    r.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#f8fafc");
+            totalAmount += payment.Amount;
             row++;
         }
 
-        ws.Range(1, 1, row - 1, 6).SetAutoFilter();
-        ws.Columns(1, 1).Width = 25;
-        ws.Columns(2, 2).Width = 35;
-        ws.Columns(3, 3).Width = 30;
-        ws.Columns(4, 4).Width = 15;
-        ws.Columns(5, 5).Width = 18;
-        ws.Columns(6, 6).Width = 25;
-    }
-
-    private void FillPQRSummary(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Tipo PQR", "Categoria", "Estado", "Cantidad" };
-        for (var i = 0; i < headers.Length; i++)
+        if (payments.Count > 0)
         {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
+            var subRow = ws.Row(row);
+            subRow.Cell(1).Value = $"SUBTOTAL {new DateTime(from.Year, currentMonth, 1):MMMM}";
+            subRow.Cell(1).Style.Font.Bold = true;
+            subRow.Cell(6).Value = totalAmount;
+            subRow.Cell(6).Style.Font.Bold = true;
+            subRow.Cell(6).Style.NumberFormat.Format = "#,##0.00";
+            for (var c = 1; c <= headers.Length; c++)
+                subRow.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#e2e8f0");
+            row += 2;
         }
 
-        var records = _context.PqrRecords
-            .Where(p => p.TenantId == tenantId)
-            .ToList();
-
-        var grouped = records
-            .GroupBy(p => new { p.PQRType, p.Category, p.Status })
-            .Select(g => new
-            {
-                g.Key.PQRType,
-                g.Key.Category,
-                g.Key.Status,
-                Count = g.Count()
-            })
-            .OrderBy(g => g.PQRType)
-            .ThenBy(g => g.Category)
-            .ThenBy(g => g.Status)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var totalCount = 0;
-
-        foreach (var g in grouped)
-        {
-            ws.Cell(row, 1).Value = g.PQRType.ToString();
-            ws.Cell(row, 2).Value = g.Category.ToString();
-            ws.Cell(row, 3).Value = g.Status.ToString();
-            ws.Cell(row, 4).Value = g.Count;
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 4; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            totalCount += g.Count;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTAL";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 4).Value = totalCount;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-
-        ws.Range(1, 1, row, 4).SetAutoFilter();
-        ws.Columns(1, 1).Width = 15;
-        ws.Columns(2, 2).Width = 18;
-        ws.Columns(3, 3).Width = 15;
-        ws.Columns(4, 4).Width = 10;
-    }
-
-    private void FillCommonAreaUsage(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Espacio", "Total Reservas", "Horas Totales", "Ingresos Totales" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var reservations = _context.Reservations
-            .Where(r => r.TenantId == tenantId
-                && (r.Status == ReservationStatus.Completed
-                    || r.Status == ReservationStatus.InUse
-                    || r.Status == ReservationStatus.Approved))
-            .Include(r => r.Space)
-            .ToList();
-
-        var groupedBySpace = reservations
-            .GroupBy(r => r.SpaceId)
-            .Select(g => new
-            {
-                SpaceId = g.Key,
-                FirstReservation = g.FirstOrDefault(),
-                Count = g.Count(),
-                TotalHours = g.Sum(r => (r.EndDateTime - r.StartDateTime).TotalHours),
-                TotalRevenue = g.Sum(r => r.TotalCost)
-            })
-            .OrderByDescending(g => g.Count)
-            .ToList()
-            .Select(g => new
-            {
-                g.SpaceId,
-                SpaceName = g.FirstReservation?.Space?.Name ?? "Sin nombre",
-                g.Count,
-                g.TotalHours,
-                g.TotalRevenue
-            })
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var grandCount = 0;
-        var grandHours = 0.0;
-        var grandRevenue = 0m;
-
-        foreach (var g in groupedBySpace)
-        {
-            ws.Cell(row, 1).Value = g.SpaceName;
-            ws.Cell(row, 2).Value = g.Count;
-            ws.Cell(row, 3).Value = Math.Round(g.TotalHours, 1);
-            ws.Cell(row, 4).Value = g.TotalRevenue;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 4; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            grandCount += g.Count;
-            grandHours += g.TotalHours;
-            grandRevenue += g.TotalRevenue;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 2).Value = grandCount;
-        ws.Cell(row, 2).Style.Font.Bold = true;
-        ws.Cell(row, 3).Value = Math.Round(grandHours, 1);
-        ws.Cell(row, 3).Style.Font.Bold = true;
-        ws.Cell(row, 4).Value = grandRevenue;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-
-        ws.Range(1, 1, row, 4).SetAutoFilter();
-        ws.Columns(1, 1).Width = 25;
-        ws.Columns(2, 2).Width = 14;
-        ws.Columns(3, 3).Width = 14;
-        ws.Columns(4, 4).Width = 15;
-    }
-
-    private void FillMaintenanceSummary(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Tipo", "Estado", "Cantidad", "Costo Estimado", "Costo Real" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var workOrders = _context.WorkOrders
-            .Where(w => w.TenantId == tenantId)
-            .ToList();
-
-        var grouped = workOrders
-            .GroupBy(w => new { w.OrderType, w.Status })
-            .Select(g => new
-            {
-                g.Key.OrderType,
-                g.Key.Status,
-                Count = g.Count(),
-                EstimatedCost = g.Sum(w => w.EstimatedCost),
-                ActualCost = g.Sum(w => w.ActualCost)
-            })
-            .OrderBy(g => g.OrderType)
-            .ThenBy(g => g.Status)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var grandCount = 0;
-        var grandEstimated = 0m;
-        var grandActual = 0m;
-
-        foreach (var g in grouped)
-        {
-            var typeName = g.OrderType == WorkOrderType.Preventive ? "Preventivo" : "Correctivo";
-
-            ws.Cell(row, 1).Value = typeName;
-            ws.Cell(row, 2).Value = g.Status.ToString();
-            ws.Cell(row, 3).Value = g.Count;
-            ws.Cell(row, 4).Value = g.EstimatedCost;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = g.ActualCost;
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 5; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            grandCount += g.Count;
-            grandEstimated += g.EstimatedCost;
-            grandActual += g.ActualCost;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTALES";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 3).Value = grandCount;
-        ws.Cell(row, 3).Style.Font.Bold = true;
-        ws.Cell(row, 4).Value = grandEstimated;
-        ws.Cell(row, 4).Style.Font.Bold = true;
-        ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-        ws.Cell(row, 5).Value = grandActual;
-        ws.Cell(row, 5).Style.Font.Bold = true;
-        ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-
-        ws.Range(1, 1, row, 5).SetAutoFilter();
-        ws.Columns(1, 1).Width = 14;
-        ws.Columns(2, 2).Width = 18;
-        ws.Columns(3, 3).Width = 10;
-        ws.Columns(4, 5).Width = 15;
-    }
-
-    private void FillCommunicationSummary(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Estado", "Tipo Audiencia", "Cantidad", "Fecha Envio" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var communications = _context.Communications
-            .Where(c => c.TenantId == tenantId)
-            .OrderByDescending(c => c.SentAt)
-            .ToList();
-
-        var grouped = communications
-            .GroupBy(c => new { c.Status, c.AudienceType })
-            .Select(g => new
-            {
-                g.Key.Status,
-                g.Key.AudienceType,
-                Count = g.Count(),
-                LastSent = g.Max(c => c.SentAt)
-            })
-            .OrderBy(g => g.Status)
-            .ThenBy(g => g.AudienceType)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-        var totalCount = 0;
-
-        foreach (var g in grouped)
-        {
-            ws.Cell(row, 1).Value = g.Status.ToString();
-            ws.Cell(row, 2).Value = g.AudienceType.ToString();
-            ws.Cell(row, 3).Value = g.Count;
-            ws.Cell(row, 4).Value = g.LastSent.HasValue ? g.LastSent.Value.ToString("yyyy-MM-dd") : string.Empty;
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 4; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            totalCount += g.Count;
-            row++;
-        }
-
-        ws.Cell(row, 1).Value = "TOTAL";
-        ws.Cell(row, 1).Style.Font.Bold = true;
-        ws.Cell(row, 3).Value = totalCount;
-        ws.Cell(row, 3).Style.Font.Bold = true;
-
-        ws.Range(1, 1, row, 4).SetAutoFilter();
-        ws.Columns(1, 1).Width = 14;
-        ws.Columns(2, 2).Width = 18;
-        ws.Columns(3, 3).Width = 10;
-        ws.Columns(4, 4).Width = 14;
-    }
-
-    private void FillAssemblyMinutes(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Asamblea", "Fecha", "Estado", "Presidente", "Secretario", "Generado" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var minutes = _context.AssemblyMinutes
-            .Where(m => m.TenantId == tenantId)
-            .Include(m => m.Assembly)
-            .OrderByDescending(m => m.GeneratedAt)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-
-        foreach (var minute in minutes)
-        {
-            var assemblyTitle = minute.Assembly != null ? minute.Assembly.Title : string.Empty;
-            var assemblyDate = minute.Assembly != null ? minute.Assembly.ScheduledDate.ToString("yyyy-MM-dd") : string.Empty;
-
-            ws.Cell(row, 1).Value = assemblyTitle;
-            ws.Cell(row, 2).Value = assemblyDate;
-            ws.Cell(row, 3).Value = minute.Status.ToString();
-            ws.Cell(row, 4).Value = minute.PresidentName ?? string.Empty;
-            ws.Cell(row, 5).Value = minute.SecretaryName ?? string.Empty;
-            ws.Cell(row, 6).Value = minute.GeneratedAt.ToString("yyyy-MM-dd");
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 6; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            row++;
-        }
-
-        ws.Range(1, 1, row - 1, 6).SetAutoFilter();
-        ws.Columns(1, 1).Width = 30;
-        ws.Columns(2, 2).Width = 14;
-        ws.Columns(3, 3).Width = 12;
-        ws.Columns(4, 5).Width = 25;
-        ws.Columns(6, 6).Width = 14;
-    }
-
-    private void FillAssemblyDecisions(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Asamblea", "Tema", "Votos a Favor", "Votos en Contra", "Abstenciones", "Resultado" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var agendaItems = _context.AssemblyAgendaItems
-            .Where(a => a.TenantId == tenantId && a.RequiresVoting)
-            .Include(a => a.Assembly)
-            .OrderByDescending(a => a.Assembly != null ? a.Assembly.ScheduledDate : DateTime.MinValue)
-            .ThenBy(a => a.SequenceNumber)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-
-        foreach (var item in agendaItems)
-        {
-            var assemblyTitle = item.Assembly != null ? item.Assembly.Title : string.Empty;
-            var result = string.Empty;
-            if (item.IsApproved.HasValue)
-            {
-                result = item.IsApproved.Value ? "Aprobado" : "Rechazado";
-            }
-            else
-            {
-                result = "Pendiente";
-            }
-
-            ws.Cell(row, 1).Value = assemblyTitle;
-            ws.Cell(row, 2).Value = item.Title;
-            ws.Cell(row, 3).Value = item.VotesInFavorCoefficients;
-            ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 4).Value = item.VotesAgainstCoefficients;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = item.AbstentionCoefficients;
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 6).Value = result;
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 6; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            row++;
-        }
-
-        ws.Range(1, 1, row - 1, 6).SetAutoFilter();
-        ws.Columns(1, 1).Width = 30;
-        ws.Columns(2, 2).Width = 35;
-        ws.Columns(3, 5).Width = 14;
-        ws.Columns(6, 6).Width = 14;
-    }
-
-    private void FillCouncilHistory(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Usuario", "Rol", "Asignado", "Vence", "Activo" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var councilRoles = _context.UserTenantRoles
-            .Where(r => r.TenantId == tenantId && r.Role == AppRole.Council)
-            .OrderByDescending(r => r.AssignedAt)
-            .ToList();
-
-        var userIds = councilRoles.Select(r => r.UserId).Distinct().ToList();
-        var users = _context.Users
-            .Where(u => userIds.Contains(u.Id))
-            .ToDictionary(u => u.Id);
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-
-        foreach (var role in councilRoles)
-        {
-            var userName = users.TryGetValue(role.UserId, out var user) ? user.FullName : role.UserId;
-            var expiresAt = role.ExpiresAt.HasValue ? role.ExpiresAt.Value.ToString("yyyy-MM-dd") : "Sin vencimiento";
-            var isActive = role.IsActive ? "Si" : "No";
-
-            ws.Cell(row, 1).Value = userName;
-            ws.Cell(row, 2).Value = role.Role.ToString();
-            ws.Cell(row, 3).Value = role.AssignedAt.ToString("yyyy-MM-dd");
-            ws.Cell(row, 4).Value = expiresAt;
-            ws.Cell(row, 5).Value = isActive;
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 5; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            row++;
-        }
-
-        ws.Range(1, 1, row - 1, 5).SetAutoFilter();
-        ws.Columns(1, 1).Width = 30;
-        ws.Columns(2, 2).Width = 14;
-        ws.Columns(3, 4).Width = 14;
-        ws.Columns(5, 5).Width = 10;
-    }
-
-    private void FillAssemblyQuorum(IXLWorksheet ws, string tenantId)
-    {
-        var headers = new[] { "Asamblea", "Fecha", "Coeficientes Totales", "Coeficientes Asistentes", "Quorum Alcanzado", "% Asistencia" };
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var cell = ws.Cell(1, i + 1);
-            cell.Value = headers[i];
-            cell.Style.Font.Bold = true;
-            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1e293b");
-            cell.Style.Font.FontColor = XLColor.White;
-        }
-
-        var assemblies = _context.Assemblies
-            .Where(a => a.TenantId == tenantId)
-            .Include(a => a.Attendances)
-            .OrderByDescending(a => a.ScheduledDate)
-            .ToList();
-
-        var row = 2;
-        var altColor = XLColor.FromHtml("#f8fafc");
-
-        foreach (var assembly in assemblies)
-        {
-            var presentCoefficients = assembly.Attendances
-                .Where(a => a.Status == AttendanceStatus.Present)
-                .Sum(a => a.Coefficient);
-
-            var quorumAchieved = assembly.QuorumAchievedFirstCall || assembly.QuorumAchievedSecondCall;
-            var percentage = assembly.TotalCoefficients > 0
-                ? (presentCoefficients / assembly.TotalCoefficients) * 100
-                : 0;
-
-            ws.Cell(row, 1).Value = assembly.Title;
-            ws.Cell(row, 2).Value = assembly.ScheduledDate.ToString("yyyy-MM-dd");
-            ws.Cell(row, 3).Value = assembly.TotalCoefficients;
-            ws.Cell(row, 3).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 4).Value = presentCoefficients;
-            ws.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 5).Value = quorumAchieved ? "Si" : "No";
-            ws.Cell(row, 6).Value = Math.Round(percentage, 2);
-            ws.Cell(row, 6).Style.NumberFormat.Format = "0.00";
-
-            if (row % 2 == 0)
-            {
-                for (var c = 1; c <= 6; c++)
-                    ws.Cell(row, c).Style.Fill.BackgroundColor = altColor;
-            }
-
-            row++;
-        }
-
-        ws.Range(1, 1, row - 1, 6).SetAutoFilter();
-        ws.Columns(1, 1).Width = 30;
-        ws.Columns(2, 2).Width = 14;
-        ws.Columns(3, 4).Width = 18;
-        ws.Columns(5, 5).Width = 14;
-        ws.Columns(6, 6).Width = 12;
+        var grandTotal = _context.ProviderPayments
+            .Where(p => p.TenantId == tenantId && p.PaymentDate >= from && p.PaymentDate <= to)
+            .Sum(p => (decimal?)p.Amount) ?? 0;
+
+        var t = ws.Row(row);
+        t.Cell(1).Value = "TOTAL GENERAL DEL PERIODO";
+        t.Cell(1).Style.Font.Bold = true;
+        t.Cell(6).Value = grandTotal;
+        t.Cell(6).Style.Font.Bold = true;
+        t.Cell(6).Style.NumberFormat.Format = "#,##0.00";
+
+        ws.Range(1, 1, row, headers.Length).SetAutoFilter();
+        ws.Column(1).Width = 14; ws.Column(2).Width = 28; ws.Column(3).Width = 22;
+        ws.Column(4).Width = 35; ws.Column(5).Width = 22; ws.Column(6).Width = 15;
+        ws.Column(7).Width = 18; ws.Column(8).Width = 16; ws.Column(9).Width = 10;
     }
 
     private static string BuildPeriodLabel(DateTime? from, DateTime? to)

@@ -7,7 +7,6 @@ public class PDFTemplate
     public Guid Id { get; set; } = Guid.NewGuid();
     public string TenantId { get; set; } = string.Empty;
 
-    public string ReportTypeCode { get; set; } = string.Empty;
     public string? LogoFilePath { get; set; }
     public string HeaderText { get; set; } = string.Empty;
     public string FooterText { get; set; } = string.Empty;
@@ -19,7 +18,7 @@ public class PDFTemplate
     public string PrimaryColor { get; set; } = "#059669";
     public string SecondaryColor { get; set; } = "#1e293b";
 
-    public bool IsDefault { get; set; }
+    public bool IsGlobal { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public string CreatedByUserId { get; set; } = string.Empty;

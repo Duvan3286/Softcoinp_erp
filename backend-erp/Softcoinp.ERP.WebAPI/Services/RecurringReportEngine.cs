@@ -104,8 +104,8 @@ public class RecurringReportEngine : BackgroundService
         var now = DateTime.UtcNow;
         return frequency switch
         {
-            ReportFrequency.Daily => now.AddDays(-1),
             ReportFrequency.Weekly => now.AddDays(-7),
+            ReportFrequency.Biweekly => now.AddDays(-14),
             ReportFrequency.Monthly => now.AddMonths(-1),
             ReportFrequency.Quarterly => now.AddMonths(-3),
             ReportFrequency.Annual => now.AddYears(-1),
@@ -117,8 +117,8 @@ public class RecurringReportEngine : BackgroundService
     {
         return frequency switch
         {
-            ReportFrequency.Daily => from.AddDays(1),
             ReportFrequency.Weekly => from.AddDays(7),
+            ReportFrequency.Biweekly => from.AddDays(14),
             ReportFrequency.Monthly => from.AddMonths(1),
             ReportFrequency.Quarterly => from.AddMonths(3),
             ReportFrequency.Annual => from.AddYears(1),

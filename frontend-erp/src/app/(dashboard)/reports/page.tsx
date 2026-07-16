@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, FileText, Download, Filter, X, Search } from 'lucide-react';
+import { Loader2, Plus, FileText, Download, Filter, Search } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import reportService, { ReportCatalogItem, GeneratedReport } from '@/lib/report-service';
@@ -10,8 +10,8 @@ import axios from 'axios';
 
 const categoryLabels: Record<string, string> = {
   Todos: 'Todos',
-  Financial: 'Financieros',
   Portfolio: 'Cartera',
+  Financial: 'Financieros',
   Operational: 'Operativos',
   Assembly: 'Asamblea',
   Annual: 'Anuales',
@@ -127,22 +127,23 @@ export default function ReportsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Reportes y Exportaciones</h1>
-        <Button onClick={() => router.push('/reports/history')}>
-          <FileText className="w-4 h-4 mr-2" />
-          Historial de Reportes
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => router.push('/reports/accountant')}>
+            Exportar para Contador
+          </Button>
+          <Button onClick={() => router.push('/reports/history')}>
+            <FileText className="w-4 h-4 mr-2" />
+            Historial
+          </Button>
+        </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-400 text-sm">
-          {error}
-        </div>
+        <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-400 text-sm">{error}</div>
       )}
 
       {success && (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl text-emerald-700 dark:text-emerald-400 text-sm">
-          {success}
-        </div>
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl text-emerald-700 dark:text-emerald-400 text-sm">{success}</div>
       )}
 
       <div className="flex flex-wrap gap-3 items-center">
@@ -190,9 +191,7 @@ export default function ReportsPage() {
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{report.description}</p>
                     <div className="flex flex-wrap gap-2 mt-3">
                       {report.availableFormats.map((fmt) => (
-                        <span key={fmt} className={`badge ${formatBadgeClass[fmt] || 'badge-neutral'}`}>
-                          {fmt}
-                        </span>
+                        <span key={fmt} className={`badge ${formatBadgeClass[fmt] || 'badge-neutral'}`}>{fmt}</span>
                       ))}
                       {report.containsPersonalData && (
                         <span className="badge badge-warning">Datos personales</span>
@@ -222,7 +221,7 @@ export default function ReportsPage() {
                   onClick={() => { setShowGenerateModal(false); setGeneratedReport(null); }}
                   className="p-1 rounded-lg hover:bg-muted transition-colors"
                 >
-                  <X className="w-5 h-5 text-muted-foreground" />
+                  <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
@@ -284,9 +283,10 @@ export default function ReportsPage() {
               {generatedReport && (
                 <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-lg text-sm">
                   <p className="font-semibold text-emerald-700 dark:text-emerald-400">Reporte generado</p>
-                  <p className="text-emerald-600 dark:text-emerald-500 mt-1">
-                    {generatedReport.fileName}
-                  </p>
+                  <p className="text-emerald-600 dark:text-emerald-500 mt-1">{generatedReport.fileName}</p>
+                  {generatedReport.consecutiveNumber > 0 && (
+                    <p className="text-xs text-emerald-500 mt-1">No. {String(generatedReport.consecutiveNumber).padStart(4, '0')}</p>
+                  )}
                 </div>
               )}
 

@@ -2,24 +2,13 @@ namespace Softcoinp.ERP.Domain.Enums;
 
 public enum ReportTypeEnum
 {
+    PortfolioReport,
+    CollectionReport,
+    ExpenseReport,
     BudgetExecution,
-    ContingencyFund,
-    CashFlow,
-    PortfolioAging,
-    PortfolioByUnit,
-    TopDebtors,
-    PeriodCollection,
-    PortfolioProjection,
-    PQRSummary,
-    CommonAreaUsage,
-    MaintenanceSummary,
     ActiveContracts,
-    ProviderPayments,
-    CommunicationSummary,
-    AssemblyMinutes,
-    AssemblyDecisions,
-    CouncilHistory,
-    AssemblyQuorum,
-    AnnualManagementReport,
-    OwnerRegistry
+    PQRReport,
+    MaintenanceReport,
+    AssemblyReport,
+    AnnualManagementReport
 }

@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, Plus, PauseCircle, PlayCircle, X, Save } from 'lucide-react';
+import { Loader2, Plus, PauseCircle, PlayCircle, Save } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import reportService, { RecurringReportConfig, ReportCatalogItem, CreateRecurringReportConfigRequest } from '@/lib/report-service';
 import axios from 'axios';
 
 const frequencyLabels: Record<string, string> = {
-  Daily: 'Diario',
   Weekly: 'Semanal',
+  Biweekly: 'Quincenal',
   Monthly: 'Mensual',
   Quarterly: 'Trimestral',
   Annual: 'Anual',
@@ -35,10 +35,10 @@ export default function RecurringPage() {
   const [success, setSuccess] = useState('');
 
   const [showForm, setShowForm] = useState(false);
-  const [reportTypeId, setReportTypeId] = useState('');
+  const [reportTypeCode, setReportTypeCode] = useState('');
   const [name, setName] = useState('');
-  const [frequency, setFrequency] = useState('Mensual');
-  const [format, setFormat] = useState('PDF');
+  const [frequency, setFrequency] = useState('Monthly');
+  const [format, setFormat] = useState('Pdf');
   const [recipientEmails, setRecipientEmails] = useState('');
   const [subjectTemplate, setSubjectTemplate] = useState('');
   const [saving, setSaving] = useState(false);
@@ -65,7 +65,7 @@ export default function RecurringPage() {
   };
 
   const resetForm = () => {
-    setReportTypeId('');
+    setReportTypeCode('');
     setName('');
     setFrequency('Monthly');
     setFormat('Pdf');
@@ -77,13 +77,10 @@ export default function RecurringPage() {
     setSaving(true);
     setError('');
     try {
-      const emails = recipientEmails
-        .split(',')
-        .map((e) => e.trim())
-        .filter(Boolean);
+      const emails = recipientEmails.split(',').map((e) => e.trim()).filter(Boolean);
 
       const data: CreateRecurringReportConfigRequest = {
-        reportTypeCode: reportTypeId,
+        reportTypeCode,
         name,
         frequency,
         format,
@@ -153,15 +150,11 @@ export default function RecurringPage() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-400 text-sm">
-          {error}
-        </div>
+        <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-xl text-red-700 dark:text-red-400 text-sm">{error}</div>
       )}
 
       {success && (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl text-emerald-700 dark:text-emerald-400 text-sm">
-          {success}
-        </div>
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl text-emerald-700 dark:text-emerald-400 text-sm">{success}</div>
       )}
 
       {showForm && (
@@ -169,19 +162,16 @@ export default function RecurringPage() {
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">Nueva Configuración Recurrente</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="p-1 rounded-lg hover:bg-muted transition-colors"
-              >
-                <X className="w-5 h-5 text-muted-foreground" />
+              <button onClick={() => setShowForm(false)} className="p-1 rounded-lg hover:bg-muted transition-colors">
+                <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Tipo de Reporte</label>
               <select
-                value={reportTypeId}
-                onChange={(e) => setReportTypeId(e.target.value)}
+                value={reportTypeCode}
+                onChange={(e) => setReportTypeCode(e.target.value)}
                 className="w-full border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none bg-background"
               >
                 <option value="">Seleccionar reporte</option>
@@ -228,9 +218,7 @@ export default function RecurringPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Correos destinatarios (separados por coma)
-              </label>
+              <label className="block text-sm font-medium text-foreground mb-1">Correos destinatarios (separados por coma)</label>
               <textarea
                 value={recipientEmails}
                 onChange={(e) => setRecipientEmails(e.target.value)}
@@ -252,13 +240,11 @@ export default function RecurringPage() {
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={handleCreate} disabled={saving || !name || !reportTypeId}>
+              <Button onClick={handleCreate} disabled={saving || !name || !reportTypeCode}>
                 <Save className="w-4 h-4 mr-1" />
                 {saving ? 'Guardando...' : 'Crear Configuración'}
               </Button>
-              <Button variant="secondary" onClick={() => setShowForm(false)}>
-                Cancelar
-              </Button>
+              <Button variant="secondary" onClick={() => setShowForm(false)}>Cancelar</Button>
             </div>
           </CardContent>
         </Card>

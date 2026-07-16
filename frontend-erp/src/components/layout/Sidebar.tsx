@@ -219,7 +219,8 @@ export const Sidebar = () => {
             <NavItem text="Historial" path="/reports/history" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Recurrentes" path="/reports/recurring" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Informe Anual" path="/reports/annual" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
-            <NavItem text="Plantillas PDF" path="/reports/templates" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Exportar Contador" path="/reports/accountant" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Membrete PDF" path="/reports/templates" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup

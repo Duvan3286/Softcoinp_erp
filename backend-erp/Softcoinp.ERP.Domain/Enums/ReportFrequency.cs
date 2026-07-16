@@ -2,8 +2,8 @@ namespace Softcoinp.ERP.Domain.Enums;
 
 public enum ReportFrequency
 {
-    Daily,
     Weekly,
+    Biweekly,
     Monthly,
     Quarterly,
     Annual

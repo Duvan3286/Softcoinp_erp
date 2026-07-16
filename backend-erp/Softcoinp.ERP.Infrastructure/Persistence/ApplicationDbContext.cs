@@ -2072,6 +2072,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.GeneratedByUserId).IsRequired().HasMaxLength(450);
             entity.Property(e => e.Parameters).HasMaxLength(4000);
             entity.Property(e => e.Notes).HasMaxLength(2000);
+            entity.Property(e => e.ConsecutiveNumber).IsRequired();
 
             entity.HasOne(e => e.ReportType)
                   .WithMany(r => r.GeneratedReports)
@@ -2087,6 +2088,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasIndex(e => new { e.TenantId, e.GeneratedAt });
             entity.HasIndex(e => new { e.TenantId, e.GeneratedByUserId });
             entity.HasIndex(e => new { e.TenantId, e.RecurringConfigId });
+            entity.HasIndex(e => new { e.TenantId, e.ReportTypeId, e.ConsecutiveNumber });
         });
 
         modelBuilder.Entity<RecurringReportConfig>(entity =>
@@ -2135,7 +2137,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.ReportTypeCode).IsRequired().HasMaxLength(40);
             entity.Property(e => e.LogoFilePath).HasMaxLength(1000);
             entity.Property(e => e.HeaderText).IsRequired().HasMaxLength(500);
             entity.Property(e => e.FooterText).IsRequired().HasMaxLength(500);
@@ -2147,7 +2148,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.SecondaryColor).IsRequired().HasMaxLength(30);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
 
-            entity.HasIndex(e => new { e.TenantId, e.ReportTypeCode });
+            entity.HasIndex(e => new { e.TenantId, e.IsGlobal });
         });
 
         // ── Módulo de Comunicados y Notificaciones ─────────────────────
