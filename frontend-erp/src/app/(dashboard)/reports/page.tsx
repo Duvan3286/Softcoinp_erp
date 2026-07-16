@@ -39,6 +39,7 @@ export default function ReportsPage() {
   const [notes, setNotes] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<GeneratedReport | null>(null);
+  const [previewing, setPreviewing] = useState(false);
 
   useEffect(() => {
     fetchCatalog();
@@ -66,7 +67,17 @@ export default function ReportsPage() {
     return matchCategory && matchSearch;
   });
 
+  const dedicatedRouteByCode: Record<string, string> = {
+    AnnualManagementReport: '/reports/annual',
+    AccountantExport: '/reports/accountant',
+  };
+
   const openGenerate = (report: ReportCatalogItem) => {
+    const dedicatedRoute = dedicatedRouteByCode[report.code];
+    if (dedicatedRoute) {
+      router.push(dedicatedRoute);
+      return;
+    }
     setSelectedReport(report);
     setFormat(report.availableFormats.includes('Pdf') ? 'Pdf' : report.availableFormats[0]);
     setPeriodFrom('');
@@ -98,6 +109,25 @@ export default function ReportsPage() {
       }
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!selectedReport) return;
+    setPreviewing(true);
+    setError('');
+    try {
+      const blob = await reportService.getPreviewBlob(
+        selectedReport.code,
+        periodFrom || undefined,
+        periodTo || undefined
+      );
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch {
+      setError('Error al generar la vista previa.');
+    } finally {
+      setPreviewing(false);
     }
   };
 
@@ -306,6 +336,11 @@ export default function ReportsPage() {
                   </>
                 ) : (
                   <>
+                    {format === 'Pdf' && (
+                      <Button variant="secondary" onClick={handlePreview} disabled={previewing}>
+                        {previewing ? 'Generando vista previa...' : 'Vista Previa'}
+                      </Button>
+                    )}
                     <Button onClick={handleGenerate} disabled={generating}>
                       {generating ? 'Generando...' : 'Generar'}
                     </Button>

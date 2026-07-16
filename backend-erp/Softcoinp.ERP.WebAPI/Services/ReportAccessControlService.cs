@@ -25,33 +25,29 @@ public class ReportAccessControlService
         {
             "PortfolioReport", "CollectionReport", "ExpenseReport",
             "BudgetExecution", "ActiveContracts", "PQRReport",
-            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport"
+            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport",
+            "AccountantExport"
         },
         ["Admin"] = new List<string>
         {
             "PortfolioReport", "CollectionReport", "ExpenseReport",
             "BudgetExecution", "ActiveContracts", "PQRReport",
-            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport"
+            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport",
+            "AccountantExport"
         },
         ["Council"] = new List<string>
         {
-            "PortfolioReport", "BudgetExecution", "ActiveContracts",
-            "PQRReport", "MaintenanceReport", "AssemblyReport", "AnnualManagementReport"
+            "PortfolioReport", "BudgetExecution", "ActiveContracts", "AnnualManagementReport"
         },
         ["Accountant"] = new List<string>
         {
             "CollectionReport", "ExpenseReport", "BudgetExecution",
-            "PortfolioReport"
+            "PortfolioReport", "AccountantExport"
         },
         ["Auditor"] = new List<string>
         {
             "CollectionReport", "ExpenseReport", "BudgetExecution",
-            "PortfolioReport"
-        },
-        ["Reviewer"] = new List<string>
-        {
-            "CollectionReport", "ExpenseReport", "BudgetExecution",
-            "PortfolioReport"
+            "PortfolioReport", "AccountantExport"
         },
         ["Resident"] = new List<string>
         {
@@ -82,7 +78,7 @@ public class ReportAccessControlService
 
     public bool CanAccessPersonalData(string role)
     {
-        return role == "SuperAdmin" || role == "Admin" || role == "Accountant" || role == "Auditor" || role == "Reviewer";
+        return role == "SuperAdmin" || role == "Admin" || role == "Accountant" || role == "Auditor";
     }
 
     public async Task<List<ReportTypeDto>> GetFilteredCatalogAsync(string tenantId, string role)

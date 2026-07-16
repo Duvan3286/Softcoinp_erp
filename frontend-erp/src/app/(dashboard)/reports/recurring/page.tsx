@@ -175,9 +175,11 @@ export default function RecurringPage() {
                 className="w-full border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none bg-background"
               >
                 <option value="">Seleccionar reporte</option>
-                {catalog.map((r) => (
-                  <option key={r.code} value={r.code}>{r.name}</option>
-                ))}
+                {catalog
+                  .filter((r) => r.code !== 'AnnualManagementReport' && r.code !== 'AccountantExport')
+                  .map((r) => (
+                    <option key={r.code} value={r.code}>{r.name}</option>
+                  ))}
               </select>
             </div>
 

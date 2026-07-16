@@ -10,5 +10,6 @@ public enum ReportTypeEnum
     PQRReport,
     MaintenanceReport,
     AssemblyReport,
-    AnnualManagementReport
+    AnnualManagementReport,
+    AccountantExport
 }

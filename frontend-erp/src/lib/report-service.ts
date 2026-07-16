@@ -202,6 +202,18 @@ const reportService = {
     }, { responseType: 'blob' });
     return response.data;
   },
+
+  async getPreviewBlob(reportTypeCode: string, periodFrom?: string, periodTo?: string): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (periodFrom) params.append('periodFrom', periodFrom);
+    if (periodTo) params.append('periodTo', periodTo);
+    const qs = params.toString();
+    const url = qs
+      ? `/report/preview/${reportTypeCode}?${qs}`
+      : `/report/preview/${reportTypeCode}`;
+    const response = await apiClient.get(url, { responseType: 'blob' });
+    return response.data;
+  },
 };
 
 export default reportService;

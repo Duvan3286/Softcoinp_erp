@@ -407,13 +407,28 @@ public class PDFGenerationEngine
         if (from.HasValue) query = query.Where(p => p.PaymentDate >= from.Value);
         if (to.HasValue) query = query.Where(p => p.PaymentDate <= to.Value);
 
-        var payments = query.OrderBy(p => p.PaymentDate).ToList();
+        var payments = query.ToList();
 
         if (payments.Count == 0)
         {
             col.Item().Padding(10).Text("No hay gastos registrados en el periodo.").FontColor(Colors.Grey.Darken2);
             return;
         }
+
+        var budgetItemIds = payments
+            .Where(p => p.Invoice != null && p.Invoice.BudgetItemId != null)
+            .Select(p => p.Invoice!.BudgetItemId!.Value)
+            .Distinct()
+            .ToList();
+
+        var budgetItemNames = _context.ExpenseItems
+            .Where(e => budgetItemIds.Contains(e.Id))
+            .ToDictionary(e => e.Id, e => e.Name);
+
+        var grouped = payments
+            .GroupBy(p => GetBudgetItemName(p, budgetItemNames))
+            .OrderBy(g => g.Key)
+            .ToList();
 
         col.Item().Table(table =>
         {
@@ -429,34 +444,71 @@ public class PDFGenerationEngine
             var headerStyle = TextStyle.Default.FontSize(8).Bold().FontColor(Colors.White);
             table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Fecha").Style(headerStyle);
             table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Proveedor").Style(headerStyle);
-            table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Concepto").Style(headerStyle);
             table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Factura").Style(headerStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(3).Text("Rubro").Style(headerStyle);
             table.Cell().Background(Colors.Grey.Darken3).Padding(3).AlignRight().Text("Valor").Style(headerStyle);
 
             var rowStyle = TextStyle.Default.FontSize(7);
+            var subtotalStyle = TextStyle.Default.FontSize(7).Bold().FontColor(Colors.Grey.Darken3);
             var altColor = Colors.Grey.Lighten4;
-            var index = 0;
-            var total = 0m;
+            var grandTotal = 0m;
 
-            foreach (var payment in payments)
+            foreach (var group in grouped)
             {
-                var bg = index % 2 == 0 ? Colors.White : altColor;
-                table.Cell().Background(bg).Padding(2).Text(payment.PaymentDate.ToString("dd/MMM", CultureInfo.GetCultureInfo("es-CO"))).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).Text(payment.Invoice?.Provider?.BusinessName ?? "").Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).Text(payment.ReferenceNumber).Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).Text(payment.Invoice?.InvoiceNumber ?? "").Style(rowStyle);
-                table.Cell().Background(bg).Padding(2).AlignRight().Text(payment.Amount.ToString("N2")).Style(rowStyle);
-                total += payment.Amount;
-                index++;
+                var index = 0;
+                var groupTotal = 0m;
+                var orderedPayments = group.OrderBy(p => p.PaymentDate).ToList();
+
+                foreach (var payment in orderedPayments)
+                {
+                    var bg = Colors.White;
+                    if (index % 2 != 0)
+                    {
+                        bg = altColor;
+                    }
+
+                    table.Cell().Background(bg).Padding(2).Text(payment.PaymentDate.ToString("dd/MMM", CultureInfo.GetCultureInfo("es-CO"))).Style(rowStyle);
+                    table.Cell().Background(bg).Padding(2).Text(payment.Invoice?.Provider?.BusinessName ?? "").Style(rowStyle);
+                    table.Cell().Background(bg).Padding(2).Text(payment.Invoice?.InvoiceNumber ?? "").Style(rowStyle);
+                    table.Cell().Background(bg).Padding(2).Text(group.Key).Style(rowStyle);
+                    table.Cell().Background(bg).Padding(2).AlignRight().Text(payment.Amount.ToString("N2")).Style(rowStyle);
+
+                    groupTotal += payment.Amount;
+                    index++;
+                }
+
+                table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("Subtotal " + group.Key).Style(subtotalStyle);
+                table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(subtotalStyle);
+                table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(subtotalStyle);
+                table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(subtotalStyle);
+                table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(groupTotal.ToString("N2")).Style(subtotalStyle);
+
+                grandTotal += groupTotal;
             }
 
-            var totalStyle = TextStyle.Default.FontSize(7).Bold();
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("TOTALES").Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("").Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(total.ToString("N2")).Style(totalStyle);
+            var totalStyle = TextStyle.Default.FontSize(7).Bold().FontColor(Colors.White);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(2).Text("TOTAL GENERAL").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(2).Text("").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(2).Text("").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(2).Text("").Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Darken3).Padding(2).AlignRight().Text(grandTotal.ToString("N2")).Style(totalStyle);
         });
+    }
+
+    private static string GetBudgetItemName(ProviderPayment payment, Dictionary<Guid, string> budgetItemNames)
+    {
+        if (payment.Invoice is null || payment.Invoice.BudgetItemId is null)
+        {
+            return "Sin rubro asignado";
+        }
+
+        var budgetItemId = payment.Invoice.BudgetItemId.Value;
+        if (budgetItemNames.ContainsKey(budgetItemId))
+        {
+            return budgetItemNames[budgetItemId];
+        }
+
+        return "Sin rubro asignado";
     }
 
     private void RenderBudgetExecutionReport(ColumnDescriptor col, string tenantId)
@@ -478,7 +530,11 @@ public class PDFGenerationEngine
             return;
         }
 
-        var budget = activeBudget ?? budgets.First();
+        var budget = activeBudget;
+        if (budget is null)
+        {
+            budget = budgets.First();
+        }
 
         var startDate = new DateTime(fiscalYear, 1, 1);
         var endDate = new DateTime(fiscalYear, 12, 31, 23, 59, 59);
@@ -486,19 +542,39 @@ public class PDFGenerationEngine
         var monthsElapsed = Math.Max((now.Year - fiscalYear) * 12 + now.Month - 1, 1);
         var proportionExpected = monthsElapsed / 12m;
 
-        var executedByItem = _context.ProviderPayments
+        var paymentsInPeriod = _context.ProviderPayments
             .Where(p => p.TenantId == tenantId && p.PaymentDate >= startDate && p.PaymentDate <= endDate)
-            .GroupBy(p => p.InvoiceId)
-            .Select(g => g.Sum(p => (decimal?)p.Amount) ?? 0)
-            .SumAsync().Result;
+            .Include(p => p.Invoice)
+            .ToList();
+
+        var executedByBudgetItem = new Dictionary<Guid, decimal>();
+        foreach (var payment in paymentsInPeriod)
+        {
+            if (payment.Invoice is null || payment.Invoice.BudgetItemId is null)
+            {
+                continue;
+            }
+
+            var budgetItemId = payment.Invoice.BudgetItemId.Value;
+            if (executedByBudgetItem.ContainsKey(budgetItemId))
+            {
+                executedByBudgetItem[budgetItemId] += payment.Amount;
+            }
+            else
+            {
+                executedByBudgetItem[budgetItemId] = payment.Amount;
+            }
+        }
 
         var totalApprovedExpense = budget.ExpenseItems.Sum(e => e.AnnualValue);
         var totalApprovedIncome = budget.IncomeItems.Sum(i => i.AnnualValue);
-        var totalExecuted = executedByItem;
+        var totalExecuted = paymentsInPeriod.Sum(p => p.Amount);
         var expectedExpense = totalApprovedExpense * proportionExpected;
-        var overallPercentage = totalApprovedExpense > 0
-            ? Math.Round(totalExecuted / totalApprovedExpense * 100m, 2)
-            : 0m;
+        var overallPercentage = 0m;
+        if (totalApprovedExpense > 0)
+        {
+            overallPercentage = Math.Round(totalExecuted / totalApprovedExpense * 100m, 2);
+        }
 
         col.Item().Text("Ingreso Presupuestado: " + totalApprovedIncome.ToString("N2")).FontSize(9).FontColor(Colors.Grey.Darken2);
         col.Item().Text("Gasto Presupuestado: " + totalApprovedExpense.ToString("N2")).FontSize(9).FontColor(Colors.Grey.Darken2);
@@ -528,41 +604,63 @@ public class PDFGenerationEngine
             var rowStyle = TextStyle.Default.FontSize(7);
             var altColor = Colors.Grey.Lighten4;
             var index = 0;
+            var totalExecutedLine = 0m;
 
             foreach (var item in budget.ExpenseItems)
             {
                 var executed = 0m;
+                if (executedByBudgetItem.ContainsKey(item.Id))
+                {
+                    executed = executedByBudgetItem[item.Id];
+                }
+
                 var available = item.AnnualValue - executed;
-                var percentage = item.AnnualValue > 0 ? Math.Round(executed / item.AnnualValue * 100m, 2) : 0m;
-                var bg = index % 2 == 0 ? Colors.White : altColor;
+                var percentage = 0m;
+                if (item.AnnualValue > 0)
+                {
+                    percentage = Math.Round(executed / item.AnnualValue * 100m, 2);
+                }
+
+                var bg = Colors.White;
+                if (index % 2 != 0)
+                {
+                    bg = altColor;
+                }
 
                 table.Cell().Background(bg).Padding(2).Text(item.Name).Style(rowStyle);
                 table.Cell().Background(bg).Padding(2).AlignRight().Text(item.AnnualValue.ToString("N2")).Style(rowStyle);
                 table.Cell().Background(bg).Padding(2).AlignRight().Text(executed.ToString("N2")).Style(rowStyle);
                 table.Cell().Background(bg).Padding(2).AlignRight().Text(available.ToString("N2")).Style(rowStyle);
 
-                var pctColor = percentage switch
+                var pctColor = Colors.Grey.Darken2;
+                if (percentage > 100)
                 {
-                    > 100 => Colors.Red.Medium,
-                    > 75 => Colors.Orange.Medium,
-                    _ => Colors.Grey.Darken2
-                };
+                    pctColor = Colors.Red.Medium;
+                }
+                else if (percentage > 75)
+                {
+                    pctColor = Colors.Orange.Medium;
+                }
                 table.Cell().Background(bg).Padding(2).AlignRight().Text(percentage.ToString("N2") + "%").Style(rowStyle.FontColor(pctColor));
+                totalExecutedLine += executed;
                 index++;
             }
 
             var totalStyle = TextStyle.Default.FontSize(7).Bold();
             table.Cell().Background(Colors.Grey.Lighten3).Padding(2).Text("TOTALES").Style(totalStyle);
             table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(totalApprovedExpense.ToString("N2")).Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(totalExecuted.ToString("N2")).Style(totalStyle);
-            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text((totalApprovedExpense - totalExecuted).ToString("N2")).Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(totalExecutedLine.ToString("N2")).Style(totalStyle);
+            table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text((totalApprovedExpense - totalExecutedLine).ToString("N2")).Style(totalStyle);
 
-            var overallPctColor = overallPercentage switch
+            var overallPctColor = Colors.Grey.Darken2;
+            if (overallPercentage > 100)
             {
-                > 100 => Colors.Red.Medium,
-                > 75 => Colors.Orange.Medium,
-                _ => Colors.Grey.Darken2
-            };
+                overallPctColor = Colors.Red.Medium;
+            }
+            else if (overallPercentage > 75)
+            {
+                overallPctColor = Colors.Orange.Medium;
+            }
             table.Cell().Background(Colors.Grey.Lighten3).Padding(2).AlignRight().Text(overallPercentage.ToString("N2") + "%").Style(totalStyle.FontColor(overallPctColor));
         });
     }
@@ -916,6 +1014,39 @@ public class PDFGenerationEngine
                 col.Item().PaddingBottom(12);
             }
         });
+    }
+
+    public async Task<byte[]> GeneratePreviewBytesAsync(
+        string tenantId, string reportTypeCode, DateTime? periodFrom, DateTime? periodTo)
+    {
+        if (!Enum.TryParse<ReportTypeEnum>(reportTypeCode, out var reportTypeEnum))
+            throw new InvalidOperationException("Invalid report type code: " + reportTypeCode);
+
+        var reportType = await _context.ReportTypes
+            .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.ReportTypeCode == reportTypeEnum);
+        if (reportType is null)
+            throw new InvalidOperationException("Report type not found: " + reportTypeCode);
+
+        var template = await _context.PDFTemplates
+            .Where(t => t.TenantId == tenantId && t.IsGlobal)
+            .FirstOrDefaultAsync();
+
+        var tenantConfig = await _context.TenantConfigurations.FirstOrDefaultAsync();
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(40);
+                page.DefaultTextStyle(x => x.FontSize(10).FontColor(Colors.Black));
+                page.Header().Element(h => ComposeHeader(h, template, tenantConfig, reportType));
+                page.Content().Element(c => ComposeContent(c, tenantId, reportTypeCode, periodFrom, periodTo, null));
+                page.Footer().Element(f => ComposeFooter(f, template, tenantConfig, reportType, "preview", 0));
+            });
+        });
+
+        return document.GeneratePdf();
     }
 
     private static string BuildPeriodLabel(DateTime? from, DateTime? to)

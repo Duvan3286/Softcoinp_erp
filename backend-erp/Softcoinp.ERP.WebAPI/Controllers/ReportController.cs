@@ -68,17 +68,30 @@ public class ReportController : ControllerBase
             Description = t.Description,
             Category = t.Category,
             ContainsPersonalData = t.ContainsPersonalData,
-            AvailableFormats = t.ReportTypeCode == "AnnualManagementReport"
-                ? new List<string> { "Pdf" }
-                : t.ReportTypeCode == "AssemblyReport"
-                    ? new List<string> { "Pdf" }
-                    : new List<string> { "Pdf", "Excel" }
+            AvailableFormats = GetAvailableFormats(t.ReportTypeCode)
         }).ToList();
 
         return Ok(catalog);
     }
 
+    private static List<string> GetAvailableFormats(string reportTypeCode)
+    {
+        if (RestrictedFormatsByType.ContainsKey(reportTypeCode))
+        {
+            return RestrictedFormatsByType[reportTypeCode];
+        }
+
+        return new List<string> { "Pdf", "Excel" };
+    }
+
     // ── Generate Report ────────────────────────────────
+
+    private static readonly Dictionary<string, List<string>> RestrictedFormatsByType = new()
+    {
+        ["AssemblyReport"] = new List<string> { "Pdf" },
+        ["AnnualManagementReport"] = new List<string> { "Pdf" },
+        ["AccountantExport"] = new List<string> { "Excel" }
+    };
 
     [HttpPost("generate")]
     public async Task<ActionResult<GeneratedReportDto>> GenerateReport([FromBody] GenerateReportRequestDto request)
@@ -95,6 +108,18 @@ public class ReportController : ControllerBase
 
         if (request.Format != "Pdf" && request.Format != "Excel")
             return BadRequest("Formato invalido. Use 'Pdf' o 'Excel'.");
+
+        if (request.ReportTypeCode == "AnnualManagementReport")
+            return BadRequest("Use el endpoint /report/annual/consolidate para generar el Informe de Gestion Anual.");
+
+        if (request.ReportTypeCode == "AccountantExport")
+            return BadRequest("Use el endpoint /report/accountant-export para generar la Exportacion para el Contador.");
+
+        if (RestrictedFormatsByType.TryGetValue(request.ReportTypeCode, out var allowedFormats))
+        {
+            if (!allowedFormats.Contains(request.Format))
+                return BadRequest("El formato " + request.Format + " no esta disponible para el tipo de reporte " + request.ReportTypeCode + ".");
+        }
 
         GeneratedReport result;
 
@@ -133,6 +158,23 @@ public class ReportController : ControllerBase
             RecurringConfigId = result.RecurringConfigId,
             ConsecutiveNumber = result.ConsecutiveNumber
         });
+    }
+
+    [HttpGet("preview/{reportTypeCode}")]
+    public async Task<IActionResult> PreviewReport(
+        string reportTypeCode, [FromQuery] DateTime? periodFrom, [FromQuery] DateTime? periodTo)
+    {
+        var tenantId = GetTenantId();
+        var role = GetUserRole();
+
+        if (!_accessControl.CanAccessReport(role, reportTypeCode))
+            return Forbid();
+
+        if (!Enum.TryParse<ReportTypeEnum>(reportTypeCode, out _))
+            return BadRequest("Tipo de reporte invalido: " + reportTypeCode);
+
+        var pdfBytes = await _pdfEngine.GeneratePreviewBytesAsync(tenantId, reportTypeCode, periodFrom, periodTo);
+        return File(pdfBytes, "application/pdf");
     }
 
     // ── History ────────────────────────────────────────
@@ -241,6 +283,9 @@ public class ReportController : ControllerBase
         if (!Enum.TryParse<ReportTypeEnum>(request.ReportTypeCode, out var reportTypeCode))
             return BadRequest("Codigo de tipo de reporte invalido.");
 
+        if (request.ReportTypeCode == "AnnualManagementReport" || request.ReportTypeCode == "AccountantExport")
+            return BadRequest("El tipo de reporte " + request.ReportTypeCode + " no admite programacion recurrente.");
+
         var reportType = await _context.ReportTypes
             .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.ReportTypeCode == reportTypeCode);
         if (reportType is null)
@@ -251,6 +296,12 @@ public class ReportController : ControllerBase
 
         if (!Enum.TryParse<ReportFormat>(request.Format, out var format))
             return BadRequest("Formato invalido.");
+
+        if (RestrictedFormatsByType.TryGetValue(request.ReportTypeCode, out var allowedRecurringFormats))
+        {
+            if (!allowedRecurringFormats.Contains(request.Format))
+                return BadRequest("El formato " + request.Format + " no esta disponible para el tipo de reporte " + request.ReportTypeCode + ".");
+        }
 
         var config = new RecurringReportConfig
         {
@@ -634,16 +685,17 @@ public class ReportController : ControllerBase
     public async Task<IActionResult> GenerateAccountantExport([FromBody] AccountantExportRequestDto request)
     {
         var tenantId = GetTenantId();
+        var userId = GetUserId();
         var role = GetUserRole();
 
-        if (role != "Admin" && role != "SuperAdmin" && role != "Accountant" && role != "Auditor" && role != "Reviewer")
+        if (!_accessControl.CanAccessReport(role, "AccountantExport"))
             return Forbid();
 
-        var fileBytes = await _excelEngine.GenerateAccountantExportAsync(tenantId, request.PeriodFrom, request.PeriodTo);
+        var result = await _excelEngine.GenerateAccountantExportAsync(tenantId, userId, request.PeriodFrom, request.PeriodTo);
 
-        var fileName = $"Exportacion_Contador_{request.PeriodFrom:yyyyMMdd}_{request.PeriodTo:yyyyMMdd}.xlsx";
+        var fileBytes = await System.IO.File.ReadAllBytesAsync(result.FilePath);
 
-        return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", result.FileName);
     }
 
     // ── PDF Template (Global Config) ───────────────────

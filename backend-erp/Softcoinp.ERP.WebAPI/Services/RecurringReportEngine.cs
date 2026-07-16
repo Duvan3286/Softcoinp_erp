@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Softcoinp.ERP.Domain.Entities;
 using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
 
@@ -49,6 +52,7 @@ public class RecurringReportEngine : BackgroundService
         {
             var pdfEngine = sp.GetRequiredService<PDFGenerationEngine>();
             var excelEngine = sp.GetRequiredService<ExcelGenerationEngine>();
+            var deliveryTracker = sp.GetRequiredService<DeliveryTrackerEngine>();
 
             var dueConfigs = await context.RecurringReportConfigs
                 .Where(c => c.Status == ReportRecurrentStatus.Active
@@ -67,18 +71,21 @@ public class RecurringReportEngine : BackgroundService
                     var periodFrom = GetPeriodFrom(config.Frequency);
                     var periodTo = now;
 
+                    GeneratedReport generatedReport;
                     if (format == "Excel")
                     {
-                        await excelEngine.GenerateExcelReportAsync(
+                        generatedReport = await excelEngine.GenerateExcelReportAsync(
                             tenantId, reportTypeCode, config.CreatedByUserId,
                             periodFrom, periodTo, null, null, config.Id);
                     }
                     else
                     {
-                        await pdfEngine.GenerateReportAsync(
+                        generatedReport = await pdfEngine.GenerateReportAsync(
                             tenantId, reportTypeCode, format, config.CreatedByUserId,
                             periodFrom, periodTo, null, null, config.Id);
                     }
+
+                    await SendGeneratedReportByEmailAsync(context, deliveryTracker, config, generatedReport);
 
                     config.LastExecutionAt = now;
                     config.NextExecutionAt = CalculateNextExecution(config.Frequency, now);
@@ -97,6 +104,64 @@ public class RecurringReportEngine : BackgroundService
             if (dueConfigs.Count > 0)
                 await context.SaveChangesAsync(ct);
         });
+    }
+
+    private async Task SendGeneratedReportByEmailAsync(
+        ApplicationDbContext context, DeliveryTrackerEngine deliveryTracker,
+        RecurringReportConfig config, GeneratedReport generatedReport)
+    {
+        var recipientEmails = new List<string>();
+        if (!string.IsNullOrEmpty(config.RecipientEmails))
+        {
+            recipientEmails = config.RecipientEmails
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+        }
+
+        if (recipientEmails.Count == 0)
+        {
+            return;
+        }
+
+        var subject = config.SubjectTemplate;
+        if (string.IsNullOrEmpty(subject))
+        {
+            subject = "Reporte automatico: " + config.Name;
+        }
+
+        var body = config.BodyTemplate;
+        if (string.IsNullOrEmpty(body))
+        {
+            body = "Se adjunta el reporte '" + config.Name + "' generado automaticamente por el sistema. Archivo: " + generatedReport.FileName;
+        }
+
+        var communication = new Communication
+        {
+            TenantId = config.TenantId,
+            Subject = subject,
+            Body = body,
+            Status = CommunicationStatus.Draft,
+            AudienceType = AudienceType.CustomGroup,
+            SelectedChannels = "Email",
+            FilePaths = JsonSerializer.Serialize(new List<string> { generatedReport.FilePath }),
+            CreatedByUserId = config.CreatedByUserId
+        };
+
+        context.Communications.Add(communication);
+        await context.SaveChangesAsync();
+
+        foreach (var email in recipientEmails)
+        {
+            context.CommunicationRecipients.Add(new CommunicationRecipient
+            {
+                TenantId = config.TenantId,
+                CommunicationId = communication.Id,
+                RecipientEmail = email
+            });
+        }
+        await context.SaveChangesAsync();
+
+        await deliveryTracker.ProcessCommunicationDeliveryAsync(communication.Id);
     }
 
     private static DateTime? GetPeriodFrom(ReportFrequency frequency)

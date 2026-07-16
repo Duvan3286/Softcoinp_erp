@@ -283,31 +283,82 @@ public class ExcelGenerationEngine
         if (from.HasValue) query = query.Where(p => p.PaymentDate >= from.Value);
         if (to.HasValue) query = query.Where(p => p.PaymentDate <= to.Value);
 
-        var payments = query.OrderBy(p => p.PaymentDate).ToList();
-        var row = 2;
-        var totalAmount = 0m;
+        var payments = query.ToList();
 
-        foreach (var payment in payments)
+        var budgetItemIds = payments
+            .Where(p => p.Invoice != null && p.Invoice.BudgetItemId != null)
+            .Select(p => p.Invoice!.BudgetItemId!.Value)
+            .Distinct()
+            .ToList();
+
+        var budgetItemNames = _context.ExpenseItems
+            .Where(e => budgetItemIds.Contains(e.Id))
+            .ToDictionary(e => e.Id, e => e.Name);
+
+        var grouped = payments
+            .GroupBy(p => GetBudgetItemName(p, budgetItemNames))
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        var row = 2;
+        var grandTotal = 0m;
+
+        foreach (var group in grouped)
         {
-            var r = ws.Row(row);
-            r.Cell(1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
-            r.Cell(2).Value = payment.Invoice?.Provider?.BusinessName ?? "";
-            r.Cell(3).Value = payment.ReferenceNumber;
-            r.Cell(4).Value = "";
-            r.Cell(5).Value = payment.Amount; r.Cell(5).Style.NumberFormat.Format = "#,##0.00";
-            r.Cell(6).Value = payment.Invoice?.InvoiceNumber ?? "";
-            ApplyRowStyle(r, 6, row % 2 == 0);
-            totalAmount += payment.Amount;
+            var orderedPayments = group.OrderBy(p => p.PaymentDate).ToList();
+            var groupTotal = 0m;
+
+            foreach (var payment in orderedPayments)
+            {
+                var r = ws.Row(row);
+                r.Cell(1).Value = payment.PaymentDate.ToString("yyyy-MM-dd");
+                r.Cell(2).Value = payment.Invoice?.Provider?.BusinessName ?? "";
+                r.Cell(3).Value = payment.ReferenceNumber;
+                r.Cell(4).Value = group.Key;
+                r.Cell(5).Value = payment.Amount; r.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+                r.Cell(6).Value = payment.Invoice?.InvoiceNumber ?? "";
+                ApplyRowStyle(r, 6, row % 2 == 0);
+                groupTotal += payment.Amount;
+                row++;
+            }
+
+            var subRow = ws.Row(row);
+            subRow.Cell(1).Value = "SUBTOTAL " + group.Key;
+            subRow.Cell(1).Style.Font.Bold = true;
+            subRow.Cell(5).Value = groupTotal;
+            subRow.Cell(5).Style.Font.Bold = true;
+            subRow.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+            for (var c = 1; c <= headers.Length; c++)
+            {
+                subRow.Cell(c).Style.Fill.BackgroundColor = XLColor.FromHtml("#e2e8f0");
+            }
             row++;
+            grandTotal += groupTotal;
         }
 
         var t = ws.Row(row);
-        t.Cell(1).Value = "TOTALES"; t.Cell(1).Style.Font.Bold = true;
-        t.Cell(5).Value = totalAmount; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0.00";
+        t.Cell(1).Value = "TOTAL GENERAL"; t.Cell(1).Style.Font.Bold = true;
+        t.Cell(5).Value = grandTotal; t.Cell(5).Style.Font.Bold = true; t.Cell(5).Style.NumberFormat.Format = "#,##0.00";
 
         ws.Range(1, 1, row, 6).SetAutoFilter();
         ws.Column(1).Width = 14; ws.Column(2).Width = 28; ws.Column(3).Width = 35;
         ws.Column(4).Width = 20; ws.Column(5).Width = 15; ws.Column(6).Width = 18;
+    }
+
+    private static string GetBudgetItemName(ProviderPayment payment, Dictionary<Guid, string> budgetItemNames)
+    {
+        if (payment.Invoice is null || payment.Invoice.BudgetItemId is null)
+        {
+            return "Sin rubro asignado";
+        }
+
+        var budgetItemId = payment.Invoice.BudgetItemId.Value;
+        if (budgetItemNames.ContainsKey(budgetItemId))
+        {
+            return budgetItemNames[budgetItemId];
+        }
+
+        return "Sin rubro asignado";
     }
 
     private void FillBudgetExecutionReport(IXLWorksheet ws, string tenantId)
@@ -502,8 +553,14 @@ public class ExcelGenerationEngine
         ws.Column(4).Width = 16; ws.Column(5).Width = 14; ws.Column(6).Width = 22;
     }
 
-    public Task<byte[]> GenerateAccountantExportAsync(string tenantId, DateTime periodFrom, DateTime periodTo)
+    public async Task<GeneratedReport> GenerateAccountantExportAsync(
+        string tenantId, string userId, DateTime periodFrom, DateTime periodTo)
     {
+        var reportType = await _context.ReportTypes
+            .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.ReportTypeCode == ReportTypeEnum.AccountantExport);
+        if (reportType is null)
+            throw new InvalidOperationException("Report type not found: AccountantExport");
+
         using var workbook = new XLWorkbook();
         workbook.Style.Font.FontSize = 10;
         workbook.Style.Font.FontName = "Calibri";
@@ -514,9 +571,36 @@ public class ExcelGenerationEngine
         var expenseSheet = workbook.Worksheets.Add("Egresos");
         FillAccountantExpenseSheet(expenseSheet, tenantId, periodFrom, periodTo);
 
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        return Task.FromResult(stream.ToArray());
+        var periodLabel = BuildPeriodLabel(periodFrom, periodTo);
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        var dir = Path.Combine(_env.WebRootPath ?? "wwwroot", "reports", tenantId, "AccountantExport");
+        Directory.CreateDirectory(dir);
+
+        var consecutive = await GetNextConsecutiveNumber(tenantId, reportType.Id);
+        var fileName = $"AccountantExport_{periodLabel}_{consecutive:D4}_{timestamp}.xlsx";
+        var filePath = Path.Combine(dir, fileName);
+
+        workbook.SaveAs(filePath);
+
+        var fileInfo = new FileInfo(filePath);
+        var generated = new GeneratedReport
+        {
+            TenantId = tenantId,
+            ReportTypeId = reportType.Id,
+            Format = ReportFormat.Excel,
+            PeriodFrom = periodFrom,
+            PeriodTo = periodTo,
+            FileName = fileName,
+            FilePath = filePath,
+            FileSizeBytes = fileInfo.Length,
+            GeneratedByUserId = userId,
+            GeneratedAt = DateTime.UtcNow,
+            ConsecutiveNumber = consecutive
+        };
+
+        _context.GeneratedReports.Add(generated);
+        await _context.SaveChangesAsync();
+        return generated;
     }
 
     private void FillAccountantIncomeSheet(IXLWorksheet ws, string tenantId, DateTime from, DateTime to)

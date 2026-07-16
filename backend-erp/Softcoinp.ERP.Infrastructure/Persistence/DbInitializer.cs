@@ -147,6 +147,13 @@ public class DbInitializer
                 Name = "Informe Anual de Gestión", Description = "Informe consolidado de gestión del consejo de administración para la asamblea general anual de propietarios.",
                 Category = ReportCategory.Annual, SourceModules = "All", AllowedRoles = "SuperAdmin,Admin,Council",
                 ContainsPersonalData = false, IsActive = true
+            },
+            new()
+            {
+                TenantId = tenantId, ReportTypeCode = ReportTypeEnum.AccountantExport,
+                Name = "Exportación para el Contador", Description = "Exportación en Excel con hojas separadas de ingresos y egresos del período, lista para el contador externo.",
+                Category = ReportCategory.Financial, SourceModules = "Payments,ProviderPayments", AllowedRoles = "SuperAdmin,Admin,Accountant,Auditor",
+                ContainsPersonalData = true, IsActive = true
             }
         };
 
