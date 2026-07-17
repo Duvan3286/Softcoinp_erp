@@ -14,6 +14,7 @@ export interface User {
   lastLogin?: string;
   tenantId?: string;
   tenantName?: string;
+  tenantSubdomain?: string;
 }
 
 export interface LoginResponse {

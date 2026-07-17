@@ -140,7 +140,8 @@ public class AuthController : ControllerBase
                 email = user.Email,
                 role = effectiveRole,
                 tenantId = tenant?.Id,
-                tenantName = tenant?.Name
+                tenantName = tenant?.Name,
+                tenantSubdomain = tenant?.Subdomain
             },
             token = jwt,
             tokenExpiry = jwtExpiry,
@@ -277,7 +278,8 @@ public class AuthController : ControllerBase
             isSuspended = user.Status == UserStatus.Suspended,
             lastLogin = user.LastLogin,
             tenantId = tenant?.Id,
-            tenantName = tenant?.Name
+            tenantName = tenant?.Name,
+            tenantSubdomain = tenant?.Subdomain
         });
     }
 

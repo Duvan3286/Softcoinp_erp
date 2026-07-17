@@ -35,5 +35,24 @@ public static class MasterDbInitializer
             testTenant.ConnectionString = "Server=erp-db;Database=erp_test;User=root;Password=1234;";
             await context.SaveChangesAsync();
         }
+
+        var devTenant = await context.Tenants.FirstOrDefaultAsync(t => t.Subdomain == "dev");
+        if (devTenant == null)
+        {
+            context.Tenants.Add(new Softcoinp.ERP.Domain.Interfaces.Tenant
+            {
+                Name = "ERP Dev",
+                Subdomain = "dev",
+                ConnectionString = "Server=erp-db;Database=erp_dev;User=root;Password=1234;",
+                IsActive = true
+            });
+
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            devTenant.ConnectionString = "Server=erp-db;Database=erp_dev;User=root;Password=1234;";
+            await context.SaveChangesAsync();
+        }
     }
 }

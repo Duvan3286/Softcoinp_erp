@@ -68,86 +68,97 @@ public class DatabaseMigrationService
 
         foreach (var tenant in tenants)
         {
-            _logger.LogInformation("Migrating database for tenant: {TenantName} ({Subdomain})", tenant.Name, tenant.Subdomain);
-
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var tenantResolver = scope.ServiceProvider.GetRequiredService<ITenantResolver>();
-
-                // CRITICAL: Set the current tenant FIRST so that any DI-resolved service
-                // (ApplicationDbContext via OnConfiguring, UserManager, etc.) uses this tenant's DB.
-                tenantResolver.SetCurrentTenant(tenant);
-
-                // Use a fixed MySQL 8.0 server version to avoid AutoDetect connecting to
-                // a database that might not exist yet (throws "Unknown database").
-                var serverVersion = new MySqlServerVersion(new Version(8, 0, 0));
-                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-                optionsBuilder.UseMySql(tenant.ConnectionString, serverVersion);
-
-                // Create a temporary context with EXPLICIT options for schema operations.
-                // IsConfigured=true → OnConfiguring is skipped → uses the explicit connection string.
-                using var tenantContext = new ApplicationDbContext(optionsBuilder.Options, tenantResolver);
-
-                // First, create the database if it doesn't exist (without creating tables).
-                // We connect to MySQL without specifying a database to run CREATE DATABASE.
-                var connBuilder = new MySqlConnectionStringBuilder(tenant.ConnectionString);
-                var dbName = connBuilder.Database;
-                connBuilder.Database = null;
-                using (var adminConn = new MySqlConnection(connBuilder.ConnectionString))
-                {
-                    await adminConn.OpenAsync();
-                    using var createCmd = adminConn.CreateCommand();
-                    createCmd.CommandText = $"CREATE DATABASE IF NOT EXISTS `{dbName}` CHARACTER SET utf8mb4";
-                    await createCmd.ExecuteNonQueryAsync();
-                }
-
-                var historyTableExists = await HistoryTableExistsAsync(tenantContext);
-                var hasApplicationTables = await HasApplicationTablesAsync(tenantContext);
-
-                if (!historyTableExists && hasApplicationTables)
-                {
-                    // Genuine legacy scenario: schema was created with EnsureCreated before
-                    // migrations were introduced. This is the only case where baselining
-                    // the CURRENT model as fully applied is safe, because there is no
-                    // migration history to reconcile against yet.
-                    _logger.LogWarning(
-                        "Tenant {Subdomain} has application tables but no migration history. Baselining current model as the starting point.",
-                        tenant.Subdomain);
-                    await BaselineFreshLegacySchemaAsync(tenantContext);
-                }
-
-                // Apply EF Core migrations for real. If this throws, the tenant is reported
-                // as failed below instead of having its history silently rewritten.
-                await tenantContext.Database.MigrateAsync();
-
-                // Seed default users and roles using DI-resolved UserManager.
-                // The ApplicationDbContext resolved from DI has IsConfigured=false →
-                // OnConfiguring runs → resolver returns tenant's connection string (set above).
-                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-                var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-                await DbInitializer.SeedUsersAsync(userManager, roleManager, _configuration);
-
-                // Seed standard report types and default PDF templates
-                await DbInitializer.SeedReportTypesAsync(tenantContext, tenant.Id.ToString());
-
-                // Seed default automatic-notification templates (Comunicados)
-                await DbInitializer.SeedNotificationTemplatesAsync(tenantContext, tenant.Id.ToString());
-
-                results.Add(tenant.Subdomain, "Success");
-                _logger.LogInformation("Successfully migrated tenant: {Subdomain}", tenant.Subdomain);
-            }
-            catch (Exception ex)
-            {
-                // Fail loudly. Never fabricate migration history to make an error disappear:
-                // doing so leaves the physical schema out of sync with the EF model while
-                // reporting everything as up to date, which is far worse than a visible failure.
-                results.Add(tenant.Subdomain, $"Failed: {ex.Message}");
-                _logger.LogError(ex, "Error migrating tenant database for {Subdomain}. Manual intervention required.", tenant.Subdomain);
-            }
+            var status = await MigrateTenantAsync(tenant);
+            results.Add(tenant.Subdomain, status);
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Creates (if needed), migrates and seeds a single tenant's database.
+    /// Reused by <see cref="MigrateAllAsync"/> for the startup sweep and by the
+    /// tenant-creation endpoint to provision a brand-new tenant on demand.
+    /// </summary>
+    public async Task<string> MigrateTenantAsync(Tenant tenant)
+    {
+        _logger.LogInformation("Migrating database for tenant: {TenantName} ({Subdomain})", tenant.Name, tenant.Subdomain);
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var tenantResolver = scope.ServiceProvider.GetRequiredService<ITenantResolver>();
+
+            // CRITICAL: Set the current tenant FIRST so that any DI-resolved service
+            // (ApplicationDbContext via OnConfiguring, UserManager, etc.) uses this tenant's DB.
+            tenantResolver.SetCurrentTenant(tenant);
+
+            // Use a fixed MySQL 8.0 server version to avoid AutoDetect connecting to
+            // a database that might not exist yet (throws "Unknown database").
+            var serverVersion = new MySqlServerVersion(new Version(8, 0, 0));
+            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+            optionsBuilder.UseMySql(tenant.ConnectionString, serverVersion);
+
+            // Create a temporary context with EXPLICIT options for schema operations.
+            // IsConfigured=true → OnConfiguring is skipped → uses the explicit connection string.
+            using var tenantContext = new ApplicationDbContext(optionsBuilder.Options, tenantResolver);
+
+            // First, create the database if it doesn't exist (without creating tables).
+            // We connect to MySQL without specifying a database to run CREATE DATABASE.
+            var connBuilder = new MySqlConnectionStringBuilder(tenant.ConnectionString);
+            var dbName = connBuilder.Database;
+            connBuilder.Database = null;
+            using (var adminConn = new MySqlConnection(connBuilder.ConnectionString))
+            {
+                await adminConn.OpenAsync();
+                using var createCmd = adminConn.CreateCommand();
+                createCmd.CommandText = $"CREATE DATABASE IF NOT EXISTS `{dbName}` CHARACTER SET utf8mb4";
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            var historyTableExists = await HistoryTableExistsAsync(tenantContext);
+            var hasApplicationTables = await HasApplicationTablesAsync(tenantContext);
+
+            if (!historyTableExists && hasApplicationTables)
+            {
+                // Genuine legacy scenario: schema was created with EnsureCreated before
+                // migrations were introduced. This is the only case where baselining
+                // the CURRENT model as fully applied is safe, because there is no
+                // migration history to reconcile against yet.
+                _logger.LogWarning(
+                    "Tenant {Subdomain} has application tables but no migration history. Baselining current model as the starting point.",
+                    tenant.Subdomain);
+                await BaselineFreshLegacySchemaAsync(tenantContext);
+            }
+
+            // Apply EF Core migrations for real. If this throws, the tenant is reported
+            // as failed below instead of having its history silently rewritten.
+            await tenantContext.Database.MigrateAsync();
+
+            // Seed default users and roles using DI-resolved UserManager.
+            // The ApplicationDbContext resolved from DI has IsConfigured=false →
+            // OnConfiguring runs → resolver returns tenant's connection string (set above).
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            await DbInitializer.SeedUsersAsync(userManager, roleManager, _configuration);
+
+            // Seed standard report types and default PDF templates
+            await DbInitializer.SeedReportTypesAsync(tenantContext, tenant.Id.ToString());
+
+            // Seed default automatic-notification templates (Comunicados)
+            await DbInitializer.SeedNotificationTemplatesAsync(tenantContext, tenant.Id.ToString());
+
+            _logger.LogInformation("Successfully migrated tenant: {Subdomain}", tenant.Subdomain);
+            return "Success";
+        }
+        catch (Exception ex)
+        {
+            // Fail loudly. Never fabricate migration history to make an error disappear:
+            // doing so leaves the physical schema out of sync with the EF model while
+            // reporting everything as up to date, which is far worse than a visible failure.
+            _logger.LogError(ex, "Error migrating tenant database for {Subdomain}. Manual intervention required.", tenant.Subdomain);
+            return $"Failed: {ex.Message}";
+        }
     }
 
     private async Task<bool> HistoryTableExistsAsync(ApplicationDbContext context)
@@ -250,6 +261,20 @@ public class DatabaseMigrationService
                 _logger.LogInformation("Adding MaxLoginAttempts column to erp_master_tenants...");
                 using var alter = connection.CreateCommand();
                 alter.CommandText = "ALTER TABLE erp_master_tenants ADD COLUMN MaxLoginAttempts int NOT NULL DEFAULT 5";
+                await alter.ExecuteNonQueryAsync();
+            }
+        }
+
+        // Check if CreatedAt column exists
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = $"SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = '{dbName}' AND table_name = 'erp_master_tenants' AND column_name = 'CreatedAt'";
+            var exists = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+            if (!exists)
+            {
+                _logger.LogInformation("Adding CreatedAt column to erp_master_tenants...");
+                using var alter = connection.CreateCommand();
+                alter.CommandText = "ALTER TABLE erp_master_tenants ADD COLUMN CreatedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP";
                 await alter.ExecuteNonQueryAsync();
             }
         }

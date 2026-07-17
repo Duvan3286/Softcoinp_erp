@@ -14,6 +14,7 @@ public class Tenant
 
     public int SessionTimeout { get; set; } = 480;
     public int MaxLoginAttempts { get; set; } = 5;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public interface ITenantResolver

@@ -36,7 +36,7 @@ export function proxy(request: NextRequest) {
   const protectedRoutes = [
     '/dashboard', '/settings', '/units', '/pqr', '/residents',
     '/communications', '/billing', '/reports', '/suppliers',
-    '/reservation', '/budget',
+    '/reservation', '/budget', '/system',
   ];
   const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
   const isAuthRoute = path.startsWith('/login') || path.startsWith('/invite');

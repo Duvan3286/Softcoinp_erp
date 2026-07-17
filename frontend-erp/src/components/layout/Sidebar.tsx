@@ -19,6 +19,7 @@ import {
   Megaphone,
   FileText,
   Shield,
+  Globe,
 } from 'lucide-react';
 
 interface NavItemProps {
@@ -49,6 +50,7 @@ export const Sidebar = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const isSuperAdmin = user?.role === 'SuperAdmin';
+  const isDevTenant = user?.tenantSubdomain === 'dev';
 
   useEffect(() => {
     if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('budgets')) setOpenGroup('finanzas');
@@ -90,6 +92,8 @@ export const Sidebar = () => {
 
         <nav className="flex flex-col gap-1.5 flex-grow px-3 overflow-y-auto overflow-x-hidden custom-scrollbar pb-4">
 
+          {!isDevTenant && (
+          <>
           <NavItem
             icon={<LayoutDashboard className="w-5 h-5" />}
             text="Dashboard"
@@ -237,6 +241,8 @@ export const Sidebar = () => {
             isExpanded={isExpanded}
             router={router}
           />
+          </>
+          )}
 
           {isSuperAdmin && (
             <NavGroup
@@ -249,6 +255,17 @@ export const Sidebar = () => {
               <NavItem text="Usuarios Administradores" path="/system/maintenance/users" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
               <NavItem text="Próximamente..." path="/system/maintenance/coming-soon" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem highlightRed />
             </NavGroup>
+          )}
+
+          {isSuperAdmin && isDevTenant && (
+            <NavItem
+              icon={<Globe className="w-5 h-5" />}
+              text="Gestión de Tenants"
+              path="/system/tenants"
+              currentPath={pathname}
+              isExpanded={isExpanded}
+              router={router}
+            />
           )}
 
         </nav>
