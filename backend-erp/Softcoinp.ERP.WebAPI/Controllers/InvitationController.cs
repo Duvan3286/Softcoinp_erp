@@ -167,7 +167,7 @@ public class InvitationController : ControllerBase
                 Email = invitation.Email,
                 FullName = request.FullName,
                 EmailConfirmed = true,
-                IsActive = true,
+                Status = UserStatus.Active,
                 CreatedAt = DateTime.UtcNow
             };
 

@@ -65,8 +65,8 @@ public class UsersController : ControllerBase
             fullName = r.User.FullName,
             email = r.User.Email,
             role = r.Role.ToString(),
-            isActive = r.User.IsActive,
-            isSuspended = r.User.IsSuspended,
+            isActive = r.User.Status == UserStatus.Active,
+            isSuspended = r.User.Status == UserStatus.Suspended,
             suspendedReason = r.User.SuspendedReason,
             assignedAt = r.AssignedAt,
         }).ToListAsync();
@@ -94,7 +94,7 @@ public class UsersController : ControllerBase
         if (targetRoles.Contains(nameof(AppRole.SuperAdmin)))
             return Forbid();
 
-        targetUser.IsSuspended = true;
+        targetUser.Status = UserStatus.Suspended;
         targetUser.SuspendedAt = DateTime.UtcNow;
         targetUser.SuspendedReason = request.Reason;
         await _userManager.UpdateAsync(targetUser);
@@ -137,11 +137,11 @@ public class UsersController : ControllerBase
         var targetUser = await _userManager.FindByIdAsync(id);
         if (targetUser == null) return NotFound("Usuario no encontrado.");
 
-        targetUser.IsSuspended = false;
+        targetUser.Status = UserStatus.Active;
         targetUser.SuspendedAt = null;
         targetUser.SuspendedReason = null;
-        targetUser.FailedLoginCount = 0;
-        targetUser.LockoutUntil = null;
+        targetUser.AccessFailedCount = 0;
+        targetUser.LockoutEnd = null;
         targetUser.DailyLockoutCount = 0;
         await _userManager.UpdateAsync(targetUser);
 

@@ -40,8 +40,7 @@ public class DbInitializer
                 Email = adminEmail,
                 FullName = "Super Administrator",
                 EmailConfirmed = true,
-                IsActive = true,
-                IsSuspended = false,
+                Status = UserStatus.Active,
                 CreatedAt = DateTime.UtcNow
             };
 

@@ -40,6 +40,5 @@ public class Invitation : BaseEntity
     public string? AcceptedByUserId { get; set; }
 
     // Navigation properties
-    public User? CreatedByUser { get; set; }
     public User? AcceptedByUser { get; set; }
 }

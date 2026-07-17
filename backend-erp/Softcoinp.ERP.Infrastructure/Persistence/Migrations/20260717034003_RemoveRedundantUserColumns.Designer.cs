@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Softcoinp.ERP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Softcoinp.ERP.Infrastructure.Persistence;
 namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260717034003_RemoveRedundantUserColumns")]
+    partial class RemoveRedundantUserColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3138,6 +3141,8 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AcceptedByUserId");
 
+                    b.HasIndex("CreatedByUserId");
+
                     b.HasIndex("TokenHash")
                         .IsUnique();
 
@@ -6123,6 +6128,8 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AssignedByUserId");
+
                     b.HasIndex("UserId", "TenantId")
                         .IsUnique();
 
@@ -6355,7 +6362,7 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.HasOne("Softcoinp.ERP.Domain.Entities.User", "User")
                         .WithMany("AuditLogs")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("User");
                 });
@@ -6899,9 +6906,17 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.HasOne("Softcoinp.ERP.Domain.Entities.User", "AcceptedByUser")
                         .WithMany()
                         .HasForeignKey("AcceptedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Softcoinp.ERP.Domain.Entities.User", "CreatedByUser")
+                        .WithMany("SentInvitations")
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("AcceptedByUser");
+
+                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.MaintenancePlan", b =>
@@ -7389,6 +7404,17 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                     b.Navigation("Unit");
                 });
 
+            modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.UserChangeHistory", b =>
+                {
+                    b.HasOne("Softcoinp.ERP.Domain.Entities.User", "User")
+                        .WithMany("ChangeHistories")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.UserEmailVerification", b =>
                 {
                     b.HasOne("Softcoinp.ERP.Domain.Entities.User", "User")
@@ -7402,11 +7428,19 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Softcoinp.ERP.Domain.Entities.UserTenantRole", b =>
                 {
+                    b.HasOne("Softcoinp.ERP.Domain.Entities.User", "AssignedByUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Softcoinp.ERP.Domain.Entities.User", "User")
                         .WithMany("TenantRoles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AssignedByUser");
 
                     b.Navigation("User");
                 });
@@ -7647,9 +7681,13 @@ namespace Softcoinp.ERP.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("AuditLogs");
 
+                    b.Navigation("ChangeHistories");
+
                     b.Navigation("EmailVerifications");
 
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("SentInvitations");
 
                     b.Navigation("TenantRoles");
                 });

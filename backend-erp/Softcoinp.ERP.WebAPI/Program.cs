@@ -126,6 +126,9 @@ builder.Services.AddScoped<BulletinBoardService>();
 builder.Services.AddScoped<CommunicationPreferenceService>();
 builder.Services.AddScoped<DelinquencySequenceEngine>();
 
+// ── Módulo de Mantenimiento del Sistema (Superuser only) ──────
+builder.Services.AddScoped<SystemMaintenanceService>();
+
 // ── Reportes y Exportaciones ───────────────────────────────────
 builder.Services.AddScoped<PDFGenerationEngine>();
 builder.Services.AddScoped<ExcelGenerationEngine>();
@@ -309,6 +312,7 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseMiddleware<ActiveUserValidationMiddleware>();
 app.UseMiddleware<TenantDetectionMiddleware>();
+app.UseMiddleware<MaintenanceAuthorizationMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");

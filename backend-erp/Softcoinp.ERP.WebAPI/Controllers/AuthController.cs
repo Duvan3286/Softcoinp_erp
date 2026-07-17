@@ -66,23 +66,23 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Usuario o contraseña incorrectos." });
         }
 
-        if (user.IsSuspended)
+        if (user.Status == UserStatus.Suspended)
         {
             await WriteAuditAsync(user.Id, user.Email!, tenant?.Id, AuditEventType.LoginFailed, ip, userAgent,
                 JsonSerializer.Serialize(new { reason = "account_suspended" }));
             return Unauthorized(new { message = "Tu cuenta ha sido suspendida. Contacta al administrador del conjunto." });
         }
 
-        if (!user.IsActive)
+        if (user.Status != UserStatus.Active)
         {
             await WriteAuditAsync(user.Id, user.Email!, tenant?.Id, AuditEventType.LoginFailed, ip, userAgent,
                 JsonSerializer.Serialize(new { reason = "account_inactive" }));
             return Unauthorized(new { message = "Tu cuenta está inactiva. Contacta al administrador." });
         }
 
-        if (user.LockoutUntil.HasValue && user.LockoutUntil > DateTime.UtcNow)
+        if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow)
         {
-            var remaining = (int)Math.Ceiling((user.LockoutUntil.Value - DateTime.UtcNow).TotalMinutes);
+            var remaining = (int)Math.Ceiling((user.LockoutEnd.Value - DateTimeOffset.UtcNow).TotalMinutes);
             await WriteAuditAsync(user.Id, user.Email!, tenant?.Id, AuditEventType.LoginFailed, ip, userAgent,
                 JsonSerializer.Serialize(new { reason = "temp_locked", remaining_minutes = remaining }));
             return Unauthorized(new { message = $"Cuenta bloqueada temporalmente. Intenta de nuevo en {remaining} minuto(s)." });
@@ -96,8 +96,8 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Usuario o contraseña incorrectos." });
         }
 
-        user.FailedLoginCount = 0;
-        user.LockoutUntil = null;
+        user.AccessFailedCount = 0;
+        user.LockoutEnd = null;
         user.DailyLockoutCount = 0;
         user.LastLogin = DateTime.UtcNow;
         await _userManager.UpdateAsync(user);
@@ -176,7 +176,7 @@ public class AuthController : ControllerBase
 
         var user = stored.User!;
 
-        if (user.IsSuspended || !user.IsActive)
+        if (user.Status == UserStatus.Suspended || user.Status != UserStatus.Active)
         {
             await RevokeAllUserTokensAsync(user.Id);
             return Unauthorized(new { message = "El usuario ha sido suspendido o desactivado." });
@@ -274,7 +274,7 @@ public class AuthController : ControllerBase
             name = user.FullName,
             email = user.Email,
             role = effectiveRole,
-            isSuspended = user.IsSuspended,
+            isSuspended = user.Status == UserStatus.Suspended,
             lastLogin = user.LastLogin,
             tenantId = tenant?.Id,
             tenantName = tenant?.Name
@@ -409,13 +409,13 @@ public class AuthController : ControllerBase
             user.DailyLockoutResetDate = today;
         }
 
-        user.FailedLoginCount++;
+        user.AccessFailedCount++;
 
-        if (user.FailedLoginCount >= MaxLoginAttempts)
+        if (user.AccessFailedCount >= MaxLoginAttempts)
         {
             user.DailyLockoutCount++;
-            user.FailedLoginCount = 0;
-            user.LockoutUntil = DateTime.UtcNow.AddMinutes(LockoutMinutes);
+            user.AccessFailedCount = 0;
+            user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(LockoutMinutes);
 
             _logger.LogWarning("Account locked: {Email} | Daily lockouts: {Count}", user.Email, user.DailyLockoutCount);
 
@@ -424,7 +424,7 @@ public class AuthController : ControllerBase
 
             if (user.DailyLockoutCount >= MaxDailyLockouts)
             {
-                user.IsSuspended = true;
+                user.Status = UserStatus.Suspended;
                 user.SuspendedAt = DateTime.UtcNow;
                 user.SuspendedReason = "Suspensión automática por 3 bloqueos en el mismo día.";
 
@@ -437,7 +437,7 @@ public class AuthController : ControllerBase
         else
         {
             await WriteAuditAsync(user.Id, user.Email!, tenantId, AuditEventType.LoginFailed, ip, userAgent,
-                JsonSerializer.Serialize(new { failed_attempt = user.FailedLoginCount, max = MaxLoginAttempts }));
+                JsonSerializer.Serialize(new { failed_attempt = user.AccessFailedCount, max = MaxLoginAttempts }));
         }
 
         await _userManager.UpdateAsync(user);

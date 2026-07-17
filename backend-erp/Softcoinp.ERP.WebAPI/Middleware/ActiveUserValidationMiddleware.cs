@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Softcoinp.ERP.Domain.Entities;
+using Softcoinp.ERP.Domain.Enums;
 
 namespace Softcoinp.ERP.WebAPI.Middleware;
 
@@ -35,7 +36,7 @@ public class ActiveUserValidationMiddleware
             if (!string.IsNullOrEmpty(userId))
             {
                 var user = await userManager.FindByIdAsync(userId);
-                if (user == null || user.IsSuspended || !user.IsActive)
+                if (user == null || user.Status == UserStatus.Suspended || user.Status != UserStatus.Active)
                 {
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                     context.Response.ContentType = "application/json";

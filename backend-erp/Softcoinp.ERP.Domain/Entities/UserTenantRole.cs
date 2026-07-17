@@ -13,5 +13,4 @@ public class UserTenantRole : BaseEntity
     public string AssignedByUserId { get; set; } = string.Empty;
 
     public User? User { get; set; }
-    public User? AssignedByUser { get; set; }
 }

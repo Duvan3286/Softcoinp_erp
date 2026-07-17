@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSidebar } from '@/context/SidebarContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   LayoutDashboard,
   Briefcase,
@@ -17,6 +18,7 @@ import {
   Calendar,
   Megaphone,
   FileText,
+  Shield,
 } from 'lucide-react';
 
 interface NavItemProps {
@@ -43,8 +45,10 @@ export const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { isOpen, setIsOpen } = useSidebar();
+  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const isSuperAdmin = user?.role === 'SuperAdmin';
 
   useEffect(() => {
     if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('budgets')) setOpenGroup('finanzas');
@@ -52,6 +56,7 @@ export const Sidebar = () => {
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
     else if (pathname.startsWith('/suppliers') || pathname.startsWith('/contracts')) setOpenGroup('proveedores');
     else if (pathname.startsWith('/maintenance')) setOpenGroup('mantenimiento');
+    else if (pathname.startsWith('/system/maintenance')) setOpenGroup('systemMaintenance');
     else if (pathname.startsWith('/pqr')) setOpenGroup('pqr');
     else if (pathname.startsWith('/reservation')) setOpenGroup('reservas');
     else if (pathname.startsWith('/communications')) setOpenGroup('comunicaciones');
@@ -232,6 +237,19 @@ export const Sidebar = () => {
             isExpanded={isExpanded}
             router={router}
           />
+
+          {isSuperAdmin && (
+            <NavGroup
+              icon={<Shield className="w-5 h-5" />}
+              text="Mantenimiento del Sistema"
+              isOpen={openGroup === 'systemMaintenance'}
+              isExpanded={isExpanded}
+              onToggle={() => toggleGroup('systemMaintenance')}
+            >
+              <NavItem text="Usuarios Administradores" path="/system/maintenance/users" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+              <NavItem text="Próximamente..." path="/system/maintenance/coming-soon" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem highlightRed />
+            </NavGroup>
+          )}
 
         </nav>
 

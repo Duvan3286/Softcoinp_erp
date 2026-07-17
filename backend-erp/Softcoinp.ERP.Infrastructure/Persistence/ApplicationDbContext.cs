@@ -148,6 +148,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<ManagementReportSection> ManagementReportSections => Set<ManagementReportSection>();
     public DbSet<PDFTemplate> PDFTemplates => Set<PDFTemplate>();
 
+    // ── Módulo de Mantenimiento del Sistema (Superuser only) ──────
+    public DbSet<UserChangeHistory> UserChangeHistories => Set<UserChangeHistory>();
+    public DbSet<UserEmailVerification> UserEmailVerifications => Set<UserEmailVerification>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
@@ -354,11 +358,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .WithMany(u => u.TenantRoles)
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(e => e.AssignedByUser)
-                  .WithMany()
-                  .HasForeignKey(e => e.AssignedByUserId)
-                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ── Invitation ───────────────────────────────────────────────
@@ -375,15 +374,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
 
-            entity.HasOne(e => e.CreatedByUser)
-                  .WithMany(u => u.SentInvitations)
-                  .HasForeignKey(e => e.CreatedByUserId)
-                  .OnDelete(DeleteBehavior.Restrict);
-
             entity.HasOne(e => e.AcceptedByUser)
                   .WithMany()
                   .HasForeignKey(e => e.AcceptedByUserId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── AccessAuditLog (INMUTABLE) ───────────────────────────────
@@ -408,7 +402,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.HasOne(e => e.User)
                   .WithMany(u => u.AuditLogs)
                   .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Restrict);
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── RefreshToken ─────────────────────────────────────────────
@@ -436,6 +430,56 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.FullName).HasMaxLength(200);
             entity.Property(e => e.SuspendedReason).HasMaxLength(500);
             entity.Property(e => e.DailyLockoutResetDate).HasColumnType("date");
+            entity.Property(e => e.Status)
+                  .HasConversion<string>()
+                  .HasMaxLength(20)
+                  .IsRequired();
+            entity.Property(e => e.TenantId).HasMaxLength(255);
+
+            entity.HasIndex(e => new { e.Email, e.TenantId }).IsUnique();
+
+            entity.HasMany(e => e.EmailVerifications)
+                  .WithOne(v => v.User)
+                  .HasForeignKey(v => v.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── UserChangeHistory (INMUTABLE) ────────────────────────────
+        modelBuilder.Entity<UserChangeHistory>(entity =>
+        {
+            entity.ToTable("erp_user_change_history");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ChangedField).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.OldValue).HasColumnType("longtext");
+            entity.Property(e => e.NewValue).HasColumnType("longtext");
+            entity.Property(e => e.ChangedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ChangeType)
+                  .HasConversion<string>()
+                  .HasMaxLength(20)
+                  .IsRequired();
+
+            entity.HasIndex(e => new { e.UserId, e.ChangedAt });
+        });
+
+        // ── UserEmailVerification ────────────────────────────────────
+        modelBuilder.Entity<UserEmailVerification>(entity =>
+        {
+            entity.ToTable("erp_user_email_verifications");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.NewEmail).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.TokenHash).IsRequired().HasMaxLength(64);
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.EmailVerifications)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.TokenHash).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.IsVerified });
         });
         // ── TenantConfiguration ──────────────────────────────────────────
         modelBuilder.Entity<TenantConfiguration>(entity =>
