@@ -142,8 +142,6 @@ public class PQRController : BaseController
         }
 
         var now = DateTime.UtcNow;
-        var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? string.Empty;
-        var isAdminRole = userRole == "SuperAdmin" || userRole == "Admin";
 
         var detail = new PqrDetailDto
         {
@@ -213,15 +211,13 @@ public class PQRController : BaseController
                     IsFromApplicant = f.IsFromApplicant
                 }).ToList()
             }).ToList(),
-            InternalNotes = isAdminRole
-                ? pqr.InternalNotes.OrderByDescending(n => n.CreatedAt).Select(n => new PqrInternalNoteDto
-                {
-                    Id = n.Id,
-                    NoteText = n.NoteText,
-                    AuthorName = n.AuthorName,
-                    CreatedAt = n.CreatedAt
-                }).ToList()
-                : new System.Collections.Generic.List<PqrInternalNoteDto>(),
+            InternalNotes = pqr.InternalNotes.OrderByDescending(n => n.CreatedAt).Select(n => new PqrInternalNoteDto
+            {
+                Id = n.Id,
+                NoteText = n.NoteText,
+                AuthorName = n.AuthorName,
+                CreatedAt = n.CreatedAt
+            }).ToList(),
             Files = pqr.Files.Select(f => new PqrFileDto
             {
                 Id = f.Id,

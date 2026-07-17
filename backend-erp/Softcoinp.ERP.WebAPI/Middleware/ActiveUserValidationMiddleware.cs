@@ -19,6 +19,16 @@ public class ActiveUserValidationMiddleware
 
     public async Task InvokeAsync(HttpContext context, UserManager<User> userManager)
     {
+        // Global tenant-management routes have no resolved tenant, so ApplicationDbContext
+        // falls back to the master connection, which has no Identity schema. Skip the
+        // suspension check here, matching the same exemption TenantDetectionMiddleware
+        // already applies to this route.
+        if (context.Request.Path.StartsWithSegments("/api/v1/admin/tenants"))
+        {
+            await _next(context);
+            return;
+        }
+
         if (context.User.Identity?.IsAuthenticated == true)
         {
             var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);

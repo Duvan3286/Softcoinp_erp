@@ -562,10 +562,6 @@ Registro de todos los cambios realizados en la configuración:
 
 > El sistema asignará automáticamente un **número de radicado** único con formato `PQR-2026-06-00001` y calculará la **fecha límite de respuesta** en días hábiles.
 
-#### Desde el portal del residente
-
-Los residentes pueden radicar PQR desde su portal personal. Las PQR internas de la administración no aparecen en este portal.
-
 ### 10.3 Bandeja del Administrador
 
 Acceda a la lista de PQR activas ordenadas por urgencia. Cada PQR muestra:
@@ -652,14 +648,6 @@ El administrador cuenta con un tablero de indicadores que muestra:
 - **Distribución por tipo y categoría**: Gráfico de torta.
 - **Tendencia mensual**: Número de radicaciones por mes.
 - **Estado actual**: Cantidad de PQR en cada estado.
-
-### 10.11 Portal del residente
-
-Los residentes pueden:
-
-- Ver el listado de sus PQR activas e históricas (solo las no internas).
-- Consultar el detalle de cada PQR con su historial de estados y respuestas.
-- **No pueden ver las notas internas** del equipo de administración.
 
 ---
 
@@ -1682,36 +1670,14 @@ El módulo de reservas genera las siguientes notificaciones automáticas:
 
 ## 16. Roles y Permisos
 
-El sistema cuenta con los siguientes roles:
+El sistema cuenta con exactamente dos roles:
 
 | Rol | Descripción |
 |-----|-------------|
-| **SuperAdmin** | Acceso total a todos los módulos y conjuntos. |
-| **Admin** | Administrador del conjunto. Acceso completo a configuración, finanzas y residentes. |
-| **Council** | Miembro del Consejo de Administración. Puede aprobar traslados presupuestales y usos del fondo. |
-| **Accountant** | Contador. Acceso a presupuesto, fondo de imprevistos y reportes. |
-| **Auditor** | Acceso de solo lectura a reportes financieros. |
-| **Resident** | Propietario o residente. Acceso solo a su unidad, su estado de cuenta y notificaciones. |
+| **SuperAdmin** | Uso exclusivo del equipo interno de Softcoinp. Administra el catálogo de conjuntos (crear, suspender, configurar tenants) desde el panel de mantenimiento, y tiene acceso completo a todos los módulos operativos de todos los conjuntos. |
+| **Admin** | Administrador de un conjunto residencial específico. Acceso completo (CRUD) a los 14 módulos operativos de su conjunto: configuración, unidades, residentes, presupuesto, cuotas y cartera, dashboard, PQR, proveedores, contratos, mantenimiento, asambleas, reservas, comunicaciones y reportes. No tiene acceso al panel de mantenimiento ni a datos de otros conjuntos.
 
-### 14.1 Permisos por módulo
-
-| Módulo | Admin | Council | Accountant | Auditor | Resident |
-|--------|-------|---------|------------|---------|----------|
-| Dashboard | Completo | Resumen | Indicadores | Reportes | Solo su unidad |
-| Unidades | CRUD | Lectura | Lectura | Lectura | Su unidad |
-| Propietarios | CRUD | Lectura | Lectura | Lectura | — |
-| Arrendatarios | CRUD | Lectura | Lectura | Lectura | — |
-| Presupuesto | CRUD | Aprobar | CRUD | Lectura | — |
-| Fondo Imprevistos | CRUD | Aprobar | CRUD | Lectura | — |
-| Cuotas y Cartera | CRUD | — | CRUD | Lectura | Su estado de cuenta |
-| Configuración | CRUD | — | — | — | — |
-| PQR | CRUD | Responder, Alertas | Responder | Lectura | Radicar, Seguimiento |
-| Proveedores | CRUD | Lectura | CRUD | Lectura | — |
-| Contratos | CRUD | Aprobar, Alertas | CRUD | Lectura | — |
-| Mantenimiento | CRUD | Lectura | Lectura | Lectura | — |
-| Comunicaciones | CRUD | Lectura | Lectura | Lectura | Cartelera, Preferencias |
-| Asambleas | CRUD | Participar, Votar | Lectura | Lectura | Participar, Votar |
-| Reservas | CRUD | Lectura | Lectura | Lectura | Solicitar |
+Ningún módulo tiene restricciones de subrol (no existen roles de Consejo, Contador, Auditor ni Residente como cuentas de acceso al sistema — todos los usuarios del ERP de un conjunto son `Admin`). Términos de negocio como "Consejo de Administración", "residente" o "contador externo" que aparecen en otros módulos de este manual se refieren a personas o entidades del conjunto, no a roles de inicio de sesión.
 
 ---
 

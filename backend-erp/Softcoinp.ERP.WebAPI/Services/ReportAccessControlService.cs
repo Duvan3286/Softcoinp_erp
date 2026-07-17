@@ -19,44 +19,28 @@ public class ReportAccessControlService
         _context = context;
     }
 
-    private static readonly Dictionary<string, List<string>> RoleReportMap = new()
+    private static readonly List<string> AllReportCodes = new()
     {
-        ["SuperAdmin"] = new List<string>
-        {
-            "PortfolioReport", "CollectionReport", "ExpenseReport",
-            "BudgetExecution", "ActiveContracts", "PQRReport",
-            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport",
-            "AccountantExport"
-        },
-        ["Admin"] = new List<string>
-        {
-            "PortfolioReport", "CollectionReport", "ExpenseReport",
-            "BudgetExecution", "ActiveContracts", "PQRReport",
-            "MaintenanceReport", "AssemblyReport", "AnnualManagementReport",
-            "AccountantExport"
-        }
+        "PortfolioReport", "CollectionReport", "ExpenseReport",
+        "BudgetExecution", "ActiveContracts", "PQRReport",
+        "MaintenanceReport", "AssemblyReport", "AnnualManagementReport",
+        "AccountantExport"
     };
 
     public bool CanAccessReport(string role, string reportTypeCode)
     {
-        if (string.IsNullOrEmpty(role))
+        if (!CanAccessPersonalData(role))
             return false;
 
-        if (!RoleReportMap.TryGetValue(role, out var allowedReports))
-            return false;
-
-        return allowedReports.Contains(reportTypeCode);
+        return AllReportCodes.Contains(reportTypeCode);
     }
 
     public List<string> GetAccessibleReports(string role)
     {
-        if (string.IsNullOrEmpty(role))
+        if (!CanAccessPersonalData(role))
             return new List<string>();
 
-        if (!RoleReportMap.TryGetValue(role, out var allowedReports))
-            return new List<string>();
-
-        return allowedReports.ToList();
+        return AllReportCodes.ToList();
     }
 
     public bool CanAccessPersonalData(string role)

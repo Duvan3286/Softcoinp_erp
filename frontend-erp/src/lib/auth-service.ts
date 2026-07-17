@@ -3,11 +3,13 @@ import apiClient, { setAuthCookie, clearAuthCookie } from './api-client';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 const isSameOrigin = API_URL.startsWith('/');
 
+export type AppRole = 'SuperAdmin' | 'Admin';
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role: AppRole;
   isSuspended?: boolean;
   lastLogin?: string;
   tenantId?: string;
@@ -29,7 +31,7 @@ export interface TenantOption {
   tenantId: string;
   name: string;
   subdomain: string;
-  role: string;
+  role: AppRole;
   isCurrent: boolean;
 }
 
@@ -38,7 +40,7 @@ export interface SwitchTenantResponse {
   tokenExpiry: string;
   refreshToken: string;
   tenantId: string;
-  role: string;
+  role: AppRole;
 }
 
 const authService = {

@@ -263,41 +263,8 @@ Registro de intereses de mora calculados sobre obligaciones vencidas. La capital
 > [!NOTE]
 > Los campos `unitFeeId`, `extraordinaryFeeDistributionId` e `individualChargeId` reemplazan al anterior par `sourceType`/`sourceId`. Ahora se usan FK directas nullable para una mejor integridad referencial. Un registro de interés puede estar asociado a **una sola** de estas tres entidades como máximo.
 
-### 5.9 Acuerdo de Pago (`PaymentAgreement`)
-Instrumento formal aprobado por el Consejo de Administración para facilitar el pago de obligaciones vencidas, incluyendo la posibilidad de condonar parcialmente los intereses de mora.
-
-> [!IMPORTANT]
-> **Reglas de negocio:**
-> - Solo puede existir **un acuerdo activo por unidad** a la vez.
-> - La condonación de intereses no puede exceder el porcentaje máximo configurado en el tenant.
-> - El incumplimiento se detecta automáticamente cuando una cuota supera los **5 días de mora**.
-> - Al crearse, las obligaciones incluidas se marcan como cubiertas por el acuerdo.
-
-| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
-|-------|--------------|-------------|----------------------|
-| **Unidad (`unitId`)** | `Guid` FK | Sí | Unidad que suscribe el acuerdo. |
-| **Deuda Total Incluida (`totalDebtIncluded`)** | `decimal(18,2)` | Sí | Suma del capital e intereses incluidos en el acuerdo. |
-| **Valor de la Cuota (`installmentAmount`)** | `decimal(18,2)` | Automático | `netDebt / numberOfInstallments`. |
-| **Número de Cuotas (`numberOfInstallments`)** | `int` | Sí | Número de contados acordados (mínimo 1). |
-| **% Condonación de Intereses (`interestForgivenessPercentage`)** | `decimal(5,2)` | Sí | Porcentaje de intereses que se condonan. |
-| **Número de Acta del Consejo (`councilActNumber`)** | `string` max 100 | Sí | Acta del Consejo que aprobó el acuerdo. |
-| **Estado (`status`)** | `Enum` | Sí | `Pending` · `Active` · `Completed` · `Defaulted` · `Cancelled`. |
-| **Fecha de Inicio (`startedAt`)** | `datetime` | Automático | Fecha de creación del acuerdo. |
-| **Fecha de Incumplimiento (`defaultedAt`)** | `datetime` | Automático | Fecha en que el sistema detectó el incumplimiento. |
-| **Aceptación Digital (`digitalAcceptance`)** | `string` | Sí | Texto, código o hash que evidencia la aceptación del deudor. |
-
-### 5.10 Cuota de Acuerdo de Pago (`AgreementInstallment`)
-Cada una de las cuotas individuales que componen un acuerdo de pago.
-
-| Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
-|-------|--------------|-------------|----------------------|
-| **Acuerdo de Pago (`paymentAgreementId`)** | `Guid` FK | Sí | Acuerdo al que pertenece la cuota. |
-| **Número de Cuota (`installmentNumber`)** | `int` | Sí | Número correlativo dentro del acuerdo. |
-| **Fecha de Vencimiento (`dueDate`)** | `datetime` | Sí | Fecha tope para el pago de esta cuota. |
-| **Monto (`amount`)** | `decimal(18,2)` | Sí | Valor de la cuota. |
-| **Monto Pagado (`paidAmount`)** | `decimal(18,2)` | Automático | Monto imputado a esta cuota. |
-| **Estado (`status`)** | `Enum` | Sí | `Pending` · `Paid` · `Overdue` (automático a los 5 días de vencida). |
-| **Fecha de Pago (`paidAt`)** | `datetime` | Cond. | Fecha en que se efectuó el pago. Nulo si está pendiente. |
+> [!NOTE]
+> Las antiguas secciones 5.9 (Acuerdo de Pago, `PaymentAgreement`) y 5.10 (Cuota de Acuerdo de Pago, `AgreementInstallment`) fueron removidas del sistema por la migración `RemovePaymentAgreementsAndInterest`. Ya no existen como entidades ni como tablas; se conserva la numeración original de las secciones siguientes para no romper referencias cruzadas.
 
 ### 5.11 Certificado de Paz y Salvo (`ClearanceCertificate`)
 Documento oficial que certifica que una unidad no tiene obligaciones pendientes con la copropiedad a una fecha determinada.
@@ -642,12 +609,12 @@ Acuerdo formal entre el conjunto y un proveedor para la prestación de servicios
 | **Fecha de Fin (`endDate`)** | `date` | Sí | Fecha de terminación del contrato. El sistema calcula automáticamente los días restantes. |
 | **Renovación Automática (`hasAutoRenewal`)** | `boolean` | Sí | Si es `true`, el sistema genera alertas antes del vencimiento para revisar la renovación. |
 | **Días de Aviso Renovación (`autoRenewalNoticeDays`)** | `int` | Sí | Días de antelación para generar alerta de renovación automática. Default: 30. |
-| **Nivel de Aprobación (`approvalLevel`)** | `Enum` | Sí | `Administrator` = Administrador · `Council` = Consejo de Administración · `Assembly` = Asamblea. Se determina automáticamente según los umbrales configurados. |
-| **Nro. Acta Consejo (`councilMeetingActNumber`)** | `string` max 100 | Cond. | Obligatorio si `approvalLevel = Council`. Número del acta de aprobación del Consejo. |
-| **Nro. Acta Asamblea (`assemblyMeetingActNumber`)** | `string` max 100 | Cond. | Obligatorio si `approvalLevel = Assembly`. Número del acta de aprobación de la Asamblea. |
 | **Cuenta Presupuestal (`budgetAccountId`)** | `Guid?` FK | No | Cuenta del PUC asociada al contrato (para integración contable). |
 | **Estado (`status`)** | `Enum` | Sí | `Draft` = Borrador · `Active` = Activo · `Suspended` = Suspendido · `Completed` = Completado · `Terminated` = Terminado · `Cancelled` = Cancelado. |
 | **Archivo Contrato Firmado (`signedContractFilePath`)** | `string` max 1000 | No | Ruta del archivo del contrato firmado digitalmente. |
+
+> [!NOTE]
+> Los campos `approvalLevel`, `councilMeetingActNumber` y `assemblyMeetingActNumber` fueron removidos por la migración `SimplifyRolesAndApprovals`. El nivel de aprobación por Consejo/Asamblea ya no es parte del modelo de datos.
 | **Creado Por (`createdByUserId`)** | `string` max 450 | Automático | ID del usuario que creó el contrato. |
 | **Actualizado Por (`updatedByUserId`)** | `string` max 450 | No | ID del último usuario que modificó el contrato. |
 
@@ -655,7 +622,7 @@ Acuerdo formal entre el conjunto y un proveedor para la prestación de servicios
 
 | Estado Origen | Estados Permitidos | Requisitos |
 |---------------|-------------------|------------|
-| `Draft` | `Active`, `Cancelled` | Para `Active`: si aprobación es Consejo/Asamblea, debe tener número de acta. |
+| `Draft` | `Active`, `Cancelled` | — |
 | `Active` | `Suspended`, `Terminated` | Requiere justificación del cambio. |
 | `Suspended` | `Active`, `Terminated` | Requiere justificación para reactivar o terminar. |
 | Cualquier otro | — | Estados `Completed`, `Terminated`, `Cancelled` son finales. |
@@ -768,9 +735,11 @@ Configuración de las tarifas de retención aplicables a cada tipo de servicio d
 
 Configuración de los rangos de valor para determinar qué nivel de aprobación requiere un contrato.
 
+> [!NOTE]
+> El campo `approvalLevel` (`Administrator` · `Council` · `Assembly`) fue removido por la migración `SimplifyRolesAndApprovals`. Los umbrales ya no distinguen nivel de aprobación — son únicamente rangos de valor.
+
 | Campo | Tipo de Dato | Obligatorio | Descripción / Reglas |
 |-------|--------------|-------------|----------------------|
-| **Nivel de Aprobación (`approvalLevel`)** | `Enum` | Sí | `Administrator` = Administrador · `Council` = Consejo · `Assembly` = Asamblea. Único por tenant. |
 | **Valor Mínimo (`minValue`)** | `decimal(18,2)` | Sí | Límite inferior del rango en COP. |
 | **Valor Máximo (`maxValue`)** | `decimal(18,2)` | Sí | Límite superior del rango en COP. Debe ser mayor que `minValue`. |
 | **Descripción (`description`)** | `string` max 500 | No | Descripción del umbral. Ej. "Contratos menores a 10 SMLMV". |
@@ -786,7 +755,7 @@ El sistema recorre los umbrales activos ordenados de menor a mayor valor. Si el 
 
 1. **Soft delete en Proveedores**: Los proveedores se eliminan lógicamente. No se pueden eliminar proveedores con contratos activos o en borrador.
 2. **Contratos en Borrador**: Solo los contratos en estado `Draft` pueden editarse o eliminarse. Un contrato activo solo puede suspenderse o terminarse.
-3. **Aprobación de Contratos**: El nivel de aprobación se determina automáticamente al crear el contrato según los umbrales configurados. Para activar un contrato con aprobación de Consejo o Asamblea, se requiere el número de acta correspondiente.
+3. **Umbrales de Aprobación**: `ApprovalThreshold` define rangos de valor (`minValue`–`maxValue`) para categorizar contratos, sin distinción de nivel de aprobación.
 4. **Renovación Automática**: El motor de alertas genera avisos a los `autoRenewalNoticeDays` días del vencimiento. La renovación no es automática; requiere acción manual del administrador.
 5. **Cálculo de Retenciones**: Las retenciones se calculan sobre el subtotal de la factura usando las tarifas configuradas para el tipo de servicio del contrato.
 6. **Evaluaciones**: El puntaje promedio se calcula como `(calidad + cumplimiento + fairness + post-venta) / 4`. La recomendación se asigna automáticamente: ≥ 4.0 = Renovar, ≥ 2.5 = Evaluar Otras Opciones, < 2.5 = No Renovar.
