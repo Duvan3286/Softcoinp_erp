@@ -20,11 +20,16 @@ public class UnitsController : BaseController
 {
     private readonly ApplicationDbContext _context;
     private readonly IndicatorCacheService _indicatorCache;
+    private readonly PaymentStatusMapService _paymentStatusMapService;
 
-    public UnitsController(ApplicationDbContext context, IndicatorCacheService indicatorCache)
+    public UnitsController(
+        ApplicationDbContext context,
+        IndicatorCacheService indicatorCache,
+        PaymentStatusMapService paymentStatusMapService)
     {
         _context = context;
         _indicatorCache = indicatorCache;
+        _paymentStatusMapService = paymentStatusMapService;
     }
 
     [HttpGet("types")]
@@ -93,20 +98,36 @@ public class UnitsController : BaseController
         });
     }
 
+    [HttpGet("payment-status")]
+    public async Task<IActionResult> GetUnitsPaymentStatus()
+    {
+        var tenantId = GetTenantId();
+        var statuses = await _paymentStatusMapService.GetFlatPaymentStatusAsync(tenantId);
+        return Ok(statuses);
+    }
+
     [HttpGet]
-    public async Task<IActionResult> GetUnits([FromQuery] string? tower, [FromQuery] string? status)
+    public async Task<IActionResult> GetUnits(
+        [FromQuery] string? tower,
+        [FromQuery] string? status,
+        [FromQuery] string? identifier)
     {
         var tenantId = GetTenantId();
         var query = _context.Units.Where(u => u.TenantId == tenantId).AsQueryable();
 
         if (!string.IsNullOrEmpty(tower))
         {
-            query = query.Where(u => u.TowerOrBlock == tower);
+            query = query.Where(u => u.TowerOrBlock.Contains(tower));
         }
 
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<UnitStatus>(status, out var parsedStatus))
         {
             query = query.Where(u => u.Status == parsedStatus);
+        }
+
+        if (!string.IsNullOrEmpty(identifier))
+        {
+            query = query.Where(u => u.Identifier.Contains(identifier));
         }
 
         var units = await query.Select(u => new UnitDto
@@ -161,6 +182,48 @@ public class UnitsController : BaseController
         });
     }
 
+    [HttpGet("check-identifier")]
+    public async Task<IActionResult> CheckIdentifierAvailability(
+        [FromQuery] string identifier,
+        [FromQuery] string? towerOrBlock,
+        [FromQuery] Guid? excludeUnitId)
+    {
+        var tenantId = GetTenantId();
+
+        if (string.IsNullOrWhiteSpace(identifier))
+        {
+            return Ok(new UnitIdentifierAvailabilityDto { IsAvailable = true });
+        }
+
+        var normalizedTowerOrBlock = towerOrBlock;
+        if (normalizedTowerOrBlock == null)
+        {
+            normalizedTowerOrBlock = string.Empty;
+        }
+
+        var query = _context.Units.Where(u =>
+            u.TenantId == tenantId && u.TowerOrBlock == normalizedTowerOrBlock && u.Identifier == identifier);
+
+        if (excludeUnitId.HasValue)
+        {
+            query = query.Where(u => u.Id != excludeUnitId.Value);
+        }
+
+        var isTaken = await query.AnyAsync();
+
+        var result = new UnitIdentifierAvailabilityDto
+        {
+            IsAvailable = !isTaken
+        };
+
+        if (isTaken)
+        {
+            result.Message = BuildDuplicateIdentifierMessage(normalizedTowerOrBlock);
+        }
+
+        return Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> CreateUnit([FromBody] CreateUnitDto dto)
@@ -174,23 +237,24 @@ public class UnitsController : BaseController
             return BadRequest("El tipo de unidad seleccionado no existe en este conjunto.");
         }
 
-        // Validate Identifier Uniqueness
-        var exists = await _context.Units.AnyAsync(u => u.TenantId == tenantId && u.Identifier == dto.Identifier);
-        if (exists)
+        // Validate Identifier Uniqueness within the same tower/block (or within the whole tenant when there is no tower/block)
+        var duplicateIdentifierExists = await _context.Units.AnyAsync(u =>
+            u.TenantId == tenantId && u.TowerOrBlock == dto.TowerOrBlock && u.Identifier == dto.Identifier);
+        if (duplicateIdentifierExists)
         {
-            return BadRequest("El identificador de la unidad ya existe en este conjunto.");
+            return BadRequest(BuildDuplicateIdentifierMessage(dto.TowerOrBlock));
         }
 
         // Validate total coefficient sum logic
         var currentTotal = await _context.Units
             .Where(u => u.TenantId == tenantId && u.Status != UnitStatus.Inactive)
             .SumAsync(u => u.CoproprietyCoefficient);
-        
+
         var willBeActive = dto.Status != UnitStatus.Inactive;
-        if (willBeActive && Math.Abs(100m - (currentTotal + dto.CoproprietyCoefficient)) > 0.0001m)
+        if (willBeActive && (currentTotal + dto.CoproprietyCoefficient) - 100m > 0.0001m)
         {
-            var expected = 100m - currentTotal;
-            return BadRequest($"La suma de coeficientes debe ser exactamente 100%. Coeficiente actual: {currentTotal:F4}%, esperado para esta unidad: {expected:F4}%.");
+            var available = 100m - currentTotal;
+            return BadRequest($"La suma de coeficientes no puede superar el 100%. Coeficiente actual: {currentTotal:F4}%, disponible para esta unidad: {available:F4}%.");
         }
 
         var unit = new Unit
@@ -241,13 +305,15 @@ public class UnitsController : BaseController
         var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId);
         if (unit == null) return NotFound();
 
-        // Validate Identifier Uniqueness
-        if (unit.Identifier != dto.Identifier)
+        // Validate Identifier Uniqueness within the same tower/block (or within the whole tenant when there is no tower/block)
+        // Re-checked whenever either the identifier or the tower/block changes, since the compound key is (tenant, tower/block, identifier)
+        if (unit.Identifier != dto.Identifier || unit.TowerOrBlock != dto.TowerOrBlock)
         {
-            var exists = await _context.Units.AnyAsync(u => u.TenantId == tenantId && u.Identifier == dto.Identifier);
-            if (exists)
+            var duplicateIdentifierExists = await _context.Units.AnyAsync(u =>
+                u.TenantId == tenantId && u.TowerOrBlock == dto.TowerOrBlock && u.Identifier == dto.Identifier && u.Id != id);
+            if (duplicateIdentifierExists)
             {
-                return BadRequest("El identificador de la unidad ya existe en este conjunto.");
+                return BadRequest(BuildDuplicateIdentifierMessage(dto.TowerOrBlock));
             }
         }
 
@@ -257,10 +323,10 @@ public class UnitsController : BaseController
             .SumAsync(u => u.CoproprietyCoefficient);
         
         var willBeActive = dto.Status != UnitStatus.Inactive;
-        if (willBeActive && Math.Abs(100m - (currentTotalOtherUnits + dto.CoproprietyCoefficient)) > 0.0001m)
+        if (willBeActive && (currentTotalOtherUnits + dto.CoproprietyCoefficient) - 100m > 0.0001m)
         {
-            var expected = 100m - currentTotalOtherUnits;
-            return BadRequest($"La suma de coeficientes debe ser exactamente 100%. Coeficiente actual sin esta unidad: {currentTotalOtherUnits:F4}%, esperado para esta unidad: {expected:F4}%.");
+            var available = 100m - currentTotalOtherUnits;
+            return BadRequest($"La suma de coeficientes no puede superar el 100%. Coeficiente actual sin esta unidad: {currentTotalOtherUnits:F4}%, disponible para esta unidad: {available:F4}%.");
         }
 
         if (unit.Status != dto.Status)
@@ -472,8 +538,12 @@ public class UnitsController : BaseController
             return BadRequest(new { Message = "Se encontraron errores en el archivo. Ninguna unidad fue importada.", Errors = errors });
         }
 
-        // Validate Identifiers uniqueness in memory
-        var duplicateIdentifiers = newUnits.GroupBy(u => u.Identifier).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        // Validate Identifiers uniqueness in memory, scoped to tower/block within the file itself
+        var duplicateIdentifiers = newUnits
+            .GroupBy(u => BuildUnitDuplicateKey(u.TowerOrBlock, u.Identifier))
+            .Where(g => g.Count() > 1)
+            .Select(g => FormatIdentifierWithTower(g.First().TowerOrBlock, g.First().Identifier))
+            .ToList();
         if (duplicateIdentifiers.Any())
         {
             errors.Add($"Hay identificadores duplicados en el archivo: {string.Join(", ", duplicateIdentifiers)}");
@@ -481,10 +551,18 @@ public class UnitsController : BaseController
             return BadRequest(new { Message = "Error de validación", Errors = errors });
         }
 
-        // Database checks
-        var existingIdentifiers = await _context.Units.Where(u => u.TenantId == tenantId).Select(u => u.Identifier).ToListAsync();
-        var duplicatesInDb = newUnits.Where(u => existingIdentifiers.Contains(u.Identifier)).Select(u => u.Identifier).ToList();
-        
+        // Database checks, scoped to tower/block
+        var existingUnitKeys = await _context.Units
+            .Where(u => u.TenantId == tenantId)
+            .Select(u => new { u.TowerOrBlock, u.Identifier })
+            .ToListAsync();
+        var existingUnitKeySet = new System.Collections.Generic.HashSet<string>(
+            existingUnitKeys.Select(k => BuildUnitDuplicateKey(k.TowerOrBlock, k.Identifier)));
+        var duplicatesInDb = newUnits
+            .Where(u => existingUnitKeySet.Contains(BuildUnitDuplicateKey(u.TowerOrBlock, u.Identifier)))
+            .Select(u => FormatIdentifierWithTower(u.TowerOrBlock, u.Identifier))
+            .ToList();
+
         if (duplicatesInDb.Any())
         {
             errors.Add($"Los siguientes identificadores ya existen en el sistema: {string.Join(", ", duplicatesInDb)}");
@@ -497,10 +575,10 @@ public class UnitsController : BaseController
             .Where(u => u.TenantId == tenantId && u.Status != UnitStatus.Inactive)
             .SumAsync(u => u.CoproprietyCoefficient);
         
-        if (Math.Abs(100m - (currentTotal + totalNewCoefficient)) > 0.0001m)
+        if ((currentTotal + totalNewCoefficient) - 100m > 0.0001m)
         {
-            var expected = 100m - currentTotal;
-            errors.Add($"La suma de coeficientes debe ser exactamente 100%. El sistema tiene {currentTotal:F4}%, el archivo agrega {totalNewCoefficient:F4}%. Se esperaba {expected:F4}% en el archivo para completar el 100%.");
+            var available = 100m - currentTotal;
+            errors.Add($"La suma de coeficientes no puede superar el 100%. El sistema tiene {currentTotal:F4}%, el archivo agrega {totalNewCoefficient:F4}%. Disponible antes de este archivo: {available:F4}%.");
             await LogBulkImport(tenantId, BulkImportStatus.Failed, 0, errors.Count, System.Text.Json.JsonSerializer.Serialize(errors));
             return BadRequest(new { Message = "Error de validación de coeficientes", Errors = errors });
         }
@@ -554,5 +632,36 @@ public class UnitsController : BaseController
             ErrorReport = errorReport
         });
         await _context.SaveChangesAsync();
+    }
+
+    private static string BuildDuplicateIdentifierMessage(string towerOrBlock)
+    {
+        if (string.IsNullOrWhiteSpace(towerOrBlock))
+        {
+            return "El identificador de la unidad ya existe en este conjunto.";
+        }
+
+        return $"El identificador de la unidad ya existe en la torre o bloque '{towerOrBlock}' de este conjunto.";
+    }
+
+    private static string BuildUnitDuplicateKey(string towerOrBlock, string identifier)
+    {
+        var normalizedTowerOrBlock = towerOrBlock;
+        if (normalizedTowerOrBlock == null)
+        {
+            normalizedTowerOrBlock = string.Empty;
+        }
+
+        return normalizedTowerOrBlock + "" + identifier;
+    }
+
+    private static string FormatIdentifierWithTower(string towerOrBlock, string identifier)
+    {
+        if (string.IsNullOrWhiteSpace(towerOrBlock))
+        {
+            return identifier;
+        }
+
+        return $"{identifier} ({towerOrBlock})";
     }
 }

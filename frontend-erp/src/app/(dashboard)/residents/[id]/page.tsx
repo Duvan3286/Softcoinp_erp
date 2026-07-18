@@ -8,7 +8,7 @@ import {
   UnitOwnerSummary,
   AssignOwnerToUnitPayload,
 } from "@/lib/residents-service";
-import { UnitsService, Unit } from "@/lib/units-service";
+import { UnitsService, Unit, formatUnitLabel } from "@/lib/units-service";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -442,7 +442,12 @@ export default function OwnerDetailPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-bold text-foreground">
-                            Unidad {u.unitIdentifier}
+                            {(() => {
+                              if (u.unitTowerOrBlock) {
+                                return `${u.unitTowerOrBlock} ${u.unitTypeName} ${u.unitIdentifier}`;
+                              }
+                              return `${u.unitTypeName} ${u.unitIdentifier}`;
+                            })()}
                           </p>
                           {u.isSpokesperson && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full border border-amber-200 dark:border-amber-900">
@@ -644,8 +649,7 @@ export default function OwnerDetailPage() {
                         <option value="">Seleccione una unidad...</option>
                         {availableUnits.map((u) => (
                           <option key={u.id} value={u.id}>
-                            {u.identifier}
-                            {u.towerOrBlock ? ` — Torre ${u.towerOrBlock}` : ""}
+                            {formatUnitLabel(u.identifier, u.towerOrBlock)}
                           </option>
                         ))}
                       </select>

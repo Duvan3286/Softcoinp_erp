@@ -24,6 +24,7 @@ public class FeesAndPortfolioController : BaseController
     private readonly ApplicationDbContext _context;
     private readonly ILogger<FeesAndPortfolioController> _logger;
     private readonly PortfolioAgingService _portfolioAgingService;
+    private readonly IndicatorCacheService _indicatorCache;
 
     public FeesAndPortfolioController(
         BillingEngineService billingEngine,
@@ -31,7 +32,8 @@ public class FeesAndPortfolioController : BaseController
         StatementService statementService,
         ApplicationDbContext context,
         ILogger<FeesAndPortfolioController> logger,
-        PortfolioAgingService portfolioAgingService)
+        PortfolioAgingService portfolioAgingService,
+        IndicatorCacheService indicatorCache)
     {
         _billingEngine = billingEngine;
         _paymentService = paymentService;
@@ -39,6 +41,7 @@ public class FeesAndPortfolioController : BaseController
         _statementService = statementService;
         _context = context;
         _logger = logger;
+        _indicatorCache = indicatorCache;
     }
 
     [HttpGet("checklist")]
@@ -459,19 +462,20 @@ public class FeesAndPortfolioController : BaseController
             return BadRequest("El nombre de la cuota extraordinaria es obligatorio.");
         if (request.TotalAmount <= 0)
             return BadRequest("El monto total debe ser mayor a cero.");
-        if (string.IsNullOrWhiteSpace(request.MeetingActNumber))
-            return BadRequest("El número del acta de asamblea es obligatorio para cuotas extraordinarias.");
 
         if (!Enum.TryParse<DistributionType>(request.DistributionType, true, out var distributionType))
             return BadRequest("Tipo de distribución inválido. Use: AllByCoefficient o SpecificGroup.");
+
+        if (distributionType == DistributionType.SpecificGroup && (request.UnitIds == null || request.UnitIds.Count == 0))
+            return BadRequest("Debe seleccionar al menos una unidad para una distribución específica.");
 
         var unitsQuery = _context.Units
             .Where(u => u.TenantId == tenantId
                 && (u.Status == UnitStatus.ActiveOccupied || u.Status == UnitStatus.ActiveUnoccupied));
 
-        if (distributionType == DistributionType.SpecificGroup && request.UnitIds?.Count > 0)
+        if (distributionType == DistributionType.SpecificGroup)
         {
-            unitsQuery = unitsQuery.Where(u => request.UnitIds.Contains(u.Id));
+            unitsQuery = unitsQuery.Where(u => request.UnitIds!.Contains(u.Id));
         }
 
         var units = await unitsQuery.ToListAsync();
@@ -537,6 +541,9 @@ public class FeesAndPortfolioController : BaseController
             _context.ExtraordinaryFeeDistributions.AddRange(distributions);
             await _context.SaveChangesAsync();
             await tx.CommitAsync();
+
+            await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+            await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
 
             var firstUnitAmount = distributions.Count > 0 ? distributions[0].Amount : 0m;
             return Ok(new { id = fee.Id, name = fee.Name, amountPerUnit = firstUnitAmount, distributionsCount = distributions.Count });
@@ -685,6 +692,9 @@ public class FeesAndPortfolioController : BaseController
         _context.IndividualCharges.Add(charge);
         await _context.SaveChangesAsync();
 
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
+
         return Ok(new
         {
             id = charge.Id,
@@ -794,6 +804,9 @@ public class FeesAndPortfolioController : BaseController
         }
 
         await _context.SaveChangesAsync();
+
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
 
         return Ok(new { message = "Estado actualizado exitosamente.", status = newStatus.ToString() });
     }

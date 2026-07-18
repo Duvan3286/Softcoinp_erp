@@ -544,8 +544,10 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.ToTable("erp_units");
             entity.HasKey(e => e.Id);
             
-            // Unique index for identifier per tenant
-            entity.HasIndex(e => new { e.TenantId, e.Identifier }).IsUnique();
+            // Unique index for identifier per tenant, scoped to tower/block (or the whole tenant when there is no tower/block)
+            entity.HasIndex(e => new { e.TenantId, e.TowerOrBlock, e.Identifier })
+                  .HasDatabaseName("IX_erp_units_TenantId_TowerOrBlock_Identifier")
+                  .IsUnique();
             entity.HasIndex(e => new { e.TenantId, e.Status })
                   .HasDatabaseName("IX_units_tenant_status");
 

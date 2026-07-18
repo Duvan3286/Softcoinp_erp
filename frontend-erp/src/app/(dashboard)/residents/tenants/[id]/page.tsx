@@ -6,6 +6,7 @@ import {
   TenantResident,
   UpdateTenantResidentPayload,
 } from "@/lib/residents-service";
+import { formatUnitLabel } from "@/lib/units-service";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -187,9 +188,9 @@ export default function TenantDetailPage() {
   const docLabel = DOC_LABEL[String(tenant.documentType)] ?? String(tenant.documentType);
   const badge = leaseBadge(tenant.daysUntilLeaseExpires);
 
-  const tabs: Array<{ key: Tab; label: string }> = [
-    { key: "info", label: "Información" },
-    { key: "contract", label: "Contrato" },
+  const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode }> = [
+    { key: "info", label: "Información", icon: <Users className="w-4 h-4" /> },
+    { key: "contract", label: "Contrato", icon: <CalendarDays className="w-4 h-4" /> },
   ];
 
   return (
@@ -226,7 +227,7 @@ export default function TenantDetailPage() {
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
               >
                 <Home className="w-3.5 h-3.5" />
-                Unidad {tenant.unitIdentifier}
+                {formatUnitLabel(tenant.unitIdentifier, tenant.unitTowerOrBlock)}
               </Link>
             </div>
           </div>
@@ -245,10 +246,11 @@ export default function TenantDetailPage() {
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-2 px-5 py-4 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 ${
                     activeTab === tab.key
-                      ? "border-emerald-600 text-emerald-600 bg-emerald-50/30"
+                      ? "border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20"
                       : "border-transparent text-muted-foreground hover:text-muted-foreground hover:bg-muted/30"
                   }`}
                 >
+                  {tab.icon}
                   {tab.label}
                 </button>
               ))}
@@ -578,7 +580,7 @@ export default function TenantDetailPage() {
                   className="inline-flex items-center gap-1.5 mt-0.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                 >
                   <Home className="w-3.5 h-3.5" />
-                  {tenant.unitIdentifier}
+                  {formatUnitLabel(tenant.unitIdentifier, tenant.unitTowerOrBlock)}
                 </Link>
               </div>
             </div>
@@ -596,7 +598,7 @@ export default function TenantDetailPage() {
               <div className="p-5 space-y-4">
                 <p className="text-sm text-muted-foreground">
                   Se registrará la salida del arrendatario de la unidad{" "}
-                  <strong>{tenant.unitIdentifier}</strong>. Esta acción no se puede deshacer.
+                  <strong>{formatUnitLabel(tenant.unitIdentifier, tenant.unitTowerOrBlock)}</strong>. Esta acción no se puede deshacer.
                 </p>
                 {deactivateError && (
                   <p className="text-sm text-rose-600 dark:text-rose-400 font-semibold">{deactivateError}</p>

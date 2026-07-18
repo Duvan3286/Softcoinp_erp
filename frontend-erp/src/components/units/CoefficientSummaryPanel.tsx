@@ -3,13 +3,17 @@
 import React, { useEffect, useState } from "react";
 import { UnitsService, UnitCoefficientSummary } from "@/lib/units-service";
 
-export default function CoefficientSummaryPanel() {
+interface CoefficientSummaryPanelProps {
+  refreshTrigger?: number;
+}
+
+export default function CoefficientSummaryPanel({ refreshTrigger }: CoefficientSummaryPanelProps) {
   const [summary, setSummary] = useState<UnitCoefficientSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchSummary();
-  }, []);
+  }, [refreshTrigger]);
 
   const fetchSummary = async () => {
     try {

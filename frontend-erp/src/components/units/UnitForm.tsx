@@ -41,9 +41,51 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [identifierAvailability, setIdentifierAvailability] = useState<{
+    checked: boolean;
+    isAvailable: boolean;
+    message: string | null;
+  }>({ checked: false, isAvailable: true, message: null });
+
   useEffect(() => {
     loadDependencies();
   }, []);
+
+  useEffect(() => {
+    if (identifier.trim() === "") {
+      setIdentifierAvailability({ checked: false, isAvailable: true, message: null });
+      return;
+    }
+
+    let isCancelled = false;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        let excludeUnitId: string | undefined = undefined;
+        if (initialData) {
+          excludeUnitId = initialData.id;
+        }
+
+        const availability = await UnitsService.checkIdentifierAvailability(identifier, towerOrBlock, excludeUnitId);
+        if (!isCancelled) {
+          setIdentifierAvailability({
+            checked: true,
+            isAvailable: availability.isAvailable,
+            message: availability.message
+          });
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setIdentifierAvailability({ checked: false, isAvailable: true, message: null });
+        }
+      }
+    }, 500);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [identifier, towerOrBlock, initialData]);
 
   const loadDependencies = async () => {
     try {
@@ -97,6 +139,9 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
     if (isSubmitting) {
       return true;
     }
+    if (identifierAvailability.checked && !identifierAvailability.isAvailable) {
+      return true;
+    }
     if (status !== 5) {
       const remaining = calculateRemainingCoefficient();
       if (remaining < 0) {
@@ -104,6 +149,16 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
       }
     }
     return false;
+  };
+
+  const getIdentifierAvailabilityMessage = () => {
+    if (!identifierAvailability.checked) {
+      return null;
+    }
+    if (identifierAvailability.isAvailable) {
+      return null;
+    }
+    return identifierAvailability.message;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,6 +235,11 @@ export default function UnitForm({ initialData, onSuccess, onCancel }: UnitFormP
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder="Ej. Apto 101"
             />
+            {getIdentifierAvailabilityMessage() && (
+              <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400">
+                {getIdentifierAvailabilityMessage()}
+              </p>
+            )}
           </div>
 
           <div>

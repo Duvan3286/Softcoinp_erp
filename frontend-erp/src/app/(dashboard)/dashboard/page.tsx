@@ -501,7 +501,6 @@ function PaymentStatusMapSection({ map }: { map: PaymentStatusMap | null }) {
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-yellow-400 inline-block" /> 1 mes</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-orange-400 inline-block" /> 2 meses</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-rose-500 inline-block" /> 3+ meses</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-300 dark:bg-slate-600 inline-block" /> Desocupada / Inactiva</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

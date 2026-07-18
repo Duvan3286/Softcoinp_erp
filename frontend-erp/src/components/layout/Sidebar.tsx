@@ -229,6 +229,10 @@ export const Sidebar = () => {
           >
             <NavItem text="Cartera" path="/portfolio" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Facturacion" path="/billing" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Registrar Pago" path="/billing/payments/register" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Cuotas Extraordinarias" path="/billing/extraordinary-fees" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Cobros Individuales" path="/billing/individual-charges" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Documentos" path="/billing/documents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Presupuesto" path="/budgets" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
 
           </NavGroup>

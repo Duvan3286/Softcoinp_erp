@@ -1,6 +1,5 @@
 import React from "react";
-import CoefficientSummaryPanel from "@/components/units/CoefficientSummaryPanel";
-import UnitsList from "@/components/units/UnitsList";
+import UnitsPageContent from "@/components/units/UnitsPageContent";
 
 export const metadata = {
   title: "Properties Catalog - Softcoinp ERP",
@@ -16,9 +15,7 @@ export default function UnitsPage() {
         </p>
       </div>
 
-      <CoefficientSummaryPanel />
-      
-      <UnitsList />
+      <UnitsPageContent />
     </div>
   );
 }

@@ -1,17 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, FileText, ShieldCheck, AlertTriangle, CheckCircle, XCircle, Search, Calendar, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import feesPortfolioService, { UnitStatement, ClearanceCertificateSummary } from '@/lib/fees-portfolio-service';
-import { UnitsService as unitsService, Unit } from '@/lib/units-service';
+import { UnitsService as unitsService, Unit, formatUnitLabel } from '@/lib/units-service';
 
 type Tab = 'statement' | 'clearance';
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [units, setUnits] = useState<Unit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(true);
   const [error, setError] = useState('');
@@ -19,7 +20,7 @@ export default function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('statement');
 
   // Statement state
-  const [stmtUnitId, setStmtUnitId] = useState('');
+  const [stmtUnitId, setStmtUnitId] = useState(searchParams.get('unitId') || '');
   const [stmtStartDate, setStmtStartDate] = useState('');
   const [stmtEndDate, setStmtEndDate] = useState('');
   const [generatingStmt, setGeneratingStmt] = useState(false);
@@ -227,7 +228,7 @@ export default function DocumentsPage() {
                   >
                     <option value="">Seleccione una unidad...</option>
                     {units.map((u) => (
-                      <option key={u.id} value={u.id}>{u.identifier} - {u.towerOrBlock}</option>
+                      <option key={u.id} value={u.id}>{formatUnitLabel(u.identifier, u.towerOrBlock)}</option>
                     ))}
                   </select>
                 </div>
@@ -361,7 +362,7 @@ export default function DocumentsPage() {
                   >
                     <option value="">Seleccione una unidad...</option>
                     {units.map((u) => (
-                      <option key={u.id} value={u.id}>{u.identifier} - {u.towerOrBlock}</option>
+                      <option key={u.id} value={u.id}>{formatUnitLabel(u.identifier, u.towerOrBlock)}</option>
                     ))}
                   </select>
                 </div>

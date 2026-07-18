@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ResidentsService, TenantResidentListItem } from "@/lib/residents-service";
+import { formatUnitLabel } from "@/lib/units-service";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Search, Users, Home, X } from "lucide-react";
@@ -15,6 +16,8 @@ const DOC_LABEL: Record<string, string> = {
   PPT: "PPT",
 };
 
+const PAGE_SIZE = 15;
+
 export default function TenantsListPage() {
   const router = useRouter();
   const [tenants, setTenants] = useState<TenantResidentListItem[]>([]);
@@ -22,6 +25,7 @@ export default function TenantsListPage() {
   const [apiError, setApiError] = useState("");
   const [search, setSearch] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadTenants();
@@ -33,12 +37,14 @@ export default function TenantsListPage() {
     try {
       const data = await ResidentsService.getTenants(undefined, includeInactive);
       setTenants(data);
+      setCurrentPage(1);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         "Error al cargar los arrendatarios. Verifica que el servidor esté activo.";
       setApiError(msg);
       setTenants([]);
+      setCurrentPage(1);
     } finally {
       setLoading(false);
     }
@@ -54,6 +60,26 @@ export default function TenantsListPage() {
       t.unitIdentifier.toLowerCase().includes(lower)
     );
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedTenants = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length);
+
+  const goToPage = (page: number) => {
+    let nextPage = page;
+    if (nextPage < 1) {
+      nextPage = 1;
+    }
+    if (nextPage > totalPages) {
+      nextPage = totalPages;
+    }
+    setCurrentPage(nextPage);
+  };
 
   const activeCount = tenants.filter((t) => t.isActive).length;
   const inactiveCount = tenants.filter((t) => !t.isActive).length;
@@ -221,13 +247,12 @@ export default function TenantsListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map((t) => {
+                  {paginatedTenants.map((t) => {
                     const badge = leaseDaysLabel(t.daysUntilLeaseExpires);
                     return (
                       <tr
                         key={t.id}
-                        className="hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/residents/tenants/${t.id}`)}
+                        className="hover:bg-muted/30 transition-colors"
                       >
                         <td className="px-5 py-4">
                           <p className="text-sm font-bold text-foreground">{t.fullName}</p>
@@ -238,7 +263,7 @@ export default function TenantsListPage() {
                         <td className="px-5 py-4">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-bold">
                             <Home className="w-3.5 h-3.5" />
-                            {t.unitIdentifier}
+                            {formatUnitLabel(t.unitIdentifier, t.unitTowerOrBlock)}
                           </span>
                         </td>
                         <td className="px-5 py-4">
@@ -274,15 +299,12 @@ export default function TenantsListPage() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/residents/tenants/${t.id}`);
-                            }}
-                            className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 transition-colors"
+                          <Link
+                            href={`/residents/tenants/${t.id}`}
+                            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300 text-sm font-semibold px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
                           >
-                            Ver detalle →
-                          </button>
+                            Ver Detalle
+                          </Link>
                         </td>
                       </tr>
                     );
@@ -293,7 +315,7 @@ export default function TenantsListPage() {
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-border">
-              {filtered.map((t) => {
+              {paginatedTenants.map((t) => {
                 const badge = leaseDaysLabel(t.daysUntilLeaseExpires);
                 return (
                   <div
@@ -315,7 +337,7 @@ export default function TenantsListPage() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {DOC_LABEL[t.documentType] ?? t.documentType} {t.documentNumber} · Unidad{" "}
-                        {t.unitIdentifier}
+                        {formatUnitLabel(t.unitIdentifier, t.unitTowerOrBlock)}
                       </p>
                       {t.leaseEndDate && (
                         <span
@@ -330,6 +352,33 @@ export default function TenantsListPage() {
               })}
             </div>
           </>
+        )}
+
+        {!loading && filtered.length > 0 && (
+          <div className="px-6 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Mostrando {rangeStart}-{rangeEnd} de {filtered.length} arrendatarios
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

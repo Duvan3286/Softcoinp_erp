@@ -25,6 +25,8 @@ public class UnitOwnerSummaryDto
     public Guid AssignmentId { get; set; }
     public Guid UnitId { get; set; }
     public string UnitIdentifier { get; set; } = string.Empty;
+    public string UnitTowerOrBlock { get; set; } = string.Empty;
+    public string UnitTypeName { get; set; } = string.Empty;
     public Guid OwnerId { get; set; }
     public string OwnerName { get; set; } = string.Empty;
     public string OwnerDocumentNumber { get; set; } = string.Empty;
@@ -76,6 +78,7 @@ public class TenantResidentDto
     public Guid Id { get; set; }
     public Guid UnitId { get; set; }
     public string UnitIdentifier { get; set; } = string.Empty;
+    public string UnitTowerOrBlock { get; set; } = string.Empty;
     public string DocumentType { get; set; } = string.Empty;
     public string DocumentNumber { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
@@ -95,6 +98,7 @@ public class TenantResidentListItemDto
     public Guid Id { get; set; }
     public Guid UnitId { get; set; }
     public string UnitIdentifier { get; set; } = string.Empty;
+    public string UnitTowerOrBlock { get; set; } = string.Empty;
     public string DocumentType { get; set; } = string.Empty;
     public string DocumentNumber { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;

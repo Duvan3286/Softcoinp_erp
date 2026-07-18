@@ -6,7 +6,7 @@ import { Loader2, DollarSign, Calendar, CheckCircle, XCircle, Plus, AlertTriangl
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import feesPortfolioService, { BillingPeriodSummary, PortfolioSummary, BillingChecklist, BillingExclusionRequest } from '@/lib/fees-portfolio-service';
-import { UnitsService, Unit } from '@/lib/units-service';
+import { UnitsService, Unit, formatUnitLabel } from '@/lib/units-service';
 
 type Tab = 'periods' | 'summary';
 
@@ -157,12 +157,22 @@ export default function BillingPage() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Liquidación de Cuotas</h1>
           <p className="text-sm text-muted-foreground mt-1">Gestiona los períodos de liquidación y la cartera del conjunto.</p>
         </div>
-        {activeTab === 'periods' && (
-          <Button onClick={handleOpenModal}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nueva Liquidación
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={() => router.push('/billing/extraordinary-fees')}>
+            <DollarSign className="w-4 h-4 mr-2" />
+            Cuotas Extraordinarias
           </Button>
-        )}
+          <Button variant="secondary" onClick={() => router.push('/billing/payments/register')}>
+            <DollarSign className="w-4 h-4 mr-2" />
+            Registrar Pago
+          </Button>
+          {activeTab === 'periods' && (
+            <Button onClick={handleOpenModal}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Liquidación
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
@@ -372,7 +382,7 @@ export default function BillingPage() {
                   >
                     <option value="">Selecciona una unidad</option>
                     {units.map((u) => (
-                      <option key={u.id} value={u.id}>{u.identifier}</option>
+                      <option key={u.id} value={u.id}>{formatUnitLabel(u.identifier, u.towerOrBlock)}</option>
                     ))}
                   </select>
                   <input
@@ -388,9 +398,13 @@ export default function BillingPage() {
                   <ul className="space-y-1">
                     {excludedUnits.map((exclusion) => {
                       const unit = units.find((u) => u.id === exclusion.unitId);
+                      let unitLabel = exclusion.unitId;
+                      if (unit) {
+                        unitLabel = formatUnitLabel(unit.identifier, unit.towerOrBlock);
+                      }
                       return (
                         <li key={exclusion.unitId} className="flex items-center justify-between text-xs bg-muted/50 rounded-lg px-3 py-2">
-                          <span><strong>{unit?.identifier ?? exclusion.unitId}</strong>: {exclusion.reason}</span>
+                          <span><strong>{unitLabel}</strong>: {exclusion.reason}</span>
                           <button type="button" onClick={() => handleRemoveExclusion(exclusion.unitId)} className="text-rose-600 hover:text-rose-800">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

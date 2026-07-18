@@ -73,6 +73,8 @@ public class ResidentsController : BaseController
                         AssignmentId = uo.Id,
                         UnitId = uo.UnitId,
                         UnitIdentifier = uo.Unit != null ? uo.Unit.Identifier : string.Empty,
+                        UnitTowerOrBlock = uo.Unit != null ? uo.Unit.TowerOrBlock : string.Empty,
+                        UnitTypeName = uo.Unit != null && uo.Unit.UnitType != null ? uo.Unit.UnitType.Name : string.Empty,
                         OwnerId = o.Id,
                         OwnerName = o.FullNameOrCompanyName,
                         OwnerDocumentNumber = o.DocumentNumber,
@@ -128,6 +130,8 @@ public class ResidentsController : BaseController
                         AssignmentId = uo.Id,
                         UnitId = uo.UnitId,
                         UnitIdentifier = uo.Unit != null ? uo.Unit.Identifier : string.Empty,
+                        UnitTowerOrBlock = uo.Unit != null ? uo.Unit.TowerOrBlock : string.Empty,
+                        UnitTypeName = uo.Unit != null && uo.Unit.UnitType != null ? uo.Unit.UnitType.Name : string.Empty,
                         OwnerId = o.Id,
                         OwnerName = o.FullNameOrCompanyName,
                         OwnerDocumentNumber = o.DocumentNumber,
@@ -605,33 +609,38 @@ public class ResidentsController : BaseController
     {
         var tenantId = GetTenantId();
 
-        var resident = await _context.TenantResidents
+        var residentEntity = await _context.TenantResidents
             .Where(t => t.UnitId == unitId && t.TenantId == tenantId && t.IsActive)
-            .Select(t => new TenantResidentDto
-            {
-                Id = t.Id,
-                UnitId = t.UnitId,
-                DocumentType = t.DocumentType.ToString(),
-                DocumentNumber = t.DocumentNumber,
-                FullName = t.FullName,
-                Email = t.Email,
-                Phone = t.Phone,
-                LeaseStartDate = t.LeaseStartDate,
-                LeaseEndDate = t.LeaseEndDate,
-                RealEstateAgentName = t.RealEstateAgentName,
-                RealEstateAgentPhone = t.RealEstateAgentPhone,
-                AuthorizedToPayAdmin = t.AuthorizedToPayAdmin,
-                IsActive = t.IsActive,
-                DaysUntilLeaseExpires = t.LeaseEndDate.HasValue
-                    ? (int)(t.LeaseEndDate.Value - DateTime.UtcNow).TotalDays
-                    : (int?)null
-            })
             .FirstOrDefaultAsync();
 
-        if (resident == null)
+        if (residentEntity == null)
         {
             return NotFound(new { message = "No hay arrendatario activo para esta unidad." });
         }
+
+        int? daysUntilLeaseExpires = null;
+        if (residentEntity.LeaseEndDate.HasValue)
+        {
+            daysUntilLeaseExpires = (int)(residentEntity.LeaseEndDate.Value - DateTime.UtcNow).TotalDays;
+        }
+
+        var resident = new TenantResidentDto
+        {
+            Id = residentEntity.Id,
+            UnitId = residentEntity.UnitId,
+            DocumentType = residentEntity.DocumentType.ToString(),
+            DocumentNumber = residentEntity.DocumentNumber,
+            FullName = residentEntity.FullName,
+            Email = residentEntity.Email,
+            Phone = residentEntity.Phone,
+            LeaseStartDate = residentEntity.LeaseStartDate,
+            LeaseEndDate = residentEntity.LeaseEndDate,
+            RealEstateAgentName = residentEntity.RealEstateAgentName,
+            RealEstateAgentPhone = residentEntity.RealEstateAgentPhone,
+            AuthorizedToPayAdmin = residentEntity.AuthorizedToPayAdmin,
+            IsActive = residentEntity.IsActive,
+            DaysUntilLeaseExpires = daysUntilLeaseExpires
+        };
 
         return Ok(resident);
     }
@@ -916,28 +925,37 @@ public class ResidentsController : BaseController
             })
             .ToListAsync();
 
-        var activeTenant = await _context.TenantResidents
+        var activeTenantEntity = await _context.TenantResidents
             .Where(t => t.UnitId == unitId && t.TenantId == tenantId && t.IsActive)
-            .Select(t => new TenantResidentDto
-            {
-                Id = t.Id,
-                UnitId = t.UnitId,
-                DocumentType = t.DocumentType.ToString(),
-                DocumentNumber = t.DocumentNumber,
-                FullName = t.FullName,
-                Email = t.Email,
-                Phone = t.Phone,
-                LeaseStartDate = t.LeaseStartDate,
-                LeaseEndDate = t.LeaseEndDate,
-                RealEstateAgentName = t.RealEstateAgentName,
-                RealEstateAgentPhone = t.RealEstateAgentPhone,
-                AuthorizedToPayAdmin = t.AuthorizedToPayAdmin,
-                IsActive = t.IsActive,
-                DaysUntilLeaseExpires = t.LeaseEndDate.HasValue
-                    ? (int)(t.LeaseEndDate.Value - DateTime.UtcNow).TotalDays
-                    : (int?)null
-            })
             .FirstOrDefaultAsync();
+
+        TenantResidentDto? activeTenant = null;
+        if (activeTenantEntity != null)
+        {
+            int? tenantDaysUntilLeaseExpires = null;
+            if (activeTenantEntity.LeaseEndDate.HasValue)
+            {
+                tenantDaysUntilLeaseExpires = (int)(activeTenantEntity.LeaseEndDate.Value - DateTime.UtcNow).TotalDays;
+            }
+
+            activeTenant = new TenantResidentDto
+            {
+                Id = activeTenantEntity.Id,
+                UnitId = activeTenantEntity.UnitId,
+                DocumentType = activeTenantEntity.DocumentType.ToString(),
+                DocumentNumber = activeTenantEntity.DocumentNumber,
+                FullName = activeTenantEntity.FullName,
+                Email = activeTenantEntity.Email,
+                Phone = activeTenantEntity.Phone,
+                LeaseStartDate = activeTenantEntity.LeaseStartDate,
+                LeaseEndDate = activeTenantEntity.LeaseEndDate,
+                RealEstateAgentName = activeTenantEntity.RealEstateAgentName,
+                RealEstateAgentPhone = activeTenantEntity.RealEstateAgentPhone,
+                AuthorizedToPayAdmin = activeTenantEntity.AuthorizedToPayAdmin,
+                IsActive = activeTenantEntity.IsActive,
+                DaysUntilLeaseExpires = tenantDaysUntilLeaseExpires
+            };
+        }
 
         var cohabitationMembers = await _context.CohabitationGroupMembers
             .Where(c => c.UnitId == unitId && c.TenantId == tenantId && c.IsActive)
@@ -1233,6 +1251,7 @@ public class ResidentsController : BaseController
                 t.Id,
                 t.UnitId,
                 UnitIdentifier = t.Unit != null ? t.Unit.Identifier : string.Empty,
+                UnitTowerOrBlock = t.Unit != null ? t.Unit.TowerOrBlock : string.Empty,
                 DocumentType = t.DocumentType.ToString(),
                 t.DocumentNumber,
                 t.FullName,
@@ -1251,6 +1270,7 @@ public class ResidentsController : BaseController
             Id = t.Id,
             UnitId = t.UnitId,
             UnitIdentifier = t.UnitIdentifier,
+            UnitTowerOrBlock = t.UnitTowerOrBlock,
             DocumentType = t.DocumentType,
             DocumentNumber = t.DocumentNumber,
             FullName = t.FullName,
@@ -1286,6 +1306,7 @@ public class ResidentsController : BaseController
             Id = tenant.Id,
             UnitId = tenant.UnitId,
             UnitIdentifier = tenant.Unit != null ? tenant.Unit.Identifier : string.Empty,
+            UnitTowerOrBlock = tenant.Unit != null ? tenant.Unit.TowerOrBlock : string.Empty,
             DocumentType = tenant.DocumentType.ToString(),
             DocumentNumber = tenant.DocumentNumber,
             FullName = tenant.FullName,

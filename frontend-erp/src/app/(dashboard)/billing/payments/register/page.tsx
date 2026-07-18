@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, ArrowLeft, Eye, Save, AlertTriangle, CheckCircle, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import feesPortfolioService, { PaymentPreview, RegisterPaymentRequest } from '@/lib/fees-portfolio-service';
-import { UnitsService as unitsService, Unit } from '@/lib/units-service';
+import { UnitsService as unitsService, Unit, formatUnitLabel } from '@/lib/units-service';
 
 export default function RegisterPaymentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [units, setUnits] = useState<Unit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -19,7 +20,7 @@ export default function RegisterPaymentPage() {
   const [preview, setPreview] = useState<PaymentPreview | null>(null);
   const [result, setResult] = useState<{ id: string; amount: number; advanceAmount: number } | null>(null);
 
-  const [unitId, setUnitId] = useState('');
+  const [unitId, setUnitId] = useState(searchParams.get('unitId') || '');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
@@ -151,7 +152,7 @@ export default function RegisterPaymentPage() {
               >
                 <option value="">Seleccione una unidad...</option>
                 {units.map((u) => (
-                  <option key={u.id} value={u.id}>{u.identifier} - {u.towerOrBlock}</option>
+                  <option key={u.id} value={u.id}>{formatUnitLabel(u.identifier, u.towerOrBlock)}</option>
                 ))}
               </select>
             </div>

@@ -6,7 +6,7 @@ import {
   DocumentType,
   CreateTenantResidentPayload,
 } from "@/lib/residents-service";
-import { UnitsService, Unit } from "@/lib/units-service";
+import { UnitsService, Unit, formatUnitLabel } from "@/lib/units-service";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Home, FileCheck } from "lucide-react";
@@ -156,8 +156,7 @@ export default function NewTenantPage() {
                 <option value="">Seleccione una unidad...</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.identifier}
-                    {u.towerOrBlock ? ` — Torre/Bloque ${u.towerOrBlock}` : ""}
+                    {formatUnitLabel(u.identifier, u.towerOrBlock)}
                   </option>
                 ))}
               </select>

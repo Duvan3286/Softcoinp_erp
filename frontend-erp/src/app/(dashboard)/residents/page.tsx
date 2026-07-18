@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ResidentsService, OwnerSummary } from "@/lib/residents-service";
+import { formatUnitLabel } from "@/lib/units-service";
 import Link from "next/link";
 import { Plus, Search, Users, Building2, Star } from "lucide-react";
 
@@ -14,11 +15,14 @@ const DOC_SHORT: Record<string, string> = {
   PPT: "PPT",
 };
 
+const PAGE_SIZE = 15;
+
 export default function ResidentsPage() {
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchOwners();
@@ -29,8 +33,10 @@ export default function ResidentsPage() {
     try {
       const data = await ResidentsService.getOwners(query, includeInactive);
       setOwners(data);
+      setCurrentPage(1);
     } catch {
       setOwners([]);
+      setCurrentPage(1);
     } finally {
       setLoading(false);
     }
@@ -49,6 +55,22 @@ export default function ResidentsPage() {
   const naturalCount = owners.filter((o) => o.ownerType === "NaturalPerson").length;
   const legalCount = owners.filter((o) => o.ownerType === "LegalEntity").length;
   const totalUnits = owners.reduce((acc, o) => acc + o.units.length, 0);
+
+  const totalPages = Math.max(1, Math.ceil(owners.length / PAGE_SIZE));
+  const paginatedOwners = owners.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const rangeStart = owners.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, owners.length);
+
+  const goToPage = (page: number) => {
+    let nextPage = page;
+    if (nextPage < 1) {
+      nextPage = 1;
+    }
+    if (nextPage > totalPages) {
+      nextPage = totalPages;
+    }
+    setCurrentPage(nextPage);
+  };
 
   return (
     <div className="space-y-6">
@@ -179,7 +201,7 @@ export default function ResidentsPage() {
                   </td>
                 </tr>
               ) : (
-                owners.map((owner) => {
+                paginatedOwners.map((owner) => {
                   const isLegal = owner.ownerType === "LegalEntity";
                   const docShort = DOC_SHORT[owner.documentType] ?? owner.documentType;
                   const isInactive = !owner.isActive;
@@ -230,7 +252,7 @@ export default function ResidentsPage() {
                             {owner.units.slice(0, 3).map((u) => (
                               <Link key={u.assignmentId} href={`/units/${u.unitId}`}>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-muted text-muted-foreground rounded-lg text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
-                                  {u.unitIdentifier}
+                                  {formatUnitLabel(u.unitIdentifier, u.unitTowerOrBlock)}
                                   {u.isSpokesperson && (
                                     <Star className="w-3 h-3 text-amber-500" />
                                   )}
@@ -264,11 +286,29 @@ export default function ResidentsPage() {
         </div>
 
         {!loading && owners.length > 0 && (
-          <div className="px-6 py-3 border-t border-border bg-muted/30">
+          <div className="px-6 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
-              {owners.length} propietario{owners.length !== 1 ? "s" : ""} encontrado
-              {owners.length !== 1 ? "s" : ""}
+              Mostrando {rangeStart}-{rangeEnd} de {owners.length} propietarios
             </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
         )}
       </div>

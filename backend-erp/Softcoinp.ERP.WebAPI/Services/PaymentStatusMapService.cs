@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Softcoinp.ERP.Domain.Enums;
 using Softcoinp.ERP.Infrastructure.Persistence;
 using Softcoinp.ERP.WebAPI.DTOs;
 
@@ -43,6 +42,15 @@ public class PaymentStatusMapService
         return map;
     }
 
+    public async Task<List<UnitPaymentStatusDto>> GetFlatPaymentStatusAsync(string tenantId)
+    {
+        var map = await GetPaymentStatusMapAsync(tenantId);
+        return map.Towers
+            .SelectMany(t => t.Floors)
+            .SelectMany(f => f.Units)
+            .ToList();
+    }
+
     private async Task<PaymentStatusMapDto> ComputePaymentStatusMapAsync(string tenantId)
     {
         var overdueByUnit = await _portfolioAgingService.GetOverdueByUnitAsync(tenantId);
@@ -54,7 +62,7 @@ public class PaymentStatusMapService
 
         var units = await _context.Units
             .Where(u => u.TenantId == tenantId)
-            .Select(u => new { u.Id, u.Identifier, u.TowerOrBlock, u.FloorLevel, Status = u.Status.ToString() })
+            .Select(u => new { u.Id, u.Identifier, u.TowerOrBlock, u.FloorLevel })
             .ToListAsync();
 
         var rawUnits = new List<UnitPaymentStatusRawDto>();
@@ -88,8 +96,7 @@ public class PaymentStatusMapService
                 FloorLevel = unit.FloorLevel,
                 OwnerName = ownerName,
                 OverdueBalance = overdueBalance,
-                MonthsOverdue = monthsOverdue,
-                UnitStatus = unit.Status
+                MonthsOverdue = monthsOverdue
             });
         }
 
@@ -132,7 +139,7 @@ public class PaymentStatusMapService
 
     private static UnitPaymentStatusDto BuildUnitPaymentStatus(UnitPaymentStatusRawDto raw)
     {
-        var colorCode = DetermineColorCode(raw.UnitStatus, raw.OverdueBalance, raw.MonthsOverdue);
+        var colorCode = DetermineColorCode(raw.OverdueBalance, raw.MonthsOverdue);
         var statusLabel = DetermineStatusLabel(colorCode, raw.MonthsOverdue);
 
         return new UnitPaymentStatusDto
@@ -147,18 +154,8 @@ public class PaymentStatusMapService
         };
     }
 
-    private static string DetermineColorCode(string unitStatus, decimal overdueBalance, int monthsOverdue)
+    private static string DetermineColorCode(decimal overdueBalance, int monthsOverdue)
     {
-        var isUnoccupiedOrInactive = unitStatus == UnitStatus.ActiveUnoccupied.ToString()
-            || unitStatus == UnitStatus.Inactive.ToString()
-            || unitStatus == UnitStatus.DeliveryProcess.ToString()
-            || unitStatus == UnitStatus.Litigation.ToString();
-
-        if (isUnoccupiedOrInactive)
-        {
-            return "gray";
-        }
-
         if (overdueBalance <= 0)
         {
             return "green";
@@ -179,11 +176,6 @@ public class PaymentStatusMapService
 
     private static string DetermineStatusLabel(string colorCode, int monthsOverdue)
     {
-        if (colorCode == "gray")
-        {
-            return "Desocupada / Inactiva";
-        }
-
         if (colorCode == "green")
         {
             return "Al día";
@@ -212,5 +204,4 @@ internal class UnitPaymentStatusRawDto
     public string OwnerName { get; set; } = string.Empty;
     public decimal OverdueBalance { get; set; }
     public int MonthsOverdue { get; set; }
-    public string UnitStatus { get; set; } = string.Empty;
 }

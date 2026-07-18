@@ -94,3 +94,9 @@ public class UnitCoefficientSummaryDto
     public decimal ExcessCoefficient { get; set; }
     public bool IsExactlyOneHundred { get; set; }
 }
+
+public class UnitIdentifierAvailabilityDto
+{
+    public bool IsAvailable { get; set; }
+    public string? Message { get; set; }
+}

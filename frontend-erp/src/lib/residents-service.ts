@@ -32,6 +32,8 @@ export interface UnitOwnerSummary {
   assignmentId: string;
   unitId: string;
   unitIdentifier: string;
+  unitTowerOrBlock: string;
+  unitTypeName: string;
   ownerId: string;
   ownerName: string;
   ownerDocumentNumber: string;
@@ -73,6 +75,7 @@ export interface TenantResident {
   id: string;
   unitId: string;
   unitIdentifier: string;
+  unitTowerOrBlock: string;
   documentType: DocumentType;
   documentNumber: string;
   fullName: string;
@@ -92,6 +95,7 @@ export interface TenantResidentListItem {
   id: string;
   unitId: string;
   unitIdentifier: string;
+  unitTowerOrBlock: string;
   documentType: string;
   documentNumber: string;
   fullName: string;

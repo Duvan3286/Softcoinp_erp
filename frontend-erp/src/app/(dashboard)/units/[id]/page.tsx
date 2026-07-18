@@ -62,8 +62,14 @@ export default function UnitDetailsPage() {
           ←
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Unidad {unit.identifier}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{unit.unitTypeName} • {unit.towerOrBlock}</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            {(() => {
+              if (unit.towerOrBlock) {
+                return `${unit.towerOrBlock} ${unit.unitTypeName} ${unit.identifier}`;
+              }
+              return `${unit.unitTypeName} ${unit.identifier}`;
+            })()}
+          </h1>
         </div>
         <div className="ml-auto">
           {renderStatusBadge(unit.status)}
@@ -102,21 +108,33 @@ export default function UnitDetailsPage() {
 
           <UnitOccupantsPanel unitId={id} />
 
-          {/* Financials Mock */}
+          {/* Financials */}
           <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
             <div className="px-6 py-4 border-b border-border bg-muted/50 flex justify-between items-center">
-              <h3 className="font-bold text-foreground">Historial Financiero (Resumen)</h3>
-              <button className="text-xs font-semibold text-muted-foreground bg-card px-3 py-1.5 rounded-lg border border-border hover:bg-muted/30">Ver Estado de Cuenta</button>
+              <h3 className="font-bold text-foreground">Historial Financiero</h3>
+              <Link
+                href={`/billing/documents?unitId=${id}`}
+                className="text-xs font-semibold text-muted-foreground bg-card px-3 py-1.5 rounded-lg border border-border hover:bg-muted/30"
+              >
+                Ver Estado de Cuenta
+              </Link>
             </div>
             <div className="p-6">
-              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl p-4 flex justify-between items-center mb-4">
-                <div>
-                  <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Balance Actual</p>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">Al día (100% Recaudo)</p>
-                </div>
-                <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">$0.00</div>
+              <div className="flex justify-end gap-2">
+                <Link
+                  href={`/billing/extraordinary-fees/new?unitId=${id}`}
+                  className="text-xs font-semibold text-muted-foreground bg-card px-3 py-1.5 rounded-lg border border-border hover:bg-muted/30 transition-colors"
+                >
+                  Cargar Deuda / Cuota Extraordinaria
+                </Link>
+                <Link
+                  href={`/billing/payments/register?unitId=${id}`}
+                  className="text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Registrar Pago
+                </Link>
               </div>
-              <p className="text-xs text-center text-muted-foreground italic mt-4">El historial de transacciones está deshabilitado hasta finalizar el Módulo Financiero.</p>
+              <p className="text-xs text-center text-muted-foreground italic mt-4">Consulta los movimientos y saldos detallados en el Estado de Cuenta.</p>
             </div>
           </div>
         </div>

@@ -1,36 +1,88 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { UnitsService, Unit } from "@/lib/units-service";
+import { UnitsService, Unit, UnitFinancialStatus } from "@/lib/units-service";
 import Link from "next/link";
 import UnitForm from "./UnitForm";
 import BulkImport from "./BulkImport";
 
-export default function UnitsList() {
+interface UnitsListProps {
+  onUnitsChanged?: () => void;
+}
+
+const PAGE_SIZE = 15;
+
+export default function UnitsList({ onUnitsChanged }: UnitsListProps) {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [paymentStatusByUnit, setPaymentStatusByUnit] = useState<Record<string, UnitFinancialStatus>>({});
+
   const [filterTower, setFilterTower] = useState("");
+  const [debouncedFilterTower, setDebouncedFilterTower] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterArrears, setFilterArrears] = useState(""); // financial condition
+  const [filterIdentifier, setFilterIdentifier] = useState("");
+  const [debouncedFilterIdentifier, setDebouncedFilterIdentifier] = useState("");
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [unitToEdit, setUnitToEdit] = useState<Unit | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedFilterIdentifier(filterIdentifier);
+    }, 400);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [filterIdentifier]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedFilterTower(filterTower);
+    }, 400);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [filterTower]);
 
   useEffect(() => {
     fetchUnits();
-  }, [filterTower, filterStatus]);
+  }, [debouncedFilterTower, filterStatus, debouncedFilterIdentifier]);
+
+  useEffect(() => {
+    fetchPaymentStatus();
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedFilterTower, filterStatus, debouncedFilterIdentifier, filterArrears]);
 
   const fetchUnits = async () => {
     setLoading(true);
     try {
-      const data = await UnitsService.getUnits(filterTower, filterStatus);
+      const data = await UnitsService.getUnits(debouncedFilterTower, filterStatus, debouncedFilterIdentifier);
       setUnits(data);
     } catch (error) {
       console.error("Failed to fetch units:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPaymentStatus = async () => {
+    try {
+      const data = await UnitsService.getPaymentStatus();
+      const statusMap: Record<string, UnitFinancialStatus> = {};
+      data.forEach((status) => {
+        statusMap[status.unitId] = status;
+      });
+      setPaymentStatusByUnit(statusMap);
+    } catch (error) {
+      console.error("Failed to fetch payment status:", error);
     }
   };
 
@@ -55,6 +107,10 @@ export default function UnitsList() {
     setShowCreateForm(false);
     setShowBulkImport(false);
     fetchUnits();
+    fetchPaymentStatus();
+    if (onUnitsChanged) {
+      onUnitsChanged();
+    }
   };
 
   const handleFormCancel = () => {
@@ -72,7 +128,69 @@ export default function UnitsList() {
     return <span className="px-2 py-1 bg-muted text-foreground rounded-lg text-xs font-semibold">Desconocido ({String(status)})</span>;
   };
 
-  const filteredUnits = filterArrears ? units : units;
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(value);
+
+  const renderFinancialBadge = (unitId: string) => {
+    const status = paymentStatusByUnit[unitId];
+    if (!status) {
+      return <span className="text-xs text-muted-foreground italic">Cargando...</span>;
+    }
+
+    const colorClasses: Record<string, string> = {
+      green: "bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400",
+      yellow: "bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300",
+      orange: "bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300",
+      red: "bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400",
+      gray: "bg-muted text-muted-foreground",
+    };
+    let badgeClass = colorClasses[status.colorCode];
+    if (!badgeClass) {
+      badgeClass = colorClasses.gray;
+    }
+
+    return (
+      <div>
+        <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${badgeClass}`}>{status.statusLabel}</span>
+        {status.overdueBalance > 0 && (
+          <div className="text-xs text-muted-foreground mt-1 font-mono">{formatCurrency(status.overdueBalance)}</div>
+        )}
+      </div>
+    );
+  };
+
+  const filteredUnits = units.filter((u) => {
+    if (filterArrears === "") {
+      return true;
+    }
+    const status = paymentStatusByUnit[u.id];
+    if (!status) {
+      return false;
+    }
+    if (filterArrears === "aldia") {
+      return status.colorCode === "green";
+    }
+    if (filterArrears === "mora") {
+      return status.colorCode === "yellow" || status.colorCode === "orange" || status.colorCode === "red";
+    }
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredUnits.length / PAGE_SIZE));
+  const paginatedUnits = filteredUnits.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const rangeStart = filteredUnits.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filteredUnits.length);
+
+  const goToPage = (page: number) => {
+    let nextPage = page;
+    if (nextPage < 1) {
+      nextPage = 1;
+    }
+    if (nextPage > totalPages) {
+      nextPage = totalPages;
+    }
+    setCurrentPage(nextPage);
+  };
 
   if (showCreateForm) {
     return <UnitForm initialData={unitToEdit} onSuccess={handleFormSuccess} onCancel={handleFormCancel} />;
@@ -104,7 +222,17 @@ export default function UnitsList() {
       </div>
 
       <div className="p-6 bg-muted/50 border-b border-border">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Filtrar por Unidad</label>
+            <input
+              type="text"
+              placeholder="Ej. 101"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+              value={filterIdentifier}
+              onChange={(e) => setFilterIdentifier(e.target.value)}
+            />
+          </div>
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Filtrar por Torre/Bloque</label>
             <input
@@ -138,8 +266,8 @@ export default function UnitsList() {
               onChange={(e) => setFilterArrears(e.target.value)}
             >
               <option value="">Todos</option>
-              <option value="aldia" disabled>Al Día (próximamente)</option>
-              <option value="mora" disabled>En Mora (próximamente)</option>
+              <option value="aldia">Al Día</option>
+              <option value="mora">En Mora</option>
             </select>
           </div>
         </div>
@@ -175,7 +303,7 @@ export default function UnitsList() {
                   </tr>
                 );
               }
-              return filteredUnits.map((u) => {
+              return paginatedUnits.map((u) => {
 
                 return (
                   <tr key={u.id} className="hover:bg-muted/30 transition-colors">
@@ -194,7 +322,7 @@ export default function UnitsList() {
                       {renderStatusBadge(u.status)}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-xs text-muted-foreground italic">Por implementar</span>
+                      {renderFinancialBadge(u.id)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
@@ -213,6 +341,33 @@ export default function UnitsList() {
           </tbody>
         </table>
       </div>
+
+      {filteredUnits.length > 0 && (
+        <div className="px-6 py-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            Mostrando {rangeStart}-{rangeEnd} de {filteredUnits.length} unidades
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            <span className="text-xs text-muted-foreground">
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

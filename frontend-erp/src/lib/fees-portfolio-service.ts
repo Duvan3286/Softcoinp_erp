@@ -270,9 +270,11 @@ export interface CreateExtraordinaryFeeRequest {
   name: string;
   totalAmount: number;
   distributionType: string;
+  unitIds?: string[];
   dueDate: string;
   startPeriod: string;
   numberOfInstallments: number;
+  meetingActNumber?: string;
   notes: string;
 }
 

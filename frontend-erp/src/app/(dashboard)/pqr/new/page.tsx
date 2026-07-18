@@ -6,7 +6,7 @@ import { Loader2, ArrowLeft, Save, AlertTriangle, Send, Building2 } from 'lucide
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import pqrService, { CreatePqrRequest } from '@/lib/pqr-service';
-import { UnitsService as unitsService, Unit } from '@/lib/units-service';
+import { UnitsService as unitsService, Unit, formatUnitLabel } from '@/lib/units-service';
 
 const pqrTypes = [
   { value: 'Request', label: 'Petición' },
@@ -263,7 +263,7 @@ export default function NewPqrPage() {
                   <select value={unitId} onChange={(e) => setUnitId(e.target.value)}
                     className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none" required>
                     <option value="">Seleccione una unidad...</option>
-                    {units.map((u) => <option key={u.id} value={u.id}>{u.identifier} - {u.towerOrBlock}</option>)}
+                    {units.map((u) => <option key={u.id} value={u.id}>{formatUnitLabel(u.identifier, u.towerOrBlock)}</option>)}
                   </select>
                 </div>
                 <div>
@@ -316,7 +316,7 @@ export default function NewPqrPage() {
                     <select value={involvedResidentUnitId} onChange={(e) => setInvolvedResidentUnitId(e.target.value)}
                       className="w-full bg-transparent border-b border-emerald-600/30 focus:border-emerald-600 text-sm font-medium py-2 outline-none">
                       <option value="">Seleccione...</option>
-                      {units.map((u) => <option key={u.id} value={u.id}>{u.identifier}</option>)}
+                      {units.map((u) => <option key={u.id} value={u.id}>{formatUnitLabel(u.identifier, u.towerOrBlock)}</option>)}
                     </select>
                   </div>
                 </div>
