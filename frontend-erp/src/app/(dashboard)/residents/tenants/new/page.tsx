@@ -5,6 +5,7 @@ import {
   ResidentsService,
   DocumentType,
   CreateTenantResidentPayload,
+  TenantResidentListItem,
 } from "@/lib/residents-service";
 import { UnitsService, Unit, formatUnitLabel } from "@/lib/units-service";
 import { useRouter } from "next/navigation";
@@ -43,6 +44,8 @@ export default function NewTenantPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(true);
   const [selectedUnitId, setSelectedUnitId] = useState("");
+  const [activeTenants, setActiveTenants] = useState<TenantResidentListItem[]>([]);
+  const [confirmReplace, setConfirmReplace] = useState(false);
 
   // Tenant fields
   const [docType, setDocType] = useState<DocumentType>(DocumentType.CitizenshipCard);
@@ -64,7 +67,17 @@ export default function NewTenantPage() {
       })
       .catch(() => setUnits([]))
       .finally(() => setLoadingUnits(false));
+
+    ResidentsService.getTenants()
+      .then(setActiveTenants)
+      .catch(() => setActiveTenants([]));
   }, []);
+
+  useEffect(() => {
+    setConfirmReplace(false);
+  }, [selectedUnitId]);
+
+  const existingTenantForUnit = activeTenants.find((t) => t.unitId === selectedUnitId);
 
   const handleDocTypeChange = (dt: DocumentType) => {
     setDocType(dt);
@@ -75,6 +88,10 @@ export default function NewTenantPage() {
     e.preventDefault();
     if (!selectedUnitId) {
       setError("Debes seleccionar una unidad.");
+      return;
+    }
+    if (existingTenantForUnit && !confirmReplace) {
+      setError("Debes confirmar el reemplazo del arrendatario actual antes de continuar.");
       return;
     }
     setSubmitting(true);
@@ -160,6 +177,26 @@ export default function NewTenantPage() {
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {existingTenantForUnit && (
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-xl px-4 py-3 space-y-3">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                Esta unidad ya tiene un arrendatario activo: {existingTenantForUnit.fullName}. Registrar uno nuevo
+                finalizará automáticamente su contrato.
+              </p>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={confirmReplace}
+                  onChange={(e) => setConfirmReplace(e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-amber-600"
+                />
+                <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  Entiendo que esto reemplazará al arrendatario actual
+                </span>
+              </label>
             </div>
           )}
         </div>
@@ -344,7 +381,12 @@ export default function NewTenantPage() {
             </Link>
             <button
               type="submit"
-              disabled={submitting || loadingUnits || units.length === 0}
+              disabled={
+                submitting ||
+                loadingUnits ||
+                units.length === 0 ||
+                Boolean(existingTenantForUnit && !confirmReplace)
+              }
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm shadow-emerald-200 transition-colors flex-1 sm:flex-none flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {submitting && (

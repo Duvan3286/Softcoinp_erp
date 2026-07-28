@@ -13,6 +13,8 @@ export enum DocumentType {
   Passport = 4,
   PEP = 5,
   PPT = 6,
+  CivilRegistry = 7,
+  IdentityCard = 8,
 }
 
 
@@ -120,16 +122,74 @@ export interface UpdateTenantResidentPayload {
 
 export interface CohabitationGroupMember {
   id: string;
+  residentId: string;
   unitId: string;
   fullNameOrPetName: string;
   relationship: string;
   dateOfBirth?: string;
+  documentType?: string;
+  documentNumber?: string;
+  phone?: string;
   isMinor?: boolean;
   isPet: boolean;
   petSpecies?: string;
   petBreed?: string;
   petSanitaryRegistration?: string;
   isActive: boolean;
+}
+
+export interface AddCohabitationMemberPayload {
+  fullNameOrPetName: string;
+  relationship?: string;
+  dateOfBirth?: string;
+  documentType?: DocumentType;
+  documentNumber?: string;
+  phone?: string;
+  isPet: boolean;
+  petSpecies?: string;
+  petBreed?: string;
+  petSanitaryRegistration?: string;
+}
+
+export interface ResidentListItem {
+  id: string;
+  residentId?: string;
+  fullName: string;
+  documentType?: string;
+  documentNumber?: string;
+  phone?: string;
+  role: string;
+  unitId: string;
+  unitIdentifier: string;
+  unitTowerOrBlock: string;
+}
+
+export interface ResidentHistoryEntry {
+  id: string;
+  unitId: string;
+  unitIdentifier: string;
+  unitTowerOrBlock: string;
+  relationship: string;
+  startDate: string;
+  endDate?: string;
+  transferNotes?: string;
+  recordedAt: string;
+}
+
+export interface ResidentDetail {
+  id: string;
+  fullNameOrPetName: string;
+  dateOfBirth?: string;
+  documentType?: string;
+  documentNumber?: string;
+  phone?: string;
+  isMinor: boolean;
+  isPet: boolean;
+  petSpecies?: string;
+  petBreed?: string;
+  petSanitaryRegistration?: string;
+  isActive: boolean;
+  unitHistory: ResidentHistoryEntry[];
 }
 
 export interface OwnerHistoryEntry {
@@ -276,6 +336,10 @@ export const ResidentsService = {
     await apiClient.post(`/residents/units/${unitId}/owners/${assignmentId}/remove`, { endDate, notes });
   },
 
+  async updateOwnerResidence(unitId: string, assignmentId: string, residesInUnit: boolean): Promise<void> {
+    await apiClient.put(`/residents/units/${unitId}/owners/${assignmentId}/residence`, { residesInUnit });
+  },
+
   // ── ARRENDATARIOS ─────────────────────────────────────────────────────
 
   async getActiveTenant(unitId: string): Promise<TenantResident | null> {
@@ -303,13 +367,23 @@ export const ResidentsService = {
     return response.data;
   },
 
-  async addCohabitationMember(unitId: string, data: Partial<CohabitationGroupMember>): Promise<{ id: string }> {
+  async addCohabitationMember(unitId: string, data: AddCohabitationMemberPayload): Promise<{ id: string }> {
     const response = await apiClient.post(`/residents/units/${unitId}/cohabitation`, data);
     return response.data;
   },
 
   async removeCohabitationMember(unitId: string, memberId: string): Promise<void> {
     await apiClient.post(`/residents/units/${unitId}/cohabitation/${memberId}/deactivate`);
+  },
+
+  async getResidentsDirectory(): Promise<ResidentListItem[]> {
+    const response = await apiClient.get("/residents/directory");
+    return response.data;
+  },
+
+  async getResidentDetail(residentId: string): Promise<ResidentDetail> {
+    const response = await apiClient.get(`/residents/directory/${residentId}`);
+    return response.data;
   },
 
   // ── ARRENDATARIOS (GLOBAL) ───────────────────────────────────────────────

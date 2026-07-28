@@ -39,7 +39,8 @@ public class Unit
     // Navigation properties for Residents and Owners module
     public System.Collections.Generic.ICollection<UnitOwner> UnitOwners { get; set; } = new System.Collections.Generic.List<UnitOwner>();
     public System.Collections.Generic.ICollection<TenantResident> TenantResidents { get; set; } = new System.Collections.Generic.List<TenantResident>();
-    public System.Collections.Generic.ICollection<CohabitationGroupMember> CohabitationGroupMembers { get; set; } = new System.Collections.Generic.List<CohabitationGroupMember>();
+    public System.Collections.Generic.ICollection<UnitResident> UnitResidents { get; set; } = new System.Collections.Generic.List<UnitResident>();
+    public System.Collections.Generic.ICollection<ResidentHistory> ResidentHistories { get; set; } = new System.Collections.Generic.List<ResidentHistory>();
     public System.Collections.Generic.ICollection<OwnerHistory> OwnerHistories { get; set; } = new System.Collections.Generic.List<OwnerHistory>();
     public System.Collections.Generic.ICollection<SpokespersonHistory> SpokespersonHistories { get; set; } = new System.Collections.Generic.List<SpokespersonHistory>();
 

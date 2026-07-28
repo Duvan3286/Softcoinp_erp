@@ -13,6 +13,7 @@ import {
   Plus,
   CalendarDays,
   History,
+  X,
 } from "lucide-react";
 
 interface UnitOccupantsPanelProps {
@@ -34,6 +35,16 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
   >([]);
   const [showHistory, setShowHistory] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [togglingResidenceId, setTogglingResidenceId] = useState<string | null>(null);
+  const [residenceError, setResidenceError] = useState("");
+
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [memberPendingRemoval, setMemberPendingRemoval] = useState<{ id: string; name: string } | null>(null);
+  const [residencePendingChange, setResidencePendingChange] = useState<{
+    assignmentId: string;
+    ownerName: string;
+    newResidesInUnit: boolean;
+  } | null>(null);
 
   useEffect(() => {
     loadOccupants();
@@ -48,6 +59,33 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
       setOccupants(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleResidence = async (assignmentId: string, newResidesInUnit: boolean) => {
+    setResidenceError("");
+    setTogglingResidenceId(assignmentId);
+    try {
+      await ResidentsService.updateOwnerResidence(unitId, assignmentId, newResidesInUnit);
+      await loadOccupants();
+    } catch {
+      setResidenceError("No se pudo actualizar si el propietario reside en la unidad.");
+    } finally {
+      setTogglingResidenceId(null);
+      setResidencePendingChange(null);
+    }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    setRemovingMemberId(memberId);
+    try {
+      await ResidentsService.removeCohabitationMember(unitId, memberId);
+      await loadOccupants();
+    } catch {
+      setResidenceError("No se pudo quitar el integrante del grupo de convivencia.");
+    } finally {
+      setRemovingMemberId(null);
+      setMemberPendingRemoval(null);
     }
   };
 
@@ -138,6 +176,12 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
         </div>
       </div>
 
+      {residenceError && (
+        <div className="px-6 py-3 bg-red-50 border-b border-red-100 text-sm font-semibold text-red-700">
+          {residenceError}
+        </div>
+      )}
+
       {hasNoOccupants ? (
         <div className="p-8 flex flex-col items-center text-center">
           <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
@@ -163,6 +207,38 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Propietarios Activos ({occupants.activeOwners.length})
               </p>
+              {residencePendingChange && (
+                <div className="flex flex-wrap items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
+                  <p className="text-sm font-semibold text-indigo-700 flex-1 min-w-0">
+                    {(() => {
+                      if (residencePendingChange.newResidesInUnit) {
+                        if (occupants.activeTenant) {
+                          return `¿Marcar a ${residencePendingChange.ownerName} como residente de esta unidad? Esto finalizará automáticamente el contrato de ${occupants.activeTenant.fullName}.`;
+                        }
+                        return `¿Marcar a ${residencePendingChange.ownerName} como residente de esta unidad?`;
+                      }
+                      return `¿Marcar a ${residencePendingChange.ownerName} como que ya no reside en esta unidad?`;
+                    })()}
+                  </p>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setResidencePendingChange(null)}
+                      className="px-3 py-1 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleToggleResidence(residencePendingChange.assignmentId, residencePendingChange.newResidesInUnit)
+                      }
+                      disabled={togglingResidenceId === residencePendingChange.assignmentId}
+                      className="px-3 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {togglingResidenceId === residencePendingChange.assignmentId ? "Guardando..." : "Confirmar"}
+                    </button>
+                  </div>
+                </div>
+              )}
               {occupants.activeOwners.map((o) => {
                 const isLegal = o.ownerDocumentType === "NIT";
                 return (
@@ -198,6 +274,34 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
                         {o.ownerDocumentType} {o.ownerDocumentNumber} · {o.ownershipPercentage}%
                       </p>
                     </div>
+                    <button
+                      onClick={() =>
+                        setResidencePendingChange({
+                          assignmentId: o.assignmentId,
+                          ownerName: o.ownerName,
+                          newResidesInUnit: !o.residesInUnit,
+                        })
+                      }
+                      disabled={togglingResidenceId === o.assignmentId}
+                      className={(() => {
+                        const base =
+                          "text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors shrink-0 disabled:opacity-50";
+                        if (o.residesInUnit) {
+                          return `${base} text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100`;
+                        }
+                        return `${base} text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100`;
+                      })()}
+                    >
+                      {(() => {
+                        if (togglingResidenceId === o.assignmentId) {
+                          return "...";
+                        }
+                        if (o.residesInUnit) {
+                          return "Marcar que ya no reside";
+                        }
+                        return "Marcar que reside";
+                      })()}
+                    </button>
                     <Link
                       href={`/residents/${o.ownerId}`}
                       className="text-xs font-semibold text-blue-600 hover:text-blue-800 shrink-0"
@@ -255,6 +359,28 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                 Grupo de Convivencia
               </p>
+              {memberPendingRemoval && (
+                <div className="flex flex-wrap items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                  <p className="text-sm font-semibold text-red-700 flex-1 min-w-0">
+                    ¿Quitar a {memberPendingRemoval.name} del grupo de convivencia?
+                  </p>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setMemberPendingRemoval(null)}
+                      className="px-3 py-1 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleRemoveMember(memberPendingRemoval.id)}
+                      disabled={removingMemberId === memberPendingRemoval.id}
+                      className="px-3 py-1 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {removingMemberId === memberPendingRemoval.id ? "Quitando..." : "Quitar"}
+                    </button>
+                  </div>
+                </div>
+              )}
               {humans.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {humans.map((m) => (
@@ -264,16 +390,33 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
                     >
                       <UserCheck className="w-3.5 h-3.5 text-gray-500 shrink-0" />
                       <div>
-                        <p className="text-xs font-semibold text-gray-800 leading-tight">
+                        <Link
+                          href={`/residents/directory/${m.residentId}`}
+                          className="text-xs font-semibold text-gray-800 leading-tight hover:text-blue-600 hover:underline"
+                        >
                           {m.fullNameOrPetName}
-                        </p>
+                        </Link>
                         <p className="text-xs text-gray-400 leading-tight">{m.relationship}</p>
+                        {m.documentNumber && (
+                          <p className="text-xs text-gray-400 leading-tight">
+                            {m.documentNumber}
+                            {m.phone && ` · ${m.phone}`}
+                          </p>
+                        )}
                       </div>
                       {m.isMinor && (
                         <span className="ml-1 text-xs px-1 bg-blue-50 text-blue-600 font-bold rounded">
                           Menor
                         </span>
                       )}
+                      <button
+                        onClick={() => setMemberPendingRemoval({ id: m.id, name: m.fullNameOrPetName })}
+                        disabled={removingMemberId === m.id}
+                        className="ml-1 text-gray-400 hover:text-red-600 disabled:opacity-50 shrink-0"
+                        title="Quitar del grupo de convivencia"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -287,14 +430,25 @@ export default function UnitOccupantsPanel({ unitId }: UnitOccupantsPanelProps) 
                     >
                       <PawPrint className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                       <div>
-                        <p className="text-xs font-semibold text-amber-800 leading-tight">
+                        <Link
+                          href={`/residents/directory/${p.residentId}`}
+                          className="text-xs font-semibold text-amber-800 leading-tight hover:text-amber-900 hover:underline"
+                        >
                           {p.fullNameOrPetName}
-                        </p>
+                        </Link>
                         <p className="text-xs text-amber-600 leading-tight">
                           {p.petSpecies}
                           {p.petBreed && ` · ${p.petBreed}`}
                         </p>
                       </div>
+                      <button
+                        onClick={() => setMemberPendingRemoval({ id: p.id, name: p.fullNameOrPetName })}
+                        disabled={removingMemberId === p.id}
+                        className="ml-1 text-amber-400 hover:text-red-600 disabled:opacity-50 shrink-0"
+                        title="Quitar del grupo de convivencia"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>

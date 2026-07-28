@@ -7,5 +7,7 @@ public enum DocumentType
     NIT = 3,
     Passport = 4,
     PEP = 5,
-    PPT = 6
+    PPT = 6,
+    CivilRegistry = 7,
+    IdentityCard = 8
 }

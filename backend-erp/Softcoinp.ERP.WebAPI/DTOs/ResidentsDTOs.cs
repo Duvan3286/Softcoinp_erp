@@ -114,15 +114,63 @@ public class TenantResidentListItemDto
 public class CohabitationMemberDto
 {
     public Guid Id { get; set; }
+    public Guid ResidentId { get; set; }
     public string FullNameOrPetName { get; set; } = string.Empty;
     public string Relationship { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
+    public string? DocumentType { get; set; }
+    public string? DocumentNumber { get; set; }
+    public string? Phone { get; set; }
     public bool IsMinor { get; set; }
     public bool IsPet { get; set; }
     public string? PetSpecies { get; set; }
     public string? PetBreed { get; set; }
     public string? PetSanitaryRegistration { get; set; }
     public bool IsActive { get; set; }
+}
+
+public class ResidentListItemDto
+{
+    public Guid Id { get; set; }
+    public Guid? ResidentId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string? DocumentType { get; set; }
+    public string? DocumentNumber { get; set; }
+    public string? Phone { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public Guid UnitId { get; set; }
+    public string UnitIdentifier { get; set; } = string.Empty;
+    public string UnitTowerOrBlock { get; set; } = string.Empty;
+}
+
+public class ResidentHistoryEntryDto
+{
+    public Guid Id { get; set; }
+    public Guid UnitId { get; set; }
+    public string UnitIdentifier { get; set; } = string.Empty;
+    public string UnitTowerOrBlock { get; set; } = string.Empty;
+    public string Relationship { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? TransferNotes { get; set; }
+    public DateTime RecordedAt { get; set; }
+}
+
+public class ResidentDetailDto
+{
+    public Guid Id { get; set; }
+    public string FullNameOrPetName { get; set; } = string.Empty;
+    public DateTime? DateOfBirth { get; set; }
+    public string? DocumentType { get; set; }
+    public string? DocumentNumber { get; set; }
+    public string? Phone { get; set; }
+    public bool IsMinor { get; set; }
+    public bool IsPet { get; set; }
+    public string? PetSpecies { get; set; }
+    public string? PetBreed { get; set; }
+    public string? PetSanitaryRegistration { get; set; }
+    public bool IsActive { get; set; }
+    public List<ResidentHistoryEntryDto> UnitHistory { get; set; } = new List<ResidentHistoryEntryDto>();
 }
 
 public class OwnerHistoryEntryDto
@@ -392,6 +440,11 @@ public class RemoveOwnerFromUnitDto
     public string? Notes { get; set; }
 }
 
+public class UpdateOwnerResidenceDto
+{
+    public bool ResidesInUnit { get; set; }
+}
+
 public class CreateTenantResidentDto : IValidatableObject
 {
     [Required(ErrorMessage = "El tipo de documento es obligatorio.")]
@@ -486,11 +539,18 @@ public class AddCohabitationMemberDto : IValidatableObject
     [MaxLength(200)]
     public string FullNameOrPetName { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El parentesco o relación es obligatorio.")]
     [MaxLength(100)]
-    public string Relationship { get; set; } = string.Empty;
+    public string? Relationship { get; set; }
 
     public DateTime? DateOfBirth { get; set; }
+
+    public DocumentType? DocumentType { get; set; }
+
+    [MaxLength(50)]
+    public string? DocumentNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? Phone { get; set; }
 
     public bool IsPet { get; set; }
 
@@ -517,6 +577,27 @@ public class AddCohabitationMemberDto : IValidatableObject
             yield return new ValidationResult(
                 "La fecha de nacimiento no puede ser una fecha futura.",
                 new[] { nameof(DateOfBirth) });
+        }
+
+        if (!IsPet && !DocumentType.HasValue)
+        {
+            yield return new ValidationResult(
+                "El tipo de documento es obligatorio.",
+                new[] { nameof(DocumentType) });
+        }
+
+        if (!IsPet && string.IsNullOrWhiteSpace(DocumentNumber))
+        {
+            yield return new ValidationResult(
+                "El número de documento es obligatorio.",
+                new[] { nameof(DocumentNumber) });
+        }
+
+        if (!IsPet && string.IsNullOrWhiteSpace(Phone))
+        {
+            yield return new ValidationResult(
+                "El teléfono es obligatorio.",
+                new[] { nameof(Phone) });
         }
     }
 }

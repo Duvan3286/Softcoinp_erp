@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -604,6 +605,92 @@ public class ResidentsController : BaseController
         return NoContent();
     }
 
+    [HttpPut("units/{unitId:guid}/owners/{assignmentId:guid}/residence")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> UpdateOwnerResidence(Guid unitId, Guid assignmentId, [FromBody] UpdateOwnerResidenceDto dto)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        var assignment = await _context.UnitOwners
+            .FirstOrDefaultAsync(uo => uo.Id == assignmentId && uo.UnitId == unitId && uo.TenantId == tenantId && uo.IsActive);
+
+        if (assignment == null)
+        {
+            return NotFound(new { message = "Asignación no encontrada." });
+        }
+
+        assignment.ResidesInUnit = dto.ResidesInUnit;
+
+        if (dto.ResidesInUnit)
+        {
+            var activeTenants = await _context.TenantResidents
+                .Where(t => t.UnitId == unitId && t.TenantId == tenantId && t.IsActive)
+                .ToListAsync();
+
+            foreach (var activeTenant in activeTenants)
+            {
+                activeTenant.IsActive = false;
+                if (!activeTenant.LeaseEndDate.HasValue)
+                {
+                    activeTenant.LeaseEndDate = DateTime.UtcNow;
+                }
+                activeTenant.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId && u.TenantId == tenantId);
+        if (unit != null)
+        {
+            if (dto.ResidesInUnit && unit.Status == UnitStatus.ActiveUnoccupied)
+            {
+                var previousStatus = unit.Status;
+                unit.Status = UnitStatus.ActiveOccupied;
+
+                _context.UnitStateHistories.Add(new UnitStateHistory
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantId,
+                    UnitId = unitId,
+                    PreviousStatus = previousStatus,
+                    NewStatus = UnitStatus.ActiveOccupied,
+                    Reason = "El propietario empezó a residir en la unidad",
+                    ChangeDate = DateTime.UtcNow,
+                    ChangedByUserId = userId
+                });
+            }
+            else if (!dto.ResidesInUnit && unit.Status == UnitStatus.ActiveOccupied)
+            {
+                var otherResidentOwnerExists = await _context.UnitOwners
+                    .AnyAsync(uo => uo.UnitId == unitId && uo.TenantId == tenantId && uo.IsActive && uo.ResidesInUnit && uo.Id != assignmentId);
+
+                var activeTenantExists = await _context.TenantResidents
+                    .AnyAsync(t => t.UnitId == unitId && t.TenantId == tenantId && t.IsActive);
+
+                if (!otherResidentOwnerExists && !activeTenantExists)
+                {
+                    var previousStatus = unit.Status;
+                    unit.Status = UnitStatus.ActiveUnoccupied;
+
+                    _context.UnitStateHistories.Add(new UnitStateHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        TenantId = tenantId,
+                        UnitId = unitId,
+                        PreviousStatus = previousStatus,
+                        NewStatus = UnitStatus.ActiveUnoccupied,
+                        Reason = "El propietario dejó de residir en la unidad",
+                        ChangeDate = DateTime.UtcNow,
+                        ChangedByUserId = userId
+                    });
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpGet("units/{unitId:guid}/tenant")]
     public async Task<IActionResult> GetActiveTenant(Guid unitId)
     {
@@ -664,6 +751,15 @@ public class ResidentsController : BaseController
         if (!hasOwner)
         {
             return BadRequest(new { message = "La unidad debe tener al menos un propietario activo antes de registrar un arrendatario." });
+        }
+
+        var residentOwners = await _context.UnitOwners
+            .Where(uo => uo.UnitId == unitId && uo.TenantId == tenantId && uo.IsActive && uo.ResidesInUnit)
+            .ToListAsync();
+
+        foreach (var ownerAssignment in residentOwners)
+        {
+            ownerAssignment.ResidesInUnit = false;
         }
 
         var existingActiveTenants = await _context.TenantResidents
@@ -800,20 +896,25 @@ public class ResidentsController : BaseController
     {
         var tenantId = GetTenantId();
 
-        var members = await _context.CohabitationGroupMembers
-            .Where(c => c.UnitId == unitId && c.TenantId == tenantId && c.IsActive)
-            .Select(c => new CohabitationMemberDto
+        var members = await _context.UnitResidents
+            .Include(ur => ur.Resident)
+            .Where(ur => ur.UnitId == unitId && ur.TenantId == tenantId && ur.IsActive)
+            .Select(ur => new CohabitationMemberDto
             {
-                Id = c.Id,
-                FullNameOrPetName = c.FullNameOrPetName,
-                Relationship = c.Relationship,
-                DateOfBirth = c.DateOfBirth,
-                IsMinor = c.DateOfBirth.HasValue && c.DateOfBirth.Value > DateTime.UtcNow.AddYears(-18),
-                IsPet = c.IsPet,
-                PetSpecies = c.PetSpecies,
-                PetBreed = c.PetBreed,
-                PetSanitaryRegistration = c.PetSanitaryRegistration,
-                IsActive = c.IsActive
+                Id = ur.Id,
+                ResidentId = ur.ResidentId,
+                FullNameOrPetName = ur.Resident != null ? ur.Resident.FullNameOrPetName : string.Empty,
+                Relationship = ur.Relationship,
+                DateOfBirth = ur.Resident != null ? ur.Resident.DateOfBirth : null,
+                DocumentType = ur.Resident != null && ur.Resident.DocumentType.HasValue ? ur.Resident.DocumentType.ToString() : null,
+                DocumentNumber = ur.Resident != null ? ur.Resident.DocumentNumber : null,
+                Phone = ur.Resident != null ? ur.Resident.Phone : null,
+                IsMinor = ur.Resident != null && ur.Resident.DateOfBirth.HasValue && ur.Resident.DateOfBirth.Value > DateTime.UtcNow.AddYears(-18),
+                IsPet = ur.Resident != null && ur.Resident.IsPet,
+                PetSpecies = ur.Resident != null ? ur.Resident.PetSpecies : null,
+                PetBreed = ur.Resident != null ? ur.Resident.PetBreed : null,
+                PetSanitaryRegistration = ur.Resident != null ? ur.Resident.PetSanitaryRegistration : null,
+                IsActive = ur.IsActive
             })
             .ToListAsync();
 
@@ -825,6 +926,8 @@ public class ResidentsController : BaseController
     public async Task<IActionResult> AddCohabitationMember(Guid unitId, [FromBody] AddCohabitationMemberDto dto)
     {
         var tenantId = GetTenantId();
+        var userId = GetUserId();
+        var now = DateTime.UtcNow;
 
         var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == unitId && u.TenantId == tenantId);
         if (unit == null)
@@ -834,8 +937,9 @@ public class ResidentsController : BaseController
 
         if (dto.IsPet)
         {
-            var petsInUnit = await _context.CohabitationGroupMembers
-                .CountAsync(c => c.UnitId == unitId && c.TenantId == tenantId && c.IsActive && c.IsPet);
+            var petsInUnit = await _context.UnitResidents
+                .Include(ur => ur.Resident)
+                .CountAsync(ur => ur.UnitId == unitId && ur.TenantId == tenantId && ur.IsActive && ur.Resident != null && ur.Resident.IsPet);
 
             var maxPets = 3;
 
@@ -850,27 +954,109 @@ public class ResidentsController : BaseController
             }
         }
 
-        var member = new CohabitationGroupMember
+        var relationship = dto.Relationship;
+        if (string.IsNullOrWhiteSpace(relationship))
+        {
+            relationship = dto.IsPet ? "Mascota" : "Residente";
+        }
+
+        Resident? resident = null;
+        var transferNotes = "Registro inicial";
+
+        if (!dto.IsPet && !string.IsNullOrWhiteSpace(dto.DocumentNumber))
+        {
+            resident = await _context.Residents
+                .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.DocumentNumber == dto.DocumentNumber);
+
+            if (resident != null)
+            {
+                var currentAssignment = await _context.UnitResidents
+                    .Include(ur => ur.Unit)
+                    .FirstOrDefaultAsync(ur => ur.ResidentId == resident.Id && ur.TenantId == tenantId && ur.IsActive);
+
+                if (currentAssignment != null)
+                {
+                    if (currentAssignment.UnitId == unitId)
+                    {
+                        return Conflict(new { message = "Este residente ya está registrado en esta unidad." });
+                    }
+
+                    currentAssignment.IsActive = false;
+                    currentAssignment.EndDate = now;
+
+                    var openHistory = await _context.ResidentHistories
+                        .Where(h => h.ResidentId == resident.Id && h.TenantId == tenantId && h.EndDate == null)
+                        .OrderByDescending(h => h.StartDate)
+                        .FirstOrDefaultAsync();
+
+                    if (openHistory != null)
+                    {
+                        openHistory.EndDate = now;
+                    }
+
+                    var previousUnitLabel = currentAssignment.Unit != null ? currentAssignment.Unit.Identifier : currentAssignment.UnitId.ToString();
+                    transferNotes = $"Mudanza desde la unidad {previousUnitLabel}";
+                }
+
+                resident.FullNameOrPetName = dto.FullNameOrPetName;
+                resident.Phone = dto.Phone;
+                resident.DateOfBirth = dto.DateOfBirth;
+                resident.DocumentType = dto.DocumentType;
+            }
+        }
+
+        if (resident == null)
+        {
+            resident = new Resident
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                FullNameOrPetName = dto.FullNameOrPetName,
+                DateOfBirth = dto.DateOfBirth,
+                DocumentType = dto.DocumentType,
+                DocumentNumber = dto.DocumentNumber,
+                Phone = dto.Phone,
+                IsPet = dto.IsPet,
+                PetSpecies = dto.PetSpecies,
+                PetBreed = dto.PetBreed,
+                PetSanitaryRegistration = dto.PetSanitaryRegistration,
+                IsActive = true,
+                CreatedAt = now,
+                CreatedByUserId = userId
+            };
+            _context.Residents.Add(resident);
+        }
+
+        var assignment = new UnitResident
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             UnitId = unitId,
-            FullNameOrPetName = dto.FullNameOrPetName,
-            Relationship = dto.Relationship,
-            DateOfBirth = dto.DateOfBirth,
-            IsPet = dto.IsPet,
-            PetSpecies = dto.PetSpecies,
-            PetBreed = dto.PetBreed,
-            PetSanitaryRegistration = dto.PetSanitaryRegistration,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = GetUserId()
+            ResidentId = resident.Id,
+            Relationship = relationship,
+            StartDate = now,
+            EndDate = null,
+            IsActive = true
         };
+        _context.UnitResidents.Add(assignment);
 
-        _context.CohabitationGroupMembers.Add(member);
+        _context.ResidentHistories.Add(new ResidentHistory
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UnitId = unitId,
+            ResidentId = resident.Id,
+            Relationship = relationship,
+            StartDate = now,
+            EndDate = null,
+            TransferNotes = transferNotes,
+            RecordedAt = now,
+            RecordedByUserId = userId
+        });
+
         await _context.SaveChangesAsync();
 
-        return Ok(new { member.Id, message = "Integrante registrado exitosamente." });
+        return Ok(new { assignment.Id, residentId = resident.Id, message = "Integrante registrado exitosamente." });
     }
 
     [HttpPost("units/{unitId:guid}/cohabitation/{memberId:guid}/deactivate")]
@@ -878,18 +1064,153 @@ public class ResidentsController : BaseController
     public async Task<IActionResult> RemoveCohabitationMember(Guid unitId, Guid memberId)
     {
         var tenantId = GetTenantId();
+        var now = DateTime.UtcNow;
 
-        var member = await _context.CohabitationGroupMembers
-            .FirstOrDefaultAsync(c => c.Id == memberId && c.UnitId == unitId && c.TenantId == tenantId && c.IsActive);
+        var assignment = await _context.UnitResidents
+            .FirstOrDefaultAsync(ur => ur.Id == memberId && ur.UnitId == unitId && ur.TenantId == tenantId && ur.IsActive);
 
-        if (member == null)
+        if (assignment == null)
         {
             return NotFound(new { message = "Integrante no encontrado." });
         }
 
-        member.IsActive = false;
+        assignment.IsActive = false;
+        assignment.EndDate = now;
+
+        var openHistory = await _context.ResidentHistories
+            .Where(h => h.ResidentId == assignment.ResidentId && h.UnitId == unitId && h.TenantId == tenantId && h.EndDate == null)
+            .OrderByDescending(h => h.StartDate)
+            .FirstOrDefaultAsync();
+
+        if (openHistory != null)
+        {
+            openHistory.EndDate = now;
+        }
+
         await _context.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpGet("directory")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetResidentsDirectory()
+    {
+        var tenantId = GetTenantId();
+
+        var residentOwners = await _context.UnitOwners
+            .Where(uo => uo.TenantId == tenantId && uo.IsActive && uo.ResidesInUnit)
+            .Select(uo => new ResidentListItemDto
+            {
+                Id = uo.Id,
+                FullName = uo.Owner != null ? uo.Owner.FullNameOrCompanyName : string.Empty,
+                DocumentType = uo.Owner != null ? uo.Owner.DocumentType.ToString() : null,
+                DocumentNumber = uo.Owner != null ? uo.Owner.DocumentNumber : string.Empty,
+                Phone = uo.Owner != null ? uo.Owner.MainPhone : string.Empty,
+                Role = "Propietario",
+                UnitId = uo.UnitId,
+                UnitIdentifier = uo.Unit != null ? uo.Unit.Identifier : string.Empty,
+                UnitTowerOrBlock = uo.Unit != null ? uo.Unit.TowerOrBlock : string.Empty
+            })
+            .ToListAsync();
+
+        var activeTenantResidents = await _context.TenantResidents
+            .Where(t => t.TenantId == tenantId && t.IsActive)
+            .Select(t => new ResidentListItemDto
+            {
+                Id = t.Id,
+                FullName = t.FullName,
+                DocumentType = t.DocumentType.ToString(),
+                DocumentNumber = t.DocumentNumber,
+                Phone = t.Phone,
+                Role = "Arrendatario",
+                UnitId = t.UnitId,
+                UnitIdentifier = t.Unit != null ? t.Unit.Identifier : string.Empty,
+                UnitTowerOrBlock = t.Unit != null ? t.Unit.TowerOrBlock : string.Empty
+            })
+            .ToListAsync();
+
+        var cohabitationResidents = await _context.UnitResidents
+            .Include(ur => ur.Resident)
+            .Include(ur => ur.Unit)
+            .Where(ur => ur.TenantId == tenantId && ur.IsActive && ur.Resident != null && !ur.Resident.IsPet)
+            .Select(ur => new ResidentListItemDto
+            {
+                Id = ur.Id,
+                ResidentId = ur.ResidentId,
+                FullName = ur.Resident != null ? ur.Resident.FullNameOrPetName : string.Empty,
+                DocumentType = ur.Resident != null && ur.Resident.DocumentType.HasValue ? ur.Resident.DocumentType.ToString() : null,
+                DocumentNumber = ur.Resident != null ? ur.Resident.DocumentNumber : null,
+                Phone = ur.Resident != null ? ur.Resident.Phone : null,
+                Role = ur.Relationship,
+                UnitId = ur.UnitId,
+                UnitIdentifier = ur.Unit != null ? ur.Unit.Identifier : string.Empty,
+                UnitTowerOrBlock = ur.Unit != null ? ur.Unit.TowerOrBlock : string.Empty
+            })
+            .ToListAsync();
+
+        var allResidents = new List<ResidentListItemDto>();
+        allResidents.AddRange(residentOwners);
+        allResidents.AddRange(activeTenantResidents);
+        allResidents.AddRange(cohabitationResidents);
+
+        var orderedResidents = allResidents
+            .OrderBy(r => r.UnitIdentifier)
+            .ThenBy(r => r.FullName)
+            .ToList();
+
+        return Ok(orderedResidents);
+    }
+
+    [HttpGet("directory/{residentId:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetResidentDetail(Guid residentId)
+    {
+        var tenantId = GetTenantId();
+
+        var resident = await _context.Residents
+            .FirstOrDefaultAsync(r => r.Id == residentId && r.TenantId == tenantId);
+
+        if (resident == null)
+        {
+            return NotFound(new { message = "Residente no encontrado." });
+        }
+
+        var history = await _context.ResidentHistories
+            .Include(h => h.Unit)
+            .Where(h => h.ResidentId == residentId && h.TenantId == tenantId)
+            .OrderByDescending(h => h.StartDate)
+            .Select(h => new ResidentHistoryEntryDto
+            {
+                Id = h.Id,
+                UnitId = h.UnitId,
+                UnitIdentifier = h.Unit != null ? h.Unit.Identifier : string.Empty,
+                UnitTowerOrBlock = h.Unit != null ? h.Unit.TowerOrBlock : string.Empty,
+                Relationship = h.Relationship,
+                StartDate = h.StartDate,
+                EndDate = h.EndDate,
+                TransferNotes = h.TransferNotes,
+                RecordedAt = h.RecordedAt
+            })
+            .ToListAsync();
+
+        var result = new ResidentDetailDto
+        {
+            Id = resident.Id,
+            FullNameOrPetName = resident.FullNameOrPetName,
+            DateOfBirth = resident.DateOfBirth,
+            DocumentType = resident.DocumentType.HasValue ? resident.DocumentType.ToString() : null,
+            DocumentNumber = resident.DocumentNumber,
+            Phone = resident.Phone,
+            IsMinor = resident.DateOfBirth.HasValue && resident.DateOfBirth.Value > DateTime.UtcNow.AddYears(-18),
+            IsPet = resident.IsPet,
+            PetSpecies = resident.PetSpecies,
+            PetBreed = resident.PetBreed,
+            PetSanitaryRegistration = resident.PetSanitaryRegistration,
+            IsActive = resident.IsActive,
+            UnitHistory = history
+        };
+
+        return Ok(result);
     }
 
     [HttpGet("units/{unitId:guid}/occupants")]
@@ -957,20 +1278,25 @@ public class ResidentsController : BaseController
             };
         }
 
-        var cohabitationMembers = await _context.CohabitationGroupMembers
-            .Where(c => c.UnitId == unitId && c.TenantId == tenantId && c.IsActive)
-            .Select(c => new CohabitationMemberDto
+        var cohabitationMembers = await _context.UnitResidents
+            .Include(ur => ur.Resident)
+            .Where(ur => ur.UnitId == unitId && ur.TenantId == tenantId && ur.IsActive)
+            .Select(ur => new CohabitationMemberDto
             {
-                Id = c.Id,
-                FullNameOrPetName = c.FullNameOrPetName,
-                Relationship = c.Relationship,
-                DateOfBirth = c.DateOfBirth,
-                IsMinor = c.DateOfBirth.HasValue && c.DateOfBirth.Value > DateTime.UtcNow.AddYears(-18),
-                IsPet = c.IsPet,
-                PetSpecies = c.PetSpecies,
-                PetBreed = c.PetBreed,
-                PetSanitaryRegistration = c.PetSanitaryRegistration,
-                IsActive = c.IsActive
+                Id = ur.Id,
+                ResidentId = ur.ResidentId,
+                FullNameOrPetName = ur.Resident != null ? ur.Resident.FullNameOrPetName : string.Empty,
+                Relationship = ur.Relationship,
+                DateOfBirth = ur.Resident != null ? ur.Resident.DateOfBirth : null,
+                DocumentType = ur.Resident != null && ur.Resident.DocumentType.HasValue ? ur.Resident.DocumentType.ToString() : null,
+                DocumentNumber = ur.Resident != null ? ur.Resident.DocumentNumber : null,
+                Phone = ur.Resident != null ? ur.Resident.Phone : null,
+                IsMinor = ur.Resident != null && ur.Resident.DateOfBirth.HasValue && ur.Resident.DateOfBirth.Value > DateTime.UtcNow.AddYears(-18),
+                IsPet = ur.Resident != null && ur.Resident.IsPet,
+                PetSpecies = ur.Resident != null ? ur.Resident.PetSpecies : null,
+                PetBreed = ur.Resident != null ? ur.Resident.PetBreed : null,
+                PetSanitaryRegistration = ur.Resident != null ? ur.Resident.PetSanitaryRegistration : null,
+                IsActive = ur.IsActive
             })
             .ToListAsync();
 

@@ -710,6 +710,8 @@ const DOCUMENT_TYPE_LABELS_SHORT: Record<DocumentType, string> = {
   [DocumentType.Passport]: "Pasaporte",
   [DocumentType.PEP]: "Persona Expuesta Políticamente (PEP)",
   [DocumentType.PPT]: "Pasaporte Temporal (PPT)",
+  [DocumentType.CivilRegistry]: "Registro Civil",
+  [DocumentType.IdentityCard]: "Tarjeta de Identidad",
 };
 
 // ── STEP 4: DETALLES DE TRANSFERENCIA ─────────────────────────────────────────
