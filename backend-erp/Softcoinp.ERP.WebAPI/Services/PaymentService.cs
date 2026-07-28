@@ -17,17 +17,20 @@ public class PaymentService
     private readonly ILogger<PaymentService> _logger;
     private readonly IndicatorCacheService _indicatorCache;
     private readonly NotificationEngine _notificationEngine;
+    private readonly InterestCalculationService _interestCalculation;
 
     public PaymentService(
         ApplicationDbContext context,
         ILogger<PaymentService> logger,
         IndicatorCacheService indicatorCache,
-        NotificationEngine notificationEngine)
+        NotificationEngine notificationEngine,
+        InterestCalculationService interestCalculation)
     {
         _context = context;
         _logger = logger;
         _indicatorCache = indicatorCache;
         _notificationEngine = notificationEngine;
+        _interestCalculation = interestCalculation;
     }
 
     public async Task<UnitDebtSummaryDto> GetUnitDebtSummaryAsync(string tenantId, Guid unitId)
@@ -120,12 +123,128 @@ public class PaymentService
         };
     }
 
+    public async Task<PaymentPreviewDto> PreviewManualPaymentAsync(
+        string tenantId, Guid unitId, List<ManualAllocationLineDto> lines)
+    {
+        var allocations = new List<PaymentAllocationPreviewDto>();
+        decimal totalAllocated = 0m;
+
+        foreach (var line in lines)
+        {
+            string description;
+            Guid? accruedInterestId = null;
+
+            switch (line.SourceType)
+            {
+                case "UnitFee":
+                    var fee = await _context.UnitFees.FindAsync(line.SourceId);
+                    description = fee != null
+                        ? "Cuota ordinaria " + fee.DueDate.ToString("yyyy-MM")
+                        : "Cuota ordinaria";
+                    break;
+                case "ExtraordinaryFee":
+                    var dist = await _context.ExtraordinaryFeeDistributions.FindAsync(line.SourceId);
+                    description = dist != null
+                        ? "Cuota extraordinaria #" + dist.InstallmentNumber
+                        : "Cuota extraordinaria";
+                    break;
+                case "IndividualCharge":
+                    var charge = await _context.IndividualCharges.FindAsync(line.SourceId);
+                    description = charge?.Concept ?? "Cargo individual";
+                    break;
+                case "Interest":
+                    var interest = await _context.AccruedInterests.FindAsync(line.SourceId);
+                    description = interest != null
+                        ? "Interés mora " + interest.Period
+                        : "Interés mora";
+                    accruedInterestId = line.SourceId;
+                    break;
+                default:
+                    description = line.SourceType;
+                    break;
+            }
+
+            totalAllocated += line.Amount;
+            allocations.Add(new PaymentAllocationPreviewDto
+            {
+                SourceType = line.SourceType,
+                SourceId = line.SourceId,
+                Description = description,
+                AllocatedAmount = line.Amount,
+                AccruedInterestId = accruedInterestId
+            });
+        }
+
+        return new PaymentPreviewDto
+        {
+            TotalPayment = totalAllocated,
+            TotalAllocated = totalAllocated,
+            AdvanceAmount = 0m,
+            Allocations = allocations
+        };
+    }
+
     public async Task<PaymentPreviewDto> PreviewPaymentAllocationAsync(
         string tenantId, Guid unitId, decimal amount)
     {
-        var now = DateTime.UtcNow;
         var remaining = amount;
         var allocations = new List<PaymentAllocationPreviewDto>();
+
+        remaining = await AllocateToInterestAsync(tenantId, unitId, remaining, allocations);
+
+        if (remaining > 0m)
+        {
+            remaining = await AllocateToCapitalAsync(tenantId, unitId, remaining, allocations);
+        }
+
+        var totalAllocated = allocations.Sum(a => a.AllocatedAmount);
+
+        return new PaymentPreviewDto
+        {
+            TotalPayment = amount,
+            TotalAllocated = totalAllocated,
+            AdvanceAmount = Math.Max(0, remaining),
+            Allocations = allocations
+        };
+    }
+
+    private async Task<decimal> AllocateToInterestAsync(
+        string tenantId, Guid unitId, decimal remaining, List<PaymentAllocationPreviewDto> allocations)
+    {
+        var pendingInterests = await _context.AccruedInterests
+            .Where(ai => ai.TenantId == tenantId
+                      && ai.UnitId == unitId
+                      && ai.BalanceAmount > 0
+                      && ai.Status == AccruedInterestStatus.Pending)
+            .OrderBy(ai => ai.InterestStartDate)
+            .ThenBy(ai => ai.Period)
+            .ToListAsync();
+
+        foreach (var interest in pendingInterests)
+        {
+            if (remaining <= 0m) break;
+
+            var toAllocate = Math.Min(remaining, interest.BalanceAmount);
+            remaining -= toAllocate;
+
+            var description = InteresPeriodDescription(interest);
+            allocations.Add(new PaymentAllocationPreviewDto
+            {
+                SourceType = "Interest",
+                SourceId = interest.Id,
+                Description = description,
+                AllocatedAmount = toAllocate,
+                AccruedInterestId = interest.Id
+            });
+        }
+
+        return remaining;
+    }
+
+    private async Task<decimal> AllocateToCapitalAsync(
+        string tenantId, Guid unitId, decimal remaining, List<PaymentAllocationPreviewDto> allocations)
+    {
+        var now = DateTime.UtcNow;
 
         var overdueFees = await _context.UnitFees
             .Where(uf => uf.TenantId == tenantId
@@ -223,15 +342,18 @@ public class PaymentService
             });
         }
 
-        var totalAllocated = allocations.Sum(a => a.AllocatedAmount);
+        return remaining;
+    }
 
-        return new PaymentPreviewDto
-        {
-            TotalPayment = amount,
-            TotalAllocated = totalAllocated,
-            AdvanceAmount = Math.Max(0, remaining),
-            Allocations = allocations
-        };
+    private static string InteresPeriodDescription(AccruedInterest interest)
+    {
+        if (interest.UnitFeeId.HasValue)
+            return "Interés mora cuota " + interest.Period;
+        if (interest.ExtraordinaryFeeDistributionId.HasValue)
+            return "Interés mora cuota extra #" + interest.Period;
+        if (interest.IndividualChargeId.HasValue)
+            return "Interés mora cargo " + interest.Period;
+        return "Interés mora " + interest.Period;
     }
 
     public async Task<Payment> RegisterPaymentAsync(
@@ -240,6 +362,28 @@ public class PaymentService
         if (!Enum.TryParse<PaymentMethod>(request.PaymentMethod, true, out var paymentMethod))
         {
             throw new ArgumentException("El medio de pago especificado es inválido (Cash, Transfer, Check).");
+        }
+
+        if (!Enum.TryParse<ImputationType>(request.ImputationType, true, out var imputationType))
+        {
+            throw new ArgumentException("El tipo de imputación es inválido (Automatic, Manual).");
+        }
+
+        if (imputationType == ImputationType.Manual && string.IsNullOrWhiteSpace(request.ManualJustification))
+        {
+            throw new ArgumentException("La justificación es obligatoria para imputación manual.");
+        }
+
+        await _interestCalculation.CalculateAndSaveInterestsAsync(tenantId, request.UnitId, userId);
+        var unitEntry = await _context.Units.FindAsync(request.UnitId);
+        if (unitEntry != null)
+        {
+            await _context.Entry(unitEntry).ReloadAsync();
+        }
+
+        if (imputationType == ImputationType.Manual)
+        {
+            return await RegisterManualPaymentAsync(tenantId, request, paymentMethod, userId);
         }
 
         var preview = await PreviewPaymentAllocationAsync(tenantId, request.UnitId, request.Amount);
@@ -255,7 +399,9 @@ public class PaymentService
             ReferenceNumber = request.ReferenceNumber,
             Notes = request.Notes,
             ReceivedByUserId = userId,
-            AdvanceAmount = preview.AdvanceAmount
+            AdvanceAmount = preview.AdvanceAmount,
+            ImputationType = imputationType,
+            ManualJustification = request.ManualJustification
         };
 
         _context.Payments.Add(payment);
@@ -263,13 +409,18 @@ public class PaymentService
 
         foreach (var alloc in preview.Allocations)
         {
+            var allocationType = alloc.AccruedInterestId.HasValue
+                ? PaymentAllocationType.Interest
+                : PaymentAllocationType.Capital;
+
             var allocation = new PaymentAllocation
             {
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
                 PaymentId = payment.Id,
                 Amount = alloc.AllocatedAmount,
-                AllocationType = PaymentAllocationType.Capital
+                AllocationType = allocationType,
+                AccruedInterestId = alloc.AccruedInterestId
             };
 
             switch (alloc.SourceType)
@@ -285,6 +436,145 @@ public class PaymentService
                 case "IndividualCharge":
                     allocation.IndividualChargeId = alloc.SourceId;
                     await UpdateIndividualChargeAfterPayment(alloc.SourceId, alloc.AllocatedAmount);
+                    break;
+                case "Interest":
+                    await UpdateAccruedInterestAfterPayment(alloc.AccruedInterestId!.Value, alloc.AllocatedAmount);
+                    break;
+            }
+
+            _context.PaymentAllocations.Add(allocation);
+        }
+
+        await _context.SaveChangesAsync();
+
+        await _indicatorCache.InvalidateAsync(tenantId, DashboardService.CollectionChartCacheKeyPrefix);
+        await _indicatorCache.InvalidateAsync(tenantId, PaymentStatusMapService.CacheKeyPrefix);
+        await SendPaymentConfirmedNotificationAsync(tenantId, payment);
+        return payment;
+    }
+
+    private async Task<Payment> RegisterManualPaymentAsync(
+        string tenantId, RegisterPaymentRequestDto request, PaymentMethod paymentMethod, string userId)
+    {
+        if (request.ManualAllocations == null || request.ManualAllocations.Count == 0)
+        {
+            throw new ArgumentException("Debe especificar al menos una línea de asignación manual.");
+        }
+
+        var totalAllocated = request.ManualAllocations.Sum(a => a.Amount);
+        if (totalAllocated != request.Amount)
+        {
+            throw new ArgumentException(
+                $"La suma de las asignaciones manuales ({totalAllocated:N2}) no coincide con el monto del pago ({request.Amount:N2}).");
+        }
+
+        foreach (var line in request.ManualAllocations)
+        {
+            switch (line.SourceType)
+            {
+                case "UnitFee":
+                    var fee = await _context.UnitFees
+                        .FirstOrDefaultAsync(f => f.Id == line.SourceId && f.TenantId == tenantId && f.UnitId == request.UnitId);
+                    if (fee == null)
+                        throw new ArgumentException($"La cuota ordinaria {line.SourceId} no existe o no pertenece a la unidad.");
+                    if (line.Amount > fee.BalanceAmount)
+                        throw new ArgumentException(
+                            $"El monto asignado a la cuota ({line.Amount:N2}) supera el saldo pendiente ({fee.BalanceAmount:N2}).");
+                    break;
+
+                case "ExtraordinaryFee":
+                    var dist = await _context.ExtraordinaryFeeDistributions
+                        .FirstOrDefaultAsync(d => d.Id == line.SourceId && d.TenantId == tenantId && d.UnitId == request.UnitId);
+                    if (dist == null)
+                        throw new ArgumentException($"La cuota extraordinaria {line.SourceId} no existe o no pertenece a la unidad.");
+                    if (line.Amount > dist.BalanceAmount)
+                        throw new ArgumentException(
+                            $"El monto asignado a la cuota extraordinaria ({line.Amount:N2}) supera el saldo pendiente ({dist.BalanceAmount:N2}).");
+                    break;
+
+                case "IndividualCharge":
+                    var charge = await _context.IndividualCharges
+                        .FirstOrDefaultAsync(c => c.Id == line.SourceId && c.TenantId == tenantId && c.UnitId == request.UnitId);
+                    if (charge == null)
+                        throw new ArgumentException($"El cargo individual {line.SourceId} no existe o no pertenece a la unidad.");
+                    if (charge.IsDisputed)
+                        throw new ArgumentException($"El cargo individual {line.SourceId} está en disputa y no puede pagarse.");
+                    if (line.Amount > charge.BalanceAmount)
+                        throw new ArgumentException(
+                            $"El monto asignado al cargo ({line.Amount:N2}) supera el saldo pendiente ({charge.BalanceAmount:N2}).");
+                    break;
+
+                case "Interest":
+                    var accruedInterest = await _context.AccruedInterests
+                        .FirstOrDefaultAsync(ai => ai.Id == line.SourceId && ai.TenantId == tenantId && ai.UnitId == request.UnitId);
+                    if (accruedInterest == null)
+                        throw new ArgumentException($"El interés por mora {line.SourceId} no existe o no pertenece a la unidad.");
+                    if (accruedInterest.Status == AccruedInterestStatus.Paid)
+                        throw new ArgumentException($"El interés por mora {line.SourceId} ya está pagado.");
+                    if (line.Amount > accruedInterest.BalanceAmount)
+                        throw new ArgumentException(
+                            $"El monto asignado al interés ({line.Amount:N2}) supera el saldo pendiente ({accruedInterest.BalanceAmount:N2}).");
+                    break;
+
+                default:
+                    throw new ArgumentException(
+                        $"El tipo de fuente '{line.SourceType}' no es válido (UnitFee, ExtraordinaryFee, IndividualCharge, Interest).");
+            }
+        }
+
+        var payment = new Payment
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UnitId = request.UnitId,
+            PaymentDate = request.PaymentDate,
+            Amount = request.Amount,
+            PaymentMethod = paymentMethod,
+            ReferenceNumber = request.ReferenceNumber,
+            Notes = request.Notes,
+            ReceivedByUserId = userId,
+            AdvanceAmount = 0m,
+            ImputationType = ImputationType.Manual,
+            ManualJustification = request.ManualJustification
+        };
+
+        _context.Payments.Add(payment);
+        await _context.SaveChangesAsync();
+
+        foreach (var line in request.ManualAllocations)
+        {
+            var allocationType = line.SourceType == "Interest"
+                ? PaymentAllocationType.Interest
+                : PaymentAllocationType.Capital;
+
+            Guid? accruedInterestId = line.SourceType == "Interest" ? line.SourceId : null;
+
+            var allocation = new PaymentAllocation
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                PaymentId = payment.Id,
+                Amount = line.Amount,
+                AllocationType = allocationType,
+                AccruedInterestId = accruedInterestId
+            };
+
+            switch (line.SourceType)
+            {
+                case "UnitFee":
+                    allocation.UnitFeeId = line.SourceId;
+                    await UpdateUnitFeeAfterPayment(line.SourceId, line.Amount);
+                    break;
+                case "ExtraordinaryFee":
+                    allocation.ExtraordinaryFeeDistributionId = line.SourceId;
+                    await UpdateExtraordinaryFeeAfterPayment(line.SourceId, line.Amount);
+                    break;
+                case "IndividualCharge":
+                    allocation.IndividualChargeId = line.SourceId;
+                    await UpdateIndividualChargeAfterPayment(line.SourceId, line.Amount);
+                    break;
+                case "Interest":
+                    await UpdateAccruedInterestAfterPayment(line.SourceId, line.Amount);
                     break;
             }
 
@@ -392,13 +682,15 @@ public class PaymentService
             .Select(pa => new PaymentAllocationDto
             {
                 Id = pa.Id,
-                SourceType = pa.UnitFeeId != null ? "UnitFee"
+                SourceType = pa.AccruedInterestId != null ? "Interest"
+                           : pa.UnitFeeId != null ? "UnitFee"
                            : pa.ExtraordinaryFeeDistributionId != null ? "ExtraordinaryFee"
                            : pa.IndividualChargeId != null ? "IndividualCharge"
                            : "Unknown",
-                SourceId = pa.UnitFeeId ?? pa.ExtraordinaryFeeDistributionId ?? pa.IndividualChargeId,
+                SourceId = (Guid?)pa.AccruedInterestId ?? pa.UnitFeeId ?? pa.ExtraordinaryFeeDistributionId ?? pa.IndividualChargeId,
                 Amount = pa.Amount,
-                AllocationType = pa.AllocationType.ToString()
+                AllocationType = pa.AllocationType.ToString(),
+                AccruedInterestId = pa.AccruedInterestId
             })
             .ToListAsync();
 
@@ -454,6 +746,22 @@ public class PaymentService
         {
             dist.Status = FeeStatus.PartiallyPaid;
         }
+    }
+
+    private async Task UpdateAccruedInterestAfterPayment(Guid accruedInterestId, decimal paidAmount)
+    {
+        var interest = await _context.AccruedInterests.FindAsync(accruedInterestId);
+        if (interest == null) return;
+
+        interest.BalanceAmount -= paidAmount;
+
+        if (interest.BalanceAmount <= 0m)
+        {
+            interest.Status = AccruedInterestStatus.Paid;
+            interest.BalanceAmount = 0m;
+        }
+
+        interest.UpdatedAt = DateTime.UtcNow;
     }
 
     private async Task UpdateIndividualChargeAfterPayment(Guid chargeId, decimal paidAmount)

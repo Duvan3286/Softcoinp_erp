@@ -25,6 +25,9 @@ public class FeesAndPortfolioController : BaseController
     private readonly ILogger<FeesAndPortfolioController> _logger;
     private readonly PortfolioAgingService _portfolioAgingService;
     private readonly IndicatorCacheService _indicatorCache;
+    private readonly MonthlyInterestRateService _monthlyInterestRateService;
+    private readonly InterestCalculationService _interestCalculationService;
+    private readonly InterestReportService _interestReportService;
 
     public FeesAndPortfolioController(
         BillingEngineService billingEngine,
@@ -33,7 +36,10 @@ public class FeesAndPortfolioController : BaseController
         ApplicationDbContext context,
         ILogger<FeesAndPortfolioController> logger,
         PortfolioAgingService portfolioAgingService,
-        IndicatorCacheService indicatorCache)
+        IndicatorCacheService indicatorCache,
+        MonthlyInterestRateService monthlyInterestRateService,
+        InterestCalculationService interestCalculationService,
+        InterestReportService interestReportService)
     {
         _billingEngine = billingEngine;
         _paymentService = paymentService;
@@ -42,6 +48,9 @@ public class FeesAndPortfolioController : BaseController
         _context = context;
         _logger = logger;
         _indicatorCache = indicatorCache;
+        _monthlyInterestRateService = monthlyInterestRateService;
+        _interestCalculationService = interestCalculationService;
+        _interestReportService = interestReportService;
     }
 
     [HttpGet("checklist")]
@@ -283,6 +292,16 @@ public class FeesAndPortfolioController : BaseController
         var tenantId = GetTenantId();
         var preview = await _paymentService.PreviewPaymentAllocationAsync(
             tenantId, request.UnitId, request.Amount);
+        return Ok(preview);
+    }
+
+    [HttpPost("payment/preview-manual")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> PreviewManualPayment([FromBody] ManualPaymentPreviewRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var preview = await _paymentService.PreviewManualPaymentAsync(
+            tenantId, request.UnitId, request.Allocations);
         return Ok(preview);
     }
 
@@ -1082,6 +1101,400 @@ public class FeesAndPortfolioController : BaseController
         };
 
         return Ok(detail);
+    }
+
+    // ── Interest Rate Endpoints ────────────────────────────────────────────────
+
+    [HttpGet("interest-rates")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetInterestRates()
+    {
+        var tenantId = GetTenantId();
+        var rates = await _monthlyInterestRateService.GetRatesAsync(tenantId);
+        return Ok(rates);
+    }
+
+    [HttpGet("interest-rates/current")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetCurrentInterestRate()
+    {
+        var tenantId = GetTenantId();
+        var now = DateTime.UtcNow;
+        var rate = await _monthlyInterestRateService.GetRateForPeriodAsync(tenantId, now.Year, now.Month);
+        if (rate == null)
+        {
+            return NotFound(new { message = $"No hay tasa registrada para el período {now.Year}-{now.Month:D2}." });
+        }
+        return Ok(rate);
+    }
+
+    [HttpGet("interest-rates/by-period")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetInterestRateByPeriod([FromQuery] int year, [FromQuery] int month)
+    {
+        var tenantId = GetTenantId();
+        var rate = await _monthlyInterestRateService.GetRateForPeriodAsync(tenantId, year, month);
+        if (rate == null)
+        {
+            return NotFound(new { message = $"No hay tasa registrada para {year}-{month:D2}." });
+        }
+        return Ok(rate);
+    }
+
+    [HttpGet("interest-rates/{rateId:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetInterestRateById(Guid rateId)
+    {
+        var tenantId = GetTenantId();
+        var rate = await _monthlyInterestRateService.GetRateByIdAsync(tenantId, rateId);
+        if (rate == null)
+        {
+            return NotFound(new { message = "Tasa de interés no encontrada." });
+        }
+        return Ok(rate);
+    }
+
+    [HttpPost("interest-rates")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> RegisterInterestRate([FromBody] RegisterInterestRateRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        var result = await _monthlyInterestRateService.RegisterRateAsync(
+            tenantId, request.Year, request.Month, request.CertifiedRate, request.AppliedRate, userId);
+
+        if (result.HasErrors)
+        {
+            return BadRequest(new { errors = result.Errors });
+        }
+
+        return Ok(new
+        {
+            rate = result.Rate,
+            isUpdate = result.IsUpdate,
+            message = result.IsUpdate
+                ? "Tasa actualizada exitosamente."
+                : "Tasa registrada exitosamente."
+        });
+    }
+
+    [HttpDelete("interest-rates/{rateId:guid}")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> DeleteInterestRate(Guid rateId)
+    {
+        var tenantId = GetTenantId();
+        var deleted = await _monthlyInterestRateService.DeleteRateAsync(tenantId, rateId);
+
+        if (!deleted)
+        {
+            return BadRequest(new { message = "No se puede eliminar la tasa. Tiene intereses registrados o no existe." });
+        }
+
+        return Ok(new { message = "Tasa eliminada exitosamente." });
+    }
+
+    // ── Interest Configuration Endpoints ───────────────────────────────────────
+
+    [HttpGet("interest-configuration")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetInterestConfiguration()
+    {
+        var tenantId = GetTenantId();
+        var config = await _context.LateInterestConfigurations
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId);
+
+        if (config == null)
+        {
+            return NotFound(new { message = "No hay configuración de intereses. Cree una primero." });
+        }
+
+        return Ok(new LateInterestConfigurationDto
+        {
+            Id = config.Id,
+            InterestStartDays = config.InterestStartDays,
+            ApplyToAllUnitsByDefault = config.ApplyToAllUnitsByDefault,
+            AlertOnMissingMonthlyRate = config.AlertOnMissingMonthlyRate,
+            CreatedAt = config.CreatedAt,
+            UpdatedAt = config.UpdatedAt
+        });
+    }
+
+    [HttpPut("interest-configuration")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> UpdateInterestConfiguration([FromBody] UpdateInterestConfigurationRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        if (request.InterestStartDays < 0)
+        {
+            return BadRequest(new { message = "Los días de gracia no pueden ser negativos." });
+        }
+
+        var config = await _context.LateInterestConfigurations
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId);
+
+        if (config == null)
+        {
+            config = new LateInterestConfiguration
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                InterestStartDays = request.InterestStartDays,
+                ApplyToAllUnitsByDefault = request.ApplyToAllUnitsByDefault,
+                AlertOnMissingMonthlyRate = request.AlertOnMissingMonthlyRate,
+                CreatedAt = DateTime.UtcNow,
+                CreatedByUserId = userId
+            };
+            _context.LateInterestConfigurations.Add(config);
+        }
+        else
+        {
+            config.InterestStartDays = request.InterestStartDays;
+            config.ApplyToAllUnitsByDefault = request.ApplyToAllUnitsByDefault;
+            config.AlertOnMissingMonthlyRate = request.AlertOnMissingMonthlyRate;
+            config.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Configuración de intereses actualizada exitosamente." });
+    }
+
+    // ── Unit Interest Exception Endpoints ──────────────────────────────────────
+
+    [HttpGet("interest-exceptions")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetInterestExceptions()
+    {
+        var tenantId = GetTenantId();
+        var exceptions = await _context.UnitInterestExceptions
+            .Where(e => e.TenantId == tenantId)
+            .Select(e => new UnitInterestExceptionDto
+            {
+                Id = e.Id,
+                UnitId = e.UnitId,
+                UnitIdentifier = e.Unit != null ? e.Unit.Identifier : string.Empty,
+                InterestStartDays = e.InterestStartDays,
+                Reason = e.Reason,
+                CreatedAt = e.CreatedAt
+            })
+            .ToListAsync();
+
+        return Ok(exceptions);
+    }
+
+    [HttpGet("interest-exceptions/{unitId:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetInterestExceptionForUnit(Guid unitId)
+    {
+        var tenantId = GetTenantId();
+        var exception = await _context.UnitInterestExceptions
+            .Where(e => e.TenantId == tenantId && e.UnitId == unitId)
+            .Select(e => new UnitInterestExceptionDto
+            {
+                Id = e.Id,
+                UnitId = e.UnitId,
+                UnitIdentifier = e.Unit != null ? e.Unit.Identifier : string.Empty,
+                InterestStartDays = e.InterestStartDays,
+                Reason = e.Reason,
+                CreatedAt = e.CreatedAt
+            })
+            .FirstOrDefaultAsync();
+
+        if (exception == null)
+        {
+            return NotFound(new { message = "La unidad no tiene excepción de intereses." });
+        }
+
+        return Ok(exception);
+    }
+
+    [HttpPost("interest-exceptions")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> UpsertInterestException([FromBody] UpsertInterestExceptionRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        if (request.InterestStartDays < 0)
+        {
+            return BadRequest(new { message = "Los días de gracia no pueden ser negativos." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return BadRequest(new { message = "Debe especificar una razón para la excepción." });
+        }
+
+        var unitExists = await _context.Units.AnyAsync(u => u.Id == request.UnitId && u.TenantId == tenantId);
+        if (!unitExists)
+        {
+            return BadRequest(new { message = "La unidad no existe o no pertenece al tenant." });
+        }
+
+        var existing = await _context.UnitInterestExceptions
+            .FirstOrDefaultAsync(e => e.TenantId == tenantId && e.UnitId == request.UnitId);
+
+        if (existing != null)
+        {
+            existing.InterestStartDays = request.InterestStartDays;
+            existing.Reason = request.Reason;
+        }
+        else
+        {
+            existing = new UnitInterestException
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                UnitId = request.UnitId,
+                InterestStartDays = request.InterestStartDays,
+                Reason = request.Reason,
+                CreatedAt = DateTime.UtcNow,
+                CreatedByUserId = userId
+            };
+            _context.UnitInterestExceptions.Add(existing);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Excepción de intereses guardada exitosamente." });
+    }
+
+    [HttpDelete("interest-exceptions/{exceptionId:guid}")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> DeleteInterestException(Guid exceptionId)
+    {
+        var tenantId = GetTenantId();
+        var exception = await _context.UnitInterestExceptions
+            .FirstOrDefaultAsync(e => e.Id == exceptionId && e.TenantId == tenantId);
+
+        if (exception == null)
+        {
+            return NotFound(new { message = "Excepción no encontrada." });
+        }
+
+        _context.UnitInterestExceptions.Remove(exception);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Excepción eliminada exitosamente." });
+    }
+
+    // ── Interest Calculation Endpoints ─────────────────────────────────────────
+
+    [HttpPost("interest/calculate")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> CalculateInterests([FromBody] CalculateInterestRequestDto request)
+    {
+        var tenantId = GetTenantId();
+        var userId = GetUserId();
+
+        var result = await _interestCalculationService.CalculateAndSaveInterestsAsync(
+            tenantId, request.UnitId, userId);
+
+        return Ok(new
+        {
+            createdCount = result.CreatedCount,
+            updatedCount = result.UpdatedCount,
+            hasMissingRates = result.HasMissingRates,
+            alerts = result.Alerts,
+            message = result.CreatedCount > 0 || result.UpdatedCount > 0
+                ? $"Intereses calculados: {result.CreatedCount} creados, {result.UpdatedCount} actualizados."
+                : "No se generaron nuevos intereses."
+        });
+    }
+
+    [HttpGet("interest/check-missing-rates")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> CheckMissingRates()
+    {
+        var tenantId = GetTenantId();
+        var result = await _interestCalculationService.CheckMissingRatesAsync(tenantId);
+
+        return Ok(new
+        {
+            currentPeriod = result.CurrentPeriod,
+            hasRateForCurrentPeriod = result.HasRateForCurrentPeriod,
+            alertEnabled = result.AlertEnabled,
+            message = result.Message
+        });
+    }
+
+    // ── Accrued Interests Endpoints ────────────────────────────────────────────
+
+    [HttpGet("units/{unitId:guid}/accrued-interests")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetAccruedInterests(Guid unitId)
+    {
+        var tenantId = GetTenantId();
+
+        var interests = await _context.AccruedInterests
+            .Where(ai => ai.TenantId == tenantId && ai.UnitId == unitId)
+            .OrderBy(ai => ai.InterestStartDate)
+            .Select(ai => new AccruedInterestDto
+            {
+                Id = ai.Id,
+                UnitFeeId = ai.UnitFeeId,
+                ExtraordinaryFeeDistributionId = ai.ExtraordinaryFeeDistributionId,
+                IndividualChargeId = ai.IndividualChargeId,
+                Period = ai.Period,
+                DailyRate = ai.DailyRate,
+                DaysInPeriod = ai.DaysInPeriod,
+                BaseAmount = ai.BaseAmount,
+                CalculatedAmount = ai.CalculatedAmount,
+                BalanceAmount = ai.BalanceAmount,
+                Status = ai.Status.ToString(),
+                InterestStartDate = ai.InterestStartDate,
+                InterestEndDate = ai.InterestEndDate,
+                MonthlyInterestRateId = ai.MonthlyInterestRateId,
+                CreatedAt = ai.CreatedAt
+            })
+            .ToListAsync();
+
+        return Ok(interests);
+    }
+
+    // ── Interest Report Endpoints ──────────────────────────────────────────────
+
+    [HttpGet("reports/interest")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> GetInterestReport(
+        [FromQuery] Guid? unitId,
+        [FromQuery] string? status,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+    {
+        var tenantId = GetTenantId();
+        var report = await _interestReportService.GetReportDataAsync(tenantId, unitId, status, from, to);
+        return Ok(report);
+    }
+
+    [HttpGet("reports/interest/export")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<IActionResult> ExportInterestReport(
+        [FromQuery] string format,
+        [FromQuery] Guid? unitId,
+        [FromQuery] string? status,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
+    {
+        var tenantId = GetTenantId();
+
+        if (format?.ToLower() == "excel")
+        {
+            var bytes = await _interestReportService.GenerateExcelAsync(tenantId, unitId, status, from, to);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "reporte_intereses_mora.xlsx");
+        }
+
+        if (format?.ToLower() == "pdf")
+        {
+            var bytes = await _interestReportService.GeneratePdfAsync(tenantId, unitId, status, from, to);
+            return File(bytes, "application/pdf", "reporte_intereses_mora.pdf");
+        }
+
+        return BadRequest(new { message = "Formato inválido. Use 'excel' o 'pdf'." });
     }
 
     private static string DescribeChargeType(ChargeType chargeType)

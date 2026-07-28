@@ -53,7 +53,7 @@ export const Sidebar = () => {
   const isDevTenant = user?.tenantSubdomain === 'dev';
 
   useEffect(() => {
-    if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('budgets')) setOpenGroup('finanzas');
+    if (pathname.includes('billing') || pathname.includes('portfolio') || pathname.includes('budgets') || pathname.includes('interest')) setOpenGroup('finanzas');
 
     else if (pathname.startsWith('/residents')) setOpenGroup('residents');
     else if (pathname.startsWith('/suppliers') || pathname.startsWith('/contracts')) setOpenGroup('proveedores');
@@ -133,6 +133,7 @@ export const Sidebar = () => {
           >
             <NavItem text="Propietarios" path="/residents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Arrendatarios" path="/residents/tenants" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Residentes" path="/residents/directory" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
           </NavGroup>
 
           <NavGroup
@@ -232,6 +233,7 @@ export const Sidebar = () => {
             <NavItem text="Registrar Pago" path="/billing/payments/register" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Cuotas Extraordinarias" path="/billing/extraordinary-fees" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Cobros Individuales" path="/billing/individual-charges" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
+            <NavItem text="Intereses" path="/billing/interest" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Documentos" path="/billing/documents" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
             <NavItem text="Presupuesto" path="/budgets" currentPath={pathname} isExpanded={isExpanded} router={router} isSubItem />
 

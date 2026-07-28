@@ -63,7 +63,9 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<Owner> Owners => Set<Owner>();
     public DbSet<UnitOwner> UnitOwners => Set<UnitOwner>();
     public DbSet<TenantResident> TenantResidents => Set<TenantResident>();
-    public DbSet<CohabitationGroupMember> CohabitationGroupMembers => Set<CohabitationGroupMember>();
+    public DbSet<Resident> Residents => Set<Resident>();
+    public DbSet<UnitResident> UnitResidents => Set<UnitResident>();
+    public DbSet<ResidentHistory> ResidentHistories => Set<ResidentHistory>();
     public DbSet<OwnerHistory> OwnerHistories => Set<OwnerHistory>();
     public DbSet<ContactHistory> ContactHistories => Set<ContactHistory>();
     public DbSet<SpokespersonHistory> SpokespersonHistories => Set<SpokespersonHistory>();
@@ -78,6 +80,12 @@ public class ApplicationDbContext : IdentityDbContext<User>
     public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
     public DbSet<ClearanceCertificate> ClearanceCertificates => Set<ClearanceCertificate>();
     public DbSet<BillingAdjustment> BillingAdjustments => Set<BillingAdjustment>();
+
+    // ── Intereses de Mora (nuevo) ────────────────────────────────────
+    public DbSet<LateInterestConfiguration> LateInterestConfigurations => Set<LateInterestConfiguration>();
+    public DbSet<MonthlyInterestRate> MonthlyInterestRates => Set<MonthlyInterestRate>();
+    public DbSet<UnitInterestException> UnitInterestExceptions => Set<UnitInterestException>();
+    public DbSet<AccruedInterest> AccruedInterests => Set<AccruedInterest>();
 
     // ── Módulo de Dashboard (nuevo) ────────────────────────────────────
     public DbSet<AlertConfiguration> AlertConfigurations => Set<AlertConfiguration>();
@@ -706,26 +714,72 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasDatabaseName("IX_tenant_residents_unit_active_fullname");
         });
 
-        modelBuilder.Entity<CohabitationGroupMember>(entity =>
+        modelBuilder.Entity<Resident>(entity =>
         {
-            entity.ToTable("erp_cohabitation_group_members");
+            entity.ToTable("erp_residents");
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
             entity.Property(e => e.FullNameOrPetName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Relationship).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DocumentType).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.DocumentNumber).HasMaxLength(50);
+            entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.PetSpecies).HasMaxLength(100);
             entity.Property(e => e.PetBreed).HasMaxLength(100);
             entity.Property(e => e.PetSanitaryRegistration).HasMaxLength(100);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
 
+            // Un mismo documento no puede pertenecer a dos residentes del mismo tenant
+            // (DocumentNumber es nullable para mascotas, que MySQL permite repetir como NULL)
+            entity.HasIndex(e => new { e.TenantId, e.DocumentNumber }).IsUnique();
+        });
+
+        modelBuilder.Entity<UnitResident>(entity =>
+        {
+            entity.ToTable("erp_unit_residents");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Relationship).IsRequired().HasMaxLength(100);
+
             entity.HasOne(e => e.Unit)
-                  .WithMany(u => u.CohabitationGroupMembers)
+                  .WithMany(u => u.UnitResidents)
                   .HasForeignKey(e => e.UnitId)
                   .OnDelete(DeleteBehavior.Restrict);
 
-            // Índice para conteo de mascotas activas por unidad
-            entity.HasIndex(e => new { e.UnitId, e.IsActive, e.IsPet });
+            entity.HasOne(e => e.Resident)
+                  .WithMany(r => r.UnitResidents)
+                  .HasForeignKey(e => e.ResidentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice para conteo de mascotas/residentes activos por unidad
+            entity.HasIndex(e => new { e.UnitId, e.IsActive });
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.IsActive });
+        });
+
+        modelBuilder.Entity<ResidentHistory>(entity =>
+        {
+            entity.ToTable("erp_resident_histories");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Relationship).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.TransferNotes).HasColumnType("longtext");
+            entity.Property(e => e.RecordedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany(u => u.ResidentHistories)
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Resident)
+                  .WithMany(r => r.ResidentHistories)
+                  .HasForeignKey(e => e.ResidentId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice para búsqueda de asignación vigente (EndDate IS NULL)
+            entity.HasIndex(e => new { e.UnitId, e.EndDate });
+            entity.HasIndex(e => new { e.TenantId, e.ResidentId });
         });
 
         modelBuilder.Entity<OwnerHistory>(entity =>
@@ -947,6 +1001,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
             entity.Property(e => e.Notes).HasMaxLength(500);
             entity.Property(e => e.ReceivedByUserId).IsRequired().HasMaxLength(450);
             entity.Property(e => e.AdvanceAmount).HasPrecision(18, 2);
+            entity.Property(e => e.ImputationType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(e => e.ManualJustification).HasMaxLength(2000);
 
             entity.HasOne(e => e.Unit)
                   .WithMany()
@@ -958,6 +1014,7 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasDatabaseName("IX_payments_advance_sum");
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.CreatedAt })
                   .HasDatabaseName("IX_payments_tenant_unit_created");
+            entity.HasIndex(e => new { e.TenantId, e.ImputationType });
         });
 
         modelBuilder.Entity<PaymentAllocation>(entity =>
@@ -989,8 +1046,14 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .HasForeignKey(e => e.IndividualChargeId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(e => e.AccruedInterest)
+                  .WithMany()
+                  .HasForeignKey(e => e.AccruedInterestId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasIndex(e => new { e.PaymentId, e.AllocationType });
             entity.HasIndex(e => new { e.UnitFeeId, e.AllocationType });
+            entity.HasIndex(e => new { e.AccruedInterestId, e.AllocationType });
         });
 
         modelBuilder.Entity<BillingAdjustment>(entity =>
@@ -1039,6 +1102,97 @@ public class ApplicationDbContext : IdentityDbContext<User>
                   .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(e => new { e.TenantId, e.CertificateNumber }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
+        });
+
+        // ── Intereses de Mora ───────────────────────────────────────────────────
+
+        modelBuilder.Entity<LateInterestConfiguration>(entity =>
+        {
+            entity.ToTable("erp_late_interest_configurations");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.InterestStartDays).IsRequired();
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasIndex(e => e.TenantId).IsUnique();
+        });
+
+        modelBuilder.Entity<MonthlyInterestRate>(entity =>
+        {
+            entity.ToTable("erp_monthly_interest_rates");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.CertifiedRate).HasPrecision(8, 4).IsRequired();
+            entity.Property(e => e.AppliedRate).HasPrecision(8, 4).IsRequired();
+            entity.Property(e => e.RegisteredByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasIndex(e => new { e.TenantId, e.Year, e.Month }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Year, e.Month, e.AppliedRate });
+        });
+
+        modelBuilder.Entity<UnitInterestException>(entity =>
+        {
+            entity.ToTable("erp_unit_interest_exceptions");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.InterestStartDays).IsRequired();
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.UnitId }).IsUnique();
+        });
+
+        modelBuilder.Entity<AccruedInterest>(entity =>
+        {
+            entity.ToTable("erp_accrued_interests");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TenantId).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Period).IsRequired().HasMaxLength(7);
+            entity.Property(e => e.DailyRate).HasPrecision(14, 10).IsRequired();
+            entity.Property(e => e.DaysInPeriod).IsRequired();
+            entity.Property(e => e.BaseAmount).HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.CalculatedAmount).HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.BalanceAmount).HasPrecision(18, 2).IsRequired();
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+
+            entity.HasOne(e => e.Unit)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.UnitFee)
+                  .WithMany()
+                  .HasForeignKey(e => e.UnitFeeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ExtraordinaryFeeDistribution)
+                  .WithMany()
+                  .HasForeignKey(e => e.ExtraordinaryFeeDistributionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.IndividualCharge)
+                  .WithMany()
+                  .HasForeignKey(e => e.IndividualChargeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.MonthlyInterestRate)
+                  .WithMany()
+                  .HasForeignKey(e => e.MonthlyInterestRateId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Period, e.UnitFeeId });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => new { e.TenantId, e.Period, e.Status });
             entity.HasIndex(e => new { e.TenantId, e.UnitId, e.Status });
         });
 

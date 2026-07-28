@@ -20,6 +20,9 @@ public class Payment
     public string ReceivedByUserId { get; set; } = string.Empty;
     public decimal AdvanceAmount { get; set; }
 
+    public ImputationType ImputationType { get; set; } = ImputationType.Automatic;
+    public string? ManualJustification { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 

@@ -123,6 +123,12 @@ public class UnitStatementDto
     public decimal TotalCharges { get; set; }
     public decimal TotalPayments { get; set; }
     public decimal ClosingBalance { get; set; }
+    public decimal TotalInterestCharged { get; set; }
+    public decimal TotalInterestPaid { get; set; }
+    public decimal TotalPrincipalCharged { get; set; }
+    public decimal TotalPrincipalPaid { get; set; }
+    public decimal InterestBalance { get; set; }
+    public decimal PrincipalBalance { get; set; }
     public List<StatementLineDto> Lines { get; set; } = new();
 }
 
@@ -134,6 +140,8 @@ public class StatementLineDto
     public decimal Debit { get; set; }
     public decimal Credit { get; set; }
     public decimal Balance { get; set; }
+    public string LineType { get; set; } = "Principal";
+    public string? Period { get; set; }
 }
 
 public class RegisterPaymentRequestDto
@@ -144,6 +152,22 @@ public class RegisterPaymentRequestDto
     public string PaymentMethod { get; set; } = string.Empty;
     public string ReferenceNumber { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
+    public string ImputationType { get; set; } = "Automatic";
+    public string? ManualJustification { get; set; }
+    public List<ManualAllocationLineDto>? ManualAllocations { get; set; }
+}
+
+public class ManualAllocationLineDto
+{
+    public string SourceType { get; set; } = string.Empty;
+    public Guid SourceId { get; set; }
+    public decimal Amount { get; set; }
+}
+
+public class ManualPaymentPreviewRequestDto
+{
+    public Guid UnitId { get; set; }
+    public List<ManualAllocationLineDto> Allocations { get; set; } = new();
 }
 
 public class PaymentPreviewDto
@@ -160,6 +184,7 @@ public class PaymentAllocationPreviewDto
     public Guid SourceId { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal AllocatedAmount { get; set; }
+    public Guid? AccruedInterestId { get; set; }
 }
 
 public class PaymentDto
@@ -198,6 +223,7 @@ public class PaymentAllocationDto
     public Guid? SourceId { get; set; }
     public decimal Amount { get; set; }
     public string AllocationType { get; set; } = string.Empty;
+    public Guid? AccruedInterestId { get; set; }
 }
 
 public class UnitDebtSummaryDto
@@ -414,4 +440,99 @@ public class PortfolioFiltersDto
     public string? Tower { get; set; }
     public string? UnitType { get; set; }
     public string? Search { get; set; }
+}
+
+// ── Interest Module DTOs ───────────────────────────────────────────────────────
+
+public class RegisterInterestRateRequestDto
+{
+    public int Year { get; set; }
+    public int Month { get; set; }
+    public decimal CertifiedRate { get; set; }
+    public decimal AppliedRate { get; set; }
+}
+
+public class LateInterestConfigurationDto
+{
+    public Guid Id { get; set; }
+    public int InterestStartDays { get; set; }
+    public bool ApplyToAllUnitsByDefault { get; set; }
+    public bool AlertOnMissingMonthlyRate { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+}
+
+public class UpdateInterestConfigurationRequestDto
+{
+    public int InterestStartDays { get; set; }
+    public bool ApplyToAllUnitsByDefault { get; set; }
+    public bool AlertOnMissingMonthlyRate { get; set; }
+}
+
+public class UnitInterestExceptionDto
+{
+    public Guid Id { get; set; }
+    public Guid UnitId { get; set; }
+    public string UnitIdentifier { get; set; } = string.Empty;
+    public int InterestStartDays { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+public class UpsertInterestExceptionRequestDto
+{
+    public Guid UnitId { get; set; }
+    public int InterestStartDays { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class CalculateInterestRequestDto
+{
+    public Guid UnitId { get; set; }
+}
+
+public class InterestReportDto
+{
+    public List<InterestReportLineDto> Lines { get; set; } = new();
+    public decimal TotalCalculated { get; set; }
+    public decimal TotalBalance { get; set; }
+    public decimal TotalBaseAmount { get; set; }
+    public int PendingCount { get; set; }
+    public int PaidCount { get; set; }
+    public DateTime GeneratedAt { get; set; }
+}
+
+public class InterestReportLineDto
+{
+    public Guid Id { get; set; }
+    public Guid UnitId { get; set; }
+    public string UnitIdentifier { get; set; } = string.Empty;
+    public string Period { get; set; } = string.Empty;
+    public decimal DailyRate { get; set; }
+    public int DaysInPeriod { get; set; }
+    public decimal BaseAmount { get; set; }
+    public decimal CalculatedAmount { get; set; }
+    public decimal BalanceAmount { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime InterestStartDate { get; set; }
+    public DateTime InterestEndDate { get; set; }
+}
+
+public class AccruedInterestDto
+{
+    public Guid Id { get; set; }
+    public Guid? UnitFeeId { get; set; }
+    public Guid? ExtraordinaryFeeDistributionId { get; set; }
+    public Guid? IndividualChargeId { get; set; }
+    public string Period { get; set; } = string.Empty;
+    public decimal DailyRate { get; set; }
+    public int DaysInPeriod { get; set; }
+    public decimal BaseAmount { get; set; }
+    public decimal CalculatedAmount { get; set; }
+    public decimal BalanceAmount { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime InterestStartDate { get; set; }
+    public DateTime InterestEndDate { get; set; }
+    public Guid MonthlyInterestRateId { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

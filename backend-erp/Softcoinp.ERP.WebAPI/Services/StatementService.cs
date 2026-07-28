@@ -62,74 +62,131 @@ public class StatementService
             .OrderBy(p => p.PaymentDate)
             .ToListAsync();
 
-        var chargeLines = new List<(DateTime Date, string Description, string Reference, decimal Debit, decimal Credit)>();
+        var allInterests = await _context.AccruedInterests
+            .Where(ai => ai.TenantId == tenantId && ai.UnitId == unitId)
+            .OrderBy(ai => ai.InterestEndDate)
+            .ToListAsync();
+
+        var paymentIds = allPayments.Select(p => p.Id).ToList();
+        var allAllocations = await _context.PaymentAllocations
+            .Where(pa => paymentIds.Contains(pa.PaymentId))
+            .ToListAsync();
+
+        var lines = new List<(DateTime Date, string Description, string Reference, decimal Debit, decimal Credit, string LineType, string? Period)>();
 
         foreach (var fee in allCharges)
         {
-            chargeLines.Add((fee.DueDate, "Cuota ordinaria " + fee.DueDate.ToString("yyyy-MM"),
-                fee.Id.ToString(), fee.FeeValue, 0m));
+            lines.Add((fee.DueDate, "Cuota ordinaria " + fee.DueDate.ToString("yyyy-MM"),
+                fee.Id.ToString(), fee.FeeValue, 0m, "Principal", null));
         }
 
         foreach (var distribution in allExtraordinary)
         {
-            chargeLines.Add((distribution.DueDate, "Cuota extraordinaria #" + distribution.InstallmentNumber,
-                distribution.ExtraordinaryFeeId.ToString(), distribution.Amount, 0m));
+            lines.Add((distribution.DueDate, "Cuota extraordinaria #" + distribution.InstallmentNumber,
+                distribution.ExtraordinaryFeeId.ToString(), distribution.Amount, 0m, "Principal", null));
         }
 
         foreach (var charge in allIndividualCharges)
         {
-            chargeLines.Add((charge.ChargeDate, charge.Concept, charge.Id.ToString(), charge.Amount, 0m));
+            lines.Add((charge.ChargeDate, charge.Concept, charge.Id.ToString(), charge.Amount, 0m, "Principal", null));
         }
 
         foreach (var adjustment in allAdjustments)
         {
             if (adjustment.Amount >= 0m)
             {
-                chargeLines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), adjustment.Amount, 0m));
+                lines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), adjustment.Amount, 0m, "Principal", null));
             }
             else
             {
-                chargeLines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), 0m, -adjustment.Amount));
+                lines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), 0m, -adjustment.Amount, "Principal", null));
             }
+        }
+
+        foreach (var interest in allInterests)
+        {
+            var description = interest.UnitFeeId.HasValue
+                ? "Interés mora cuota " + interest.Period
+                : interest.ExtraordinaryFeeDistributionId.HasValue
+                    ? "Interés mora cuota extra " + interest.Period
+                    : "Interés mora cargo " + interest.Period;
+
+            lines.Add((interest.InterestEndDate, description,
+                interest.Id.ToString(), interest.CalculatedAmount, 0m, "Interest", interest.Period));
         }
 
         foreach (var payment in allPayments)
         {
-            chargeLines.Add((payment.PaymentDate, "Pago " + payment.PaymentMethod,
-                payment.ReferenceNumber, 0m, payment.Amount));
+            lines.Add((payment.PaymentDate, "Pago " + payment.PaymentMethod,
+                payment.ReferenceNumber, 0m, payment.Amount, "Payment", null));
         }
 
-        chargeLines = chargeLines.OrderBy(c => c.Date).ToList();
+        lines = lines.OrderBy(l => l.Date).ToList();
 
         var openingBalance = 0m;
-        foreach (var line in chargeLines)
+        var openingInterestBalance = 0m;
+        var openingPrincipalBalance = 0m;
+
+        foreach (var line in lines)
         {
-            if (line.Date < periodStart)
+            if (line.Date >= periodStart) break;
+
+            if (line.LineType == "Interest")
             {
-                openingBalance += line.Debit - line.Credit;
+                openingInterestBalance += line.Debit - line.Credit;
+            }
+            else
+            {
+                openingPrincipalBalance += line.Debit - line.Credit;
             }
         }
 
-        var runningBalance = openingBalance;
-        var lines = new List<StatementLineDto>();
+        openingBalance = openingInterestBalance + openingPrincipalBalance;
 
-        foreach (var line in chargeLines)
+        var runningBalance = openingBalance;
+        var runningInterestBalance = openingInterestBalance;
+        var runningPrincipalBalance = openingPrincipalBalance;
+        var statementLines = new List<StatementLineDto>();
+        var periodInterestCharged = 0m;
+        var periodInterestPaid = 0m;
+        var periodPrincipalCharged = 0m;
+        var periodPrincipalPaid = 0m;
+
+        foreach (var line in lines)
         {
             if (line.Date < periodStart) continue;
             if (line.Date > periodEnd) break;
 
             runningBalance += line.Debit - line.Credit;
 
-            lines.Add(new StatementLineDto
+            if (line.LineType == "Interest")
+            {
+                runningInterestBalance += line.Debit - line.Credit;
+                periodInterestCharged += line.Debit;
+                periodInterestPaid += line.Credit;
+            }
+            else
+            {
+                runningPrincipalBalance += line.Debit - line.Credit;
+                periodPrincipalCharged += line.Debit;
+                periodPrincipalPaid += line.Credit;
+            }
+
+            statementLines.Add(new StatementLineDto
             {
                 Date = line.Date,
                 Description = line.Description,
                 Reference = line.Reference,
                 Debit = line.Debit,
                 Credit = line.Credit,
-                Balance = runningBalance
+                Balance = runningBalance,
+                LineType = line.LineType,
+                Period = line.Period
             });
         }
+
+        var totalCharges = periodPrincipalCharged + periodInterestCharged;
+        var totalPayments = periodPrincipalPaid + periodInterestPaid;
 
         return new UnitStatementDto
         {
@@ -137,9 +194,16 @@ public class StatementService
             UnitIdentifier = unit.Identifier,
             UnitTower = unit.TowerOrBlock,
             OpeningBalance = openingBalance,
-            TotalCharges = chargeLines.Where(c => c.Date >= periodStart && c.Date <= periodEnd).Sum(c => c.Debit),
-            TotalPayments = chargeLines.Where(c => c.Date >= periodStart && c.Date <= periodEnd).Sum(c => c.Credit),
-            ClosingBalance = runningBalance
+            TotalCharges = totalCharges,
+            TotalPayments = totalPayments,
+            ClosingBalance = runningBalance,
+            TotalInterestCharged = periodInterestCharged,
+            TotalInterestPaid = periodInterestPaid,
+            TotalPrincipalCharged = periodPrincipalCharged,
+            TotalPrincipalPaid = periodPrincipalPaid,
+            InterestBalance = runningInterestBalance,
+            PrincipalBalance = runningPrincipalBalance,
+            Lines = statementLines
         };
     }
 

@@ -20,6 +20,9 @@ public class PaymentAllocation
     public Guid? IndividualChargeId { get; set; }
     public IndividualCharge? IndividualCharge { get; set; }
 
+    public Guid? AccruedInterestId { get; set; }
+    public AccruedInterest? AccruedInterest { get; set; }
+
     public decimal Amount { get; set; }
     public PaymentAllocationType AllocationType { get; set; }
 
