@@ -72,53 +72,122 @@ public class StatementService
             .Where(pa => paymentIds.Contains(pa.PaymentId))
             .ToListAsync();
 
-        var lines = new List<(DateTime Date, string Description, string Reference, decimal Debit, decimal Credit, string LineType, string? Period)>();
+        var lines = new List<StatementLineEntry>();
 
         foreach (var fee in allCharges)
         {
-            lines.Add((fee.DueDate, "Cuota ordinaria " + fee.DueDate.ToString("yyyy-MM"),
-                fee.Id.ToString(), fee.FeeValue, 0m, "Principal", null));
+            var statusLabel = "Al día";
+            if (fee.DueDate < DateTime.UtcNow && fee.BalanceAmount > 0m)
+            {
+                statusLabel = "Vencida";
+            }
+
+            lines.Add(new StatementLineEntry
+            {
+                Date = fee.DueDate,
+                Description = "Cuota ordinaria " + fee.DueDate.ToString("yyyy-MM") + " (" + statusLabel + ")",
+                Reference = fee.Id.ToString(),
+                Debit = fee.FeeValue,
+                Credit = 0m,
+                LineType = "Principal"
+            });
         }
 
         foreach (var distribution in allExtraordinary)
         {
-            lines.Add((distribution.DueDate, "Cuota extraordinaria #" + distribution.InstallmentNumber,
-                distribution.ExtraordinaryFeeId.ToString(), distribution.Amount, 0m, "Principal", null));
+            lines.Add(new StatementLineEntry
+            {
+                Date = distribution.DueDate,
+                Description = "Cuota extraordinaria #" + distribution.InstallmentNumber,
+                Reference = distribution.ExtraordinaryFeeId.ToString(),
+                Debit = distribution.Amount,
+                Credit = 0m,
+                LineType = "Principal"
+            });
         }
 
         foreach (var charge in allIndividualCharges)
         {
-            lines.Add((charge.ChargeDate, charge.Concept, charge.Id.ToString(), charge.Amount, 0m, "Principal", null));
+            lines.Add(new StatementLineEntry
+            {
+                Date = charge.ChargeDate,
+                Description = charge.Concept,
+                Reference = charge.Id.ToString(),
+                Debit = charge.Amount,
+                Credit = 0m,
+                LineType = "Principal"
+            });
         }
 
         foreach (var adjustment in allAdjustments)
         {
+            var debit = 0m;
+            var credit = 0m;
             if (adjustment.Amount >= 0m)
             {
-                lines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), adjustment.Amount, 0m, "Principal", null));
+                debit = adjustment.Amount;
             }
             else
             {
-                lines.Add((adjustment.CreatedAt, "Ajuste: " + adjustment.Reason, adjustment.Id.ToString(), 0m, -adjustment.Amount, "Principal", null));
+                credit = -adjustment.Amount;
             }
+
+            lines.Add(new StatementLineEntry
+            {
+                Date = adjustment.CreatedAt,
+                Description = "Ajuste: " + adjustment.Reason,
+                Reference = adjustment.Id.ToString(),
+                Debit = debit,
+                Credit = credit,
+                LineType = "Principal"
+            });
         }
 
         foreach (var interest in allInterests)
         {
-            var description = interest.UnitFeeId.HasValue
-                ? "Interés mora cuota " + interest.Period
-                : interest.ExtraordinaryFeeDistributionId.HasValue
-                    ? "Interés mora cuota extra " + interest.Period
-                    : "Interés mora cargo " + interest.Period;
+            var description = "Interés mora cargo " + interest.Period;
+            if (interest.UnitFeeId.HasValue)
+            {
+                description = "Interés mora cuota " + interest.Period;
+            }
+            else if (interest.ExtraordinaryFeeDistributionId.HasValue)
+            {
+                description = "Interés mora cuota extra " + interest.Period;
+            }
 
-            lines.Add((interest.InterestEndDate, description,
-                interest.Id.ToString(), interest.CalculatedAmount, 0m, "Interest", interest.Period));
+            lines.Add(new StatementLineEntry
+            {
+                Date = interest.InterestEndDate,
+                Description = description,
+                Reference = interest.Id.ToString(),
+                Debit = interest.CalculatedAmount,
+                Credit = 0m,
+                LineType = "Interest",
+                Period = interest.Period,
+                DailyRate = interest.DailyRate,
+                DaysInPeriod = interest.DaysInPeriod,
+                BaseAmount = interest.BaseAmount
+            });
         }
 
         foreach (var payment in allPayments)
         {
-            lines.Add((payment.PaymentDate, "Pago " + payment.PaymentMethod,
-                payment.ReferenceNumber, 0m, payment.Amount, "Payment", null));
+            var imputationLabel = "Automática";
+            if (payment.ImputationType == ImputationType.Manual)
+            {
+                imputationLabel = "Manual";
+            }
+
+            lines.Add(new StatementLineEntry
+            {
+                Date = payment.PaymentDate,
+                Description = "Pago " + payment.PaymentMethod + " (" + imputationLabel + ")",
+                Reference = payment.ReferenceNumber,
+                Debit = 0m,
+                Credit = payment.Amount,
+                LineType = "Payment",
+                ImputationType = payment.ImputationType.ToString()
+            });
         }
 
         lines = lines.OrderBy(l => l.Date).ToList();
@@ -129,7 +198,10 @@ public class StatementService
 
         foreach (var line in lines)
         {
-            if (line.Date >= periodStart) break;
+            if (line.Date >= periodStart)
+            {
+                break;
+            }
 
             if (line.LineType == "Interest")
             {
@@ -154,8 +226,15 @@ public class StatementService
 
         foreach (var line in lines)
         {
-            if (line.Date < periodStart) continue;
-            if (line.Date > periodEnd) break;
+            if (line.Date < periodStart)
+            {
+                continue;
+            }
+
+            if (line.Date > periodEnd)
+            {
+                break;
+            }
 
             runningBalance += line.Debit - line.Credit;
 
@@ -181,7 +260,11 @@ public class StatementService
                 Credit = line.Credit,
                 Balance = runningBalance,
                 LineType = line.LineType,
-                Period = line.Period
+                Period = line.Period,
+                DailyRate = line.DailyRate,
+                DaysInPeriod = line.DaysInPeriod,
+                BaseAmount = line.BaseAmount,
+                ImputationType = line.ImputationType
             });
         }
 
@@ -406,5 +489,20 @@ public class StatementService
             IssuedByUserId = certificate.IssuedByUserId,
             SignedByAdministratorName = certificate.SignedByAdministratorName
         };
+    }
+
+    private class StatementLineEntry
+    {
+        public DateTime Date { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public string Reference { get; set; } = string.Empty;
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+        public string LineType { get; set; } = "Principal";
+        public string? Period { get; set; }
+        public decimal? DailyRate { get; set; }
+        public int? DaysInPeriod { get; set; }
+        public decimal? BaseAmount { get; set; }
+        public string? ImputationType { get; set; }
     }
 }

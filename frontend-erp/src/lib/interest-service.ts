@@ -99,6 +99,7 @@ export interface InterestReportLineDto {
 export interface InterestReportDto {
   lines: InterestReportLineDto[];
   totalCalculated: number;
+  totalCollected: number;
   totalBalance: number;
   totalBaseAmount: number;
   pendingCount: number;

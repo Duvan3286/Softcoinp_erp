@@ -65,11 +65,17 @@ public class PortfolioAgingService
             .Select(a => new OverdueRow { UnitId = a.UnitId, Balance = a.Amount, ReferenceDate = a.CreatedAt })
             .ToListAsync();
 
+        var overdueInterests = await _context.AccruedInterests
+            .Where(ai => ai.TenantId == tenantId && ai.Status == AccruedInterestStatus.Pending && ai.BalanceAmount > 0)
+            .Select(ai => new OverdueRow { UnitId = ai.UnitId, Balance = ai.BalanceAmount, ReferenceDate = ai.InterestStartDate })
+            .ToListAsync();
+
         var allRows = new List<OverdueRow>();
         allRows.AddRange(overdueFees);
         allRows.AddRange(overdueExtraordinary);
         allRows.AddRange(overdueCharges);
         allRows.AddRange(positiveAdjustments);
+        allRows.AddRange(overdueInterests);
 
         return BuildSummary(allRows, now);
     }
@@ -103,11 +109,17 @@ public class PortfolioAgingService
             .Select(a => new OverdueRow { UnitId = a.UnitId, Balance = a.Amount, ReferenceDate = a.CreatedAt })
             .ToList();
 
+        var overdueInterests = _context.AccruedInterests
+            .Where(ai => ai.TenantId == tenantId && ai.Status == AccruedInterestStatus.Pending && ai.BalanceAmount > 0)
+            .Select(ai => new OverdueRow { UnitId = ai.UnitId, Balance = ai.BalanceAmount, ReferenceDate = ai.InterestStartDate })
+            .ToList();
+
         var allRows = new List<OverdueRow>();
         allRows.AddRange(overdueFees);
         allRows.AddRange(overdueExtraordinary);
         allRows.AddRange(overdueCharges);
         allRows.AddRange(positiveAdjustments);
+        allRows.AddRange(overdueInterests);
 
         return BuildSummary(allRows, now);
     }

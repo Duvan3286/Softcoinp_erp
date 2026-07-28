@@ -12,6 +12,7 @@ import dashboardService, {
   DashboardKpis, AlertItem, UpcomingEventItem, RecentActivityItem,
   PaymentStatusMap, UnitPaymentStatus, MonthlyCollectionItem
 } from '@/lib/dashboard-service';
+import interestService, { InterestCheckResult } from '@/lib/interest-service';
 import {
   Loader2, AlertTriangle, DollarSign, Calendar, Activity,
   Building2, TrendingUp, PiggyBank, FileText,
@@ -149,6 +150,7 @@ function DashboardView({ user, logout }: { user: any; logout: () => void }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [interestRateAlert, setInterestRateAlert] = useState<InterestCheckResult | null>(null);
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) {
@@ -175,6 +177,13 @@ function DashboardView({ user, logout }: { user: any; logout: () => void }) {
       ]);
       setPaymentMap(mapResult);
       setActivity(activityResult);
+
+      try {
+        const rateCheck = await interestService.checkMissingRates();
+        setInterestRateAlert(rateCheck);
+      } catch {
+        setInterestRateAlert(null);
+      }
     } catch {
       setError('Error al cargar datos del dashboard.');
     } finally {
@@ -215,6 +224,13 @@ function DashboardView({ user, logout }: { user: any; logout: () => void }) {
         onRefresh={handleRefresh}
         refreshing={refreshing}
       />
+
+      {interestRateAlert && !interestRateAlert.hasRateForCurrentPeriod && interestRateAlert.alertEnabled && (
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-700 dark:text-amber-300 text-sm flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {interestRateAlert.message}
+        </div>
+      )}
 
       <KpiBar kpis={kpis} activeAlertCount={alerts.length} />
 

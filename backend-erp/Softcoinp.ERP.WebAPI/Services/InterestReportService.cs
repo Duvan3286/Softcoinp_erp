@@ -78,6 +78,7 @@ public class InterestReportService
         {
             Lines = interests,
             TotalCalculated = interests.Sum(i => i.CalculatedAmount),
+            TotalCollected = interests.Sum(i => i.CalculatedAmount - i.BalanceAmount),
             TotalBalance = interests.Sum(i => i.BalanceAmount),
             TotalBaseAmount = interests.Sum(i => i.BaseAmount),
             PendingCount = interests.Count(i => i.Status == "Pending"),
@@ -148,15 +149,19 @@ public class InterestReportService
         ws.Cell(row + 2, 2).Value = data.TotalCalculated;
         ws.Cell(row + 2, 2).Style.NumberFormat.Format = "#,##0.00";
 
-        ws.Cell(row + 3, 1).Value = "Total Saldo Pendiente:";
-        ws.Cell(row + 3, 2).Value = data.TotalBalance;
+        ws.Cell(row + 3, 1).Value = "Total Cobrado:";
+        ws.Cell(row + 3, 2).Value = data.TotalCollected;
         ws.Cell(row + 3, 2).Style.NumberFormat.Format = "#,##0.00";
 
-        ws.Cell(row + 4, 1).Value = "Pendientes:";
-        ws.Cell(row + 4, 2).Value = data.PendingCount;
+        ws.Cell(row + 4, 1).Value = "Total Saldo Pendiente:";
+        ws.Cell(row + 4, 2).Value = data.TotalBalance;
+        ws.Cell(row + 4, 2).Style.NumberFormat.Format = "#,##0.00";
 
-        ws.Cell(row + 5, 1).Value = "Pagados:";
-        ws.Cell(row + 5, 2).Value = data.PaidCount;
+        ws.Cell(row + 5, 1).Value = "Pendientes:";
+        ws.Cell(row + 5, 2).Value = data.PendingCount;
+
+        ws.Cell(row + 6, 1).Value = "Pagados:";
+        ws.Cell(row + 6, 2).Value = data.PaidCount;
 
         ws.Columns().AdjustToContents();
 

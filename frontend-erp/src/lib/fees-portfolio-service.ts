@@ -94,6 +94,12 @@ export interface AgingBucket {
   totalDebt: number;
 }
 
+export interface ManualAllocationLine {
+  sourceType: string;
+  sourceId: string;
+  amount: number;
+}
+
 export interface RegisterPaymentRequest {
   unitId: string;
   paymentDate: string;
@@ -101,6 +107,9 @@ export interface RegisterPaymentRequest {
   paymentMethod: string;
   referenceNumber: string;
   notes: string;
+  imputationType: string;
+  manualJustification?: string;
+  manualAllocations?: ManualAllocationLine[];
 }
 
 export interface PaymentPreview {
@@ -128,6 +137,9 @@ export interface PaymentDto {
   notes: string;
   advanceAmount: number;
   createdAt: string;
+  imputationType: string;
+  manualJustification?: string;
+  receivedByUserId: string;
 }
 
 export interface PaymentDetail {
@@ -141,6 +153,9 @@ export interface PaymentDetail {
   notes: string;
   advanceAmount: number;
   createdAt: string;
+  imputationType: string;
+  manualJustification?: string;
+  receivedByUserId: string;
   allocations: PaymentAllocationItem[];
 }
 
@@ -185,6 +200,12 @@ export interface UnitStatement {
   totalCharges: number;
   totalPayments: number;
   closingBalance: number;
+  totalInterestCharged: number;
+  totalInterestPaid: number;
+  totalPrincipalCharged: number;
+  totalPrincipalPaid: number;
+  interestBalance: number;
+  principalBalance: number;
   lines: StatementLine[];
 }
 
@@ -195,6 +216,12 @@ export interface StatementLine {
   debit: number;
   credit: number;
   balance: number;
+  lineType: string;
+  period?: string;
+  dailyRate?: number;
+  daysInPeriod?: number;
+  baseAmount?: number;
+  imputationType?: string;
 }
 
 export interface ClearanceCertificate {
@@ -414,6 +441,11 @@ const feesPortfolioService = {
 
   async previewPayment(unitId: string, amount: number): Promise<PaymentPreview> {
     const response = await apiClient.post<PaymentPreview>('/billing/payment/preview', { unitId, amount });
+    return response.data;
+  },
+
+  async previewManualPayment(unitId: string, allocations: ManualAllocationLine[]): Promise<PaymentPreview> {
+    const response = await apiClient.post<PaymentPreview>('/billing/payment/preview-manual', { unitId, allocations });
     return response.data;
   },
 

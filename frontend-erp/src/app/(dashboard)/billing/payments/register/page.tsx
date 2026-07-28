@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, ArrowLeft, Eye, Save, AlertTriangle, CheckCircle, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import feesPortfolioService, { PaymentPreview, RegisterPaymentRequest } from '@/lib/fees-portfolio-service';
+import feesPortfolioService, { PaymentPreview, RegisterPaymentRequest, UnitDebtSummary, ManualAllocationLine } from '@/lib/fees-portfolio-service';
 import { UnitsService as unitsService, Unit, formatUnitLabel } from '@/lib/units-service';
 
 export default function RegisterPaymentPage() {
@@ -27,6 +27,12 @@ export default function RegisterPaymentPage() {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
 
+  const [imputationType, setImputationType] = useState('Automatic');
+  const [manualJustification, setManualJustification] = useState('');
+  const [debtSummary, setDebtSummary] = useState<UnitDebtSummary | null>(null);
+  const [loadingDebt, setLoadingDebt] = useState(false);
+  const [manualAllocations, setManualAllocations] = useState<Record<string, number>>({});
+
   useEffect(() => {
     const fetchUnits = async () => {
       try {
@@ -41,13 +47,80 @@ export default function RegisterPaymentPage() {
     fetchUnits();
   }, []);
 
+  useEffect(() => {
+    if (imputationType !== 'Manual' || !unitId) {
+      setDebtSummary(null);
+      setManualAllocations({});
+      return;
+    }
+
+    const fetchDebt = async () => {
+      setLoadingDebt(true);
+      try {
+        const data = await feesPortfolioService.getUnitBalance(unitId);
+        setDebtSummary(data);
+        setManualAllocations({});
+      } catch {
+        setError('Error al cargar el desglose de deuda de la unidad.');
+      } finally {
+        setLoadingDebt(false);
+      }
+    };
+    fetchDebt();
+  }, [imputationType, unitId]);
+
+  const buildManualLines = (): ManualAllocationLine[] => {
+    const lines: ManualAllocationLine[] = [];
+    for (const key of Object.keys(manualAllocations)) {
+      const value = manualAllocations[key];
+      if (value > 0) {
+        const parts = key.split('|');
+        lines.push({ sourceType: parts[0], sourceId: parts[1], amount: value });
+      }
+    }
+    return lines;
+  };
+
+  const manualTotal = (): number => {
+    let total = 0;
+    for (const key of Object.keys(manualAllocations)) {
+      total += manualAllocations[key] || 0;
+    }
+    return total;
+  };
+
+  const handleManualAmountChange = (sourceType: string, sourceId: string, value: number) => {
+    const key = `${sourceType}|${sourceId}`;
+    setManualAllocations(prev => ({ ...prev, [key]: value }));
+  };
+
   const handlePreview = async () => {
     setError('');
     setPreview(null);
     setResult(null);
     if (!unitId) { setError('Debe seleccionar una unidad.'); return; }
-    if (amount <= 0) { setError('El monto debe ser mayor a cero.'); return; }
     if (!paymentDate) { setError('La fecha de pago es requerida.'); return; }
+
+    if (imputationType === 'Manual') {
+      const lines = buildManualLines();
+      if (lines.length === 0) {
+        setError('Debe asignar al menos una línea en modo manual.');
+        return;
+      }
+      setPreviewing(true);
+      try {
+        const data = await feesPortfolioService.previewManualPayment(unitId, lines);
+        setPreview(data);
+      } catch (err: any) {
+        setError(err?.response?.data || 'Error al obtener la vista previa del pago.');
+      } finally {
+        setPreviewing(false);
+      }
+      return;
+    }
+
+    if (amount <= 0) { setError('El monto debe ser mayor a cero.'); return; }
+
     setPreviewing(true);
     try {
       const data = await feesPortfolioService.previewPayment(unitId, amount);
@@ -63,8 +136,27 @@ export default function RegisterPaymentPage() {
     setError('');
     setSuccess('');
     if (!unitId) { setError('Debe seleccionar una unidad.'); return; }
-    if (amount <= 0) { setError('El monto debe ser mayor a cero.'); return; }
     if (!paymentDate) { setError('La fecha de pago es requerida.'); return; }
+
+    if (imputationType === 'Manual') {
+      if (!manualJustification.trim()) {
+        setError('La justificación es obligatoria en modo manual.');
+        return;
+      }
+      const lines = buildManualLines();
+      if (lines.length === 0) {
+        setError('Debe asignar al menos una línea en modo manual.');
+        return;
+      }
+      const total = manualTotal();
+      if (total !== amount) {
+        setError(`La suma de las asignaciones manuales (${total}) debe coincidir con el monto del pago (${amount}).`);
+        return;
+      }
+    } else if (amount <= 0) {
+      setError('El monto debe ser mayor a cero.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -75,7 +167,14 @@ export default function RegisterPaymentPage() {
         paymentMethod,
         referenceNumber,
         notes,
+        imputationType,
       };
+
+      if (imputationType === 'Manual') {
+        request.manualJustification = manualJustification;
+        request.manualAllocations = buildManualLines();
+      }
+
       const data = await feesPortfolioService.registerPayment(request);
       setResult(data);
       setSuccess('Pago registrado exitosamente.');
@@ -95,6 +194,7 @@ export default function RegisterPaymentPage() {
       UnitFee: 'Cuota Ordinaria',
       ExtraordinaryFee: 'Cuota Extraordinaria',
       IndividualCharge: 'Cobro Individual',
+      Interest: 'Interés de Mora',
     };
     return map[type] || type;
   };
@@ -156,6 +256,29 @@ export default function RegisterPaymentPage() {
                 ))}
               </select>
             </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Modo de Imputación</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    checked={imputationType === 'Automatic'}
+                    onChange={() => setImputationType('Automatic')}
+                  />
+                  Automática (intereses primero, luego capital, por antigüedad)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    checked={imputationType === 'Manual'}
+                    onChange={() => setImputationType('Manual')}
+                  />
+                  Manual (distribución libre con justificación)
+                </label>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Fecha de Pago</label>
               <input
@@ -211,7 +334,77 @@ export default function RegisterPaymentPage() {
                 className="w-full bg-transparent border-b border-emerald-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all resize-none"
               />
             </div>
+
+            {imputationType === 'Manual' && (
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Justificación (obligatoria)</label>
+                <textarea
+                  placeholder="Explique por qué se distribuye el pago de forma manual..."
+                  value={manualJustification}
+                  onChange={(e) => setManualJustification(e.target.value)}
+                  rows={2}
+                  className="w-full bg-transparent border-b border-amber-600 focus:border-b-2 text-foreground pl-0 pr-6 py-2 text-sm focus:outline-none transition-all resize-none"
+                  required
+                />
+              </div>
+            )}
           </div>
+
+          {imputationType === 'Manual' && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <h3 className="font-bold text-foreground mb-3">Desglose de Deuda Pendiente</h3>
+              {loadingDebt && <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />}
+              {!loadingDebt && !unitId && (
+                <p className="text-sm text-muted-foreground">Seleccione una unidad para ver su deuda pendiente.</p>
+              )}
+              {!loadingDebt && debtSummary && debtSummary.items.length === 0 && (
+                <p className="text-sm text-muted-foreground">La unidad no tiene deudas pendientes.</p>
+              )}
+              {!loadingDebt && debtSummary && debtSummary.items.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-muted-foreground uppercase">Tipo</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold text-muted-foreground uppercase">Descripción</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold text-muted-foreground uppercase">Saldo</th>
+                        <th className="px-4 py-2 text-right text-xs font-bold text-muted-foreground uppercase">Asignar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {debtSummary.items.map((item) => {
+                        const key = `${item.sourceType}|${item.sourceId}`;
+                        return (
+                          <tr key={key}>
+                            <td className="px-4 py-2 text-sm">{sourceTypeLabel(item.sourceType)}</td>
+                            <td className="px-4 py-2 text-sm text-muted-foreground">{item.description}</td>
+                            <td className="px-4 py-2 text-right font-mono text-sm">{formatCurrency(item.balance)}</td>
+                            <td className="px-4 py-2 text-right">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max={item.balance}
+                                value={manualAllocations[key] || ''}
+                                onChange={(e) => handleManualAmountChange(item.sourceType, item.sourceId, Number(e.target.value))}
+                                className="w-28 bg-transparent border-b border-emerald-600 text-right text-sm focus:outline-none"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={3} className="px-4 py-2 text-right text-sm font-bold">Total asignado manualmente</td>
+                        <td className="px-4 py-2 text-right font-mono text-sm font-bold">{formatCurrency(manualTotal())}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
             <Button type="button" variant="ghost" onClick={handlePreview} disabled={previewing}>

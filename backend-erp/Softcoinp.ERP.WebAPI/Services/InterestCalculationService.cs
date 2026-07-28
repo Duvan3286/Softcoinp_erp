@@ -100,10 +100,10 @@ public class InterestCalculationService
 
         foreach (var fee in overdueFees)
         {
-            var startDate = fee.DueDate.AddDays(interestStartDays);
-            if (startDate >= now) continue;
+            var interestStartDate = fee.DueDate.AddDays(interestStartDays + 1);
+            if (interestStartDate > now) continue;
 
-            var periods = GetPeriodsBetween(startDate, now);
+            var periods = GetPeriodsBetween(interestStartDate, now);
             foreach (var period in periods)
             {
                 if (!ratesLookup.TryGetValue(period.Key, out var rate))
@@ -162,10 +162,10 @@ public class InterestCalculationService
 
         foreach (var dist in overdueExtraordinary)
         {
-            var startDate = dist.DueDate.AddDays(interestStartDays);
-            if (startDate >= now) continue;
+            var interestStartDate = dist.DueDate.AddDays(interestStartDays + 1);
+            if (interestStartDate > now) continue;
 
-            var periods = GetPeriodsBetween(startDate, now);
+            var periods = GetPeriodsBetween(interestStartDate, now);
             foreach (var period in periods)
             {
                 if (!ratesLookup.TryGetValue(period.Key, out var rate))
@@ -224,10 +224,10 @@ public class InterestCalculationService
 
         foreach (var charge in overdueCharges)
         {
-            var startDate = charge.ChargeDate.AddDays(interestStartDays);
-            if (startDate >= now) continue;
+            var interestStartDate = charge.ChargeDate.AddDays(interestStartDays + 1);
+            if (interestStartDate > now) continue;
 
-            var periods = GetPeriodsBetween(startDate, now);
+            var periods = GetPeriodsBetween(interestStartDate, now);
             foreach (var period in periods)
             {
                 if (!ratesLookup.TryGetValue(period.Key, out var rate))

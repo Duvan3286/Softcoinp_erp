@@ -291,6 +291,27 @@ export default function DocumentsPage() {
                 </Card>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground font-medium">Total Capital Vencido</p>
+                    <p className="text-lg font-bold text-foreground">{formatCurrency(statement.principalBalance)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground font-medium">Total Intereses Causados</p>
+                    <p className="text-lg font-bold text-amber-600">{formatCurrency(statement.interestBalance)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground font-medium">Total Consolidado</p>
+                    <p className="text-lg font-bold text-foreground">{formatCurrency(statement.principalBalance + statement.interestBalance)}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
               <Card>
                 <CardHeader>
                   <h3 className="font-bold text-foreground">Movimientos</h3>
@@ -302,7 +323,7 @@ export default function DocumentsPage() {
                         <tr>
                           <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Fecha</th>
                           <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Descripción</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Referencia</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Detalle Interés</th>
                           <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Débito</th>
                           <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Crédito</th>
                           <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Saldo</th>
@@ -316,22 +337,45 @@ export default function DocumentsPage() {
                             </td>
                           </tr>
                         ) : (
-                          statement.lines.map((line, i) => (
-                            <tr key={i} className="hover:bg-muted/30 transition-colors">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{new Date(line.date).toLocaleDateString('es-CO')}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{line.description}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground font-mono">{line.reference}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm text-rose-600">
-                                {line.debit > 0 ? formatCurrency(line.debit) : '—'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm text-emerald-600">
-                                {line.credit > 0 ? formatCurrency(line.credit) : '—'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm font-bold text-foreground">
-                                {formatCurrency(line.balance)}
-                              </td>
-                            </tr>
-                          ))
+                          statement.lines.map((line, i) => {
+                            let interestDetail = '—';
+                            if (line.lineType === 'Interest' && line.dailyRate !== undefined && line.daysInPeriod !== undefined && line.baseAmount !== undefined) {
+                              interestDetail = `Período ${line.period} · Tasa diaria ${(line.dailyRate * 100).toFixed(6)}% · ${line.daysInPeriod} días · Base ${formatCurrency(line.baseAmount)}`;
+                            }
+
+                            let paymentBadge = null;
+                            if (line.lineType === 'Payment' && line.imputationType) {
+                              const badgeClass = line.imputationType === 'Manual'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-slate-100 text-slate-700';
+                              const badgeLabel = line.imputationType === 'Manual' ? 'Manual' : 'Automática';
+                              paymentBadge = (
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}>
+                                  {badgeLabel}
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <tr key={i} className="hover:bg-muted/30 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{new Date(line.date).toLocaleDateString('es-CO')}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">{line.description}</td>
+                                <td className="px-6 py-4 text-xs text-muted-foreground space-y-1">
+                                  <div>{interestDetail}</div>
+                                  {paymentBadge}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm text-rose-600">
+                                  {line.debit > 0 ? formatCurrency(line.debit) : '—'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm text-emerald-600">
+                                  {line.credit > 0 ? formatCurrency(line.credit) : '—'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right font-mono text-sm font-bold text-foreground">
+                                  {formatCurrency(line.balance)}
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>

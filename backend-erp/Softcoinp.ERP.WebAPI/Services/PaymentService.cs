@@ -646,22 +646,30 @@ public class PaymentService
         var payments = await _context.Payments
             .Where(p => p.TenantId == tenantId && p.UnitId == unitId)
             .OrderByDescending(p => p.PaymentDate)
-            .Select(p => new PaymentDto
-            {
-                Id = p.Id,
-                UnitId = p.UnitId,
-                UnitIdentifier = unit != null ? unit.Identifier : string.Empty,
-                PaymentDate = p.PaymentDate,
-                Amount = p.Amount,
-                PaymentMethod = p.PaymentMethod.ToString(),
-                ReferenceNumber = p.ReferenceNumber,
-                Notes = p.Notes,
-                AdvanceAmount = p.AdvanceAmount,
-                CreatedAt = p.CreatedAt
-            })
             .ToListAsync();
 
-        return payments;
+        var unitIdentifier = string.Empty;
+        if (unit != null)
+        {
+            unitIdentifier = unit.Identifier;
+        }
+
+        return payments.Select(p => new PaymentDto
+        {
+            Id = p.Id,
+            UnitId = p.UnitId,
+            UnitIdentifier = unitIdentifier,
+            PaymentDate = p.PaymentDate,
+            Amount = p.Amount,
+            PaymentMethod = p.PaymentMethod.ToString(),
+            ReferenceNumber = p.ReferenceNumber,
+            Notes = p.Notes,
+            AdvanceAmount = p.AdvanceAmount,
+            CreatedAt = p.CreatedAt,
+            ImputationType = p.ImputationType.ToString(),
+            ManualJustification = p.ManualJustification,
+            ReceivedByUserId = p.ReceivedByUserId
+        }).ToList();
     }
 
     public async Task<PaymentDetailDto> GetPaymentDetailAsync(string tenantId, Guid paymentId)
@@ -706,6 +714,9 @@ public class PaymentService
             Notes = payment.Notes,
             AdvanceAmount = payment.AdvanceAmount,
             CreatedAt = payment.CreatedAt,
+            ImputationType = payment.ImputationType.ToString(),
+            ManualJustification = payment.ManualJustification,
+            ReceivedByUserId = payment.ReceivedByUserId,
             Allocations = allocations
         };
     }

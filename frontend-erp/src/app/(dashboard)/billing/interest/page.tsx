@@ -185,13 +185,14 @@ function RatesTab() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Tasa Aplicada</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Máx. Permitido</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Registrada</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">Registrado Por</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {rates.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-muted-foreground">No hay tasas registradas.</td>
+                    <td colSpan={7} className="px-6 py-12 text-center text-sm text-muted-foreground">No hay tasas registradas.</td>
                   </tr>
                 )}
                 {rates.map(rate => (
@@ -201,6 +202,7 @@ function RatesTab() {
                     <td className="px-6 py-4 text-sm">{rate.appliedRate.toFixed(4)}%</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{rate.maxAllowedRate.toFixed(4)}%</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(rate.registeredAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground font-mono">{rate.registeredByUserId}</td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleDelete(rate.id)}
@@ -928,13 +930,22 @@ function ReportsTab() {
 
       {report && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
                 <DollarSign className="w-5 h-5 text-emerald-600 shrink-0" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Interés</p>
+                  <p className="text-xs text-muted-foreground">Total Interés Generado</p>
                   <p className="text-lg font-bold">${report.totalCalculated.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <DollarSign className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Cobrado</p>
+                  <p className="text-lg font-bold">${report.totalCollected.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>

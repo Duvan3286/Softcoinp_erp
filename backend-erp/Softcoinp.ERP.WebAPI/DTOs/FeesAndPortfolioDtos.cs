@@ -142,6 +142,10 @@ public class StatementLineDto
     public decimal Balance { get; set; }
     public string LineType { get; set; } = "Principal";
     public string? Period { get; set; }
+    public decimal? DailyRate { get; set; }
+    public int? DaysInPeriod { get; set; }
+    public decimal? BaseAmount { get; set; }
+    public string? ImputationType { get; set; }
 }
 
 public class RegisterPaymentRequestDto
@@ -199,6 +203,9 @@ public class PaymentDto
     public string Notes { get; set; } = string.Empty;
     public decimal AdvanceAmount { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string ImputationType { get; set; } = string.Empty;
+    public string? ManualJustification { get; set; }
+    public string ReceivedByUserId { get; set; } = string.Empty;
 }
 
 public class PaymentDetailDto
@@ -213,6 +220,9 @@ public class PaymentDetailDto
     public string Notes { get; set; } = string.Empty;
     public decimal AdvanceAmount { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string ImputationType { get; set; } = string.Empty;
+    public string? ManualJustification { get; set; }
+    public string ReceivedByUserId { get; set; } = string.Empty;
     public List<PaymentAllocationDto> Allocations { get; set; } = new();
 }
 
@@ -495,6 +505,7 @@ public class InterestReportDto
 {
     public List<InterestReportLineDto> Lines { get; set; } = new();
     public decimal TotalCalculated { get; set; }
+    public decimal TotalCollected { get; set; }
     public decimal TotalBalance { get; set; }
     public decimal TotalBaseAmount { get; set; }
     public int PendingCount { get; set; }

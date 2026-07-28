@@ -201,9 +201,13 @@ public class FeesAndPortfolioController : BaseController
             .Where(c => c.TenantId == tenantId && !c.IsDisputed)
             .SumAsync(c => c.BalanceAmount);
 
+        var interestOutstanding = await _context.AccruedInterests
+            .Where(ai => ai.TenantId == tenantId && ai.Status == AccruedInterestStatus.Pending)
+            .SumAsync(ai => ai.BalanceAmount);
+
         var totalBilled = unitFees.Sum(uf => uf.FeeValue);
         var totalCollected = unitFees.Sum(uf => uf.PaidAmount);
-        var totalOutstanding = unitFees.Sum(uf => uf.BalanceAmount) + extraordinaryOutstanding + chargesOutstanding;
+        var totalOutstanding = unitFees.Sum(uf => uf.BalanceAmount) + extraordinaryOutstanding + chargesOutstanding + interestOutstanding;
         var collectionRate = 100m;
         if (totalBilled > 0)
         {
